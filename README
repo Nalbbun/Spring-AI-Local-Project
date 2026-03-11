@@ -1,5 +1,279 @@
-1
-2
-3
-3
-\
+# Nalbbun AI Local
+
+로컬 환경에서 동작하는 멀티 카테고리 AI 챗 프로젝트입니다.
+Spring Boot + Spring AI 기반으로 구성되어 있으며, 다음과 같은 기능을 포함합니다.
+
+* 카테고리 자동 분류
+
+  * GENERAL
+  * TRAVEL
+  * DEV
+  * MICE
+* 카테고리별 parser / handler / workflow 구조
+* SSE 기반 스트리밍 응답
+* conversation memory
+* category summary / important notes 저장
+* Ollama / OpenAI 혼합 모델 사용
+* 디버그 페이지를 통한 runtime 설정 및 모델 선택
+
+---
+
+## 1. 주요 구조
+
+```text
+src/main/java/ai/local/nalbbun
+├─category
+│  ├─common
+│  ├─general
+│  ├─travel
+│  ├─dev
+│  └─mice
+├─config
+├─controller
+├─debug
+├─model
+├─orchestrator
+├─registry
+├─service
+│  ├─llm
+│  ├─memory
+│  ├─prompt
+│  └─search
+└─support
+```
+
+---
+
+## 2. 주요 기능
+
+### 2.1 Category Resolver
+
+사용자 질문을 아래 카테고리로 분류합니다.
+
+* GENERAL
+* TRAVEL
+* DEV
+* MICE
+
+모드는 runtime에서 변경 가능합니다.
+
+* RULE
+* LLM
+* HYBRID
+
+---
+
+### 2.2 Category Parser
+
+각 카테고리별 parser가 존재하며, parser 모드도 runtime으로 변경 가능합니다.
+
+* RULE
+* LLM
+* HYBRID
+
+예:
+
+* Travel: 목적지 / 일수 / 예산 추출
+* Dev: taskType / topic / stack 추출
+* Mice: eventType / deliverableType / targetRegion 추출
+
+---
+
+### 2.3 Conversation Memory
+
+메모리는 다음 3층 구조로 관리됩니다.
+
+* recent messages
+* category summary
+* important notes
+
+또한 카테고리별 memory rule을 통해 요약 및 note 추출 규칙이 분리되어 있습니다.
+
+---
+
+### 2.4 Runtime Model Selection
+
+Ollama 실행 모델(`/api/ps`) 또는 설치 모델(`/api/tags`)을 읽어와서 카테고리별 모델을 선택할 수 있습니다.
+
+예:
+
+* GENERAL Model
+* DEV Model
+* MICE Model
+* TRAVEL Search Model
+* TRAVEL Plan Model
+
+---
+
+## 3. 페이지
+
+### 운영 테스트 페이지
+
+* `/`
+
+간단한 질문 입력과 SSE 응답 확인용 페이지입니다.
+
+### 디버그 페이지
+
+* `/debug`
+
+다음 기능을 제공합니다.
+
+* category resolver mode 변경
+* category parser mode 변경
+* ollama 모델 조회 및 선택
+* memory 조회 / 초기화
+* agent trace 확인
+* provider/model trace 확인
+
+---
+
+## 4. API
+
+### Chat
+
+* `GET /api/chat/stream`
+
+예:
+
+```text
+/api/chat/stream?message=부산 2박3일 80만원 여행 일정 짜줘
+```
+
+또는:
+
+```text
+/api/chat/stream?message=Spring Boot 구조 리팩토링 순서 정리해줘&category=DEV
+```
+
+---
+
+### Debug API
+
+* `GET /debug/api/config`
+
+* `POST /debug/api/config`
+
+* `POST /debug/api/config/reset`
+
+* `GET /debug/api/ollama/models?source=RUNNING`
+
+* `GET /debug/api/ollama/config`
+
+* `POST /debug/api/ollama/config`
+
+* `POST /debug/api/ollama/config/reset`
+
+* `GET /debug/api/memory`
+
+* `POST /debug/api/memory/clear`
+
+---
+
+## 5. 실행 방법
+
+### 5.1 기본 실행
+
+```bash
+./gradlew clean build
+./gradlew bootRun
+```
+
+### 5.2 local profile 실행
+
+```bash
+./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
+---
+
+## 6. 환경 변수 / 설정
+
+### OpenAI
+
+```bash
+OPENAI_API_KEY=your-api-key
+```
+
+### Ollama
+
+`application.yml` 예시:
+
+```yaml
+app:
+  ollama:
+    base-url: http://192.168.1.10:11434
+    model-source: RUNNING
+    default-general-model: azure99/blossom-v6.3:latest
+    default-dev-model: qwen2.5-coder:14b
+    default-mice-model: azure99/blossom-v6.3:latest
+    default-travel-search-model: qwen2.5-coder:14b
+    default-travel-plan-model: azure99/blossom-v6.3:latest
+```
+
+---
+
+## 7. 현재 권장 모델 전략
+
+### GENERAL
+
+* blossom 계열 또는 OpenAI
+
+### DEV
+
+* qwen2.5-coder 계열 또는 OpenAI
+
+### MICE
+
+* blossom 계열 또는 OpenAI
+
+### TRAVEL Search
+
+* tool calling 필요
+* tool 지원 모델 또는 OpenAI fallback 사용
+
+### TRAVEL Plan
+
+* 일반 text/entity 생성 모델 사용 가능
+
+---
+
+## 8. 디버그 추적
+
+SSE agent 이벤트로 다음을 확인할 수 있습니다.
+
+* CategoryResolver 결과
+* Category parser 결과
+* MemoryUpdater 갱신 여부
+* 실제 사용된 provider/model trace
+
+예:
+
+```text
+ModelTrace-GENERAL
+ModelTrace-DEV
+ModelTrace-MICE
+ModelTrace-TRAVEL_SEARCH
+ModelTrace-TRAVEL_PLAN
+MemoryUpdater
+```
+
+---
+
+## 9. 개발 메모
+
+* debug 기능은 운영 기능과 분리 유지 권장
+* `/api/chat/stream`은 운영용
+* `/debug`, `/debug/api/...`는 로컬 점검 및 디버그용
+* tool calling이 필요한 Agent는 Ollama 모델 지원 여부를 반드시 확인해야 함
+* memory summary / important notes는 category rule 기반으로 관리
+
+---
+
+## 10. 향후 확장 방향
+
+* RAG 추가
+* vector store 연동
+* category별 retrieval 전략 분리
+* persistent memory 저장소(DB/Redis) 적용
+* 운영용 사용자 UI 별도 구성
