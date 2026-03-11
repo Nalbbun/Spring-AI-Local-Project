@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Nalbbun AI Local - Test</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+        .container {
+            max-width: 980px;
+            margin: 32px auto;
+            padding: 0 16px;
+        }
+        .card {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        h1, h2 { margin-top: 0; }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        select, textarea, button, input {
+            width: 100%;
+            padding: 11px 12px;
+            font-size: 14px;
+            border-radius: 10px;
+            border: 1px solid #d0d7de;
+        }
+        textarea {
+            min-height: 130px;
+            resize: vertical;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 860px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .buttons button {
+            flex: 1;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            font-weight: 700;
+        }
+        .primary { background: #1f6feb; }
+        .secondary { background: #6c757d; }
+        .panel {
+            min-height: 320px;
+            padding: 14px;
+            border-radius: 10px;
+            background: #111827;
+            color: #e5e7eb;
+            white-space: pre-wrap;
+            font-family: Consolas, monospace;
+            overflow-y: auto;
+        }
+        .result {
+            min-height: 180px;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            background: #fafafa;
+            white-space: pre-wrap;
+        }
+        .link-box {
+            font-size: 13px;
+            color: #555;
+        }
+        a { color: #1f6feb; text-decoration: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>Nalbbun AI Local</h1>
+        <div class="link-box">
+            간단 테스트 페이지입니다. 상세 디버그는 <a href="/debug">/debug</a> 에서 확인하세요.
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="grid">
+            <div>
+                <label for="category">카테고리</label>
+                <select id="category">
+                    <option value="">자동 분류</option>
+                    <option value="GENERAL">GENERAL</option>
+                    <option value="DEV">DEV</option>
+                    <option value="MICE">MICE</option>
+                    <option value="TRAVEL">TRAVEL</option>
+                </select>
+            </div>
+            <div>
+                <label for="message">질문</label>
+                <textarea id="message" spellcheck="false">안녕, 오늘 뭐 도와줄 수 있어?</textarea>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="primary" onclick="startStream()">질문 보내기</button>
+            <button class="secondary" onclick="clearView()">화면 지우기</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>응답</h2>
+        <div id="result" class="result"></div>
+    </div>
+
+    <div class="card">
+        <h2>이벤트 로그</h2>
+        <div id="log" class="panel"></div>
+    </div>
+</div>
+
+<script>
+    let source = null;
+
+    function logLine(text) {
+        const log = document.getElementById("log");
+        log.textContent += text + "\n";
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function clearView() {
+        document.getElementById("result").textContent = "";
+        document.getElementById("log").textContent = "";
+        if (source) {
+            source.close();
+            source = null;
+        }
+    }
+
+    function startStream() {
+        if (source) {
+            source.close();
+            source = null;
+        }
+
+        document.getElementById("result").textContent = "";
+        document.getElementById("log").textContent = "";
+
+        const message = document.getElementById("message").value.trim();
+        const category = document.getElementById("category").value.trim();
+
+        if (!message) {
+            logLine("[error] 메시지를 입력하세요.");
+            return;
+        }
+
+        let url = `/api/chat/stream?message=${encodeURIComponent(message)}`;
+        if (category) {
+            url += `&category=${encodeURIComponent(category)}`;
+        }
+
+        logLine(`[request] ${message}`);
+        logLine(`[category] ${category || "AUTO"}`);
+
+        source = new EventSource(url);
+
+        source.addEventListener("agent", (event) => {
+            logLine(`[agent] ${event.data}`);
+        });
+
+        source.addEventListener("message", (event) => {
+            document.getElementById("result").textContent = event.data;
+            logLine(`[message] 응답 수신 완료`);
+        });
+
+        source.addEventListener("complete", () => {
+            logLine(`[complete] 스트림 종료`);
+            if (source) {
+                source.close();
+                source = null;
+            }
+        });
+
+        source.addEventListener("error", () => {
+            logLine(`[error] 스트림 오류 또는 종료`);
+            if (source) {
+                source.close();
+                source = null;
+            }
+        });
+    }
+</script>
+</body>
+</html>

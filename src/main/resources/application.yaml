@@ -1,0 +1,80 @@
+spring:
+  profiles:
+    active: local
+
+  application:
+    name: nalbbun-ai-local
+
+  output:
+    ansi:
+      enabled: ALWAYS
+
+  thymeleaf:
+    cache: false
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 15MB 
+    encoding:
+      enabled: true
+      charset: UTF-8
+      force: true
+
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
+          no-store: true
+          must-revalidate: true
+
+  ai:
+    chat:
+      client:
+        enabled: false
+
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: gpt-4.1-mini
+          temperature: 0.7
+
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://192.168.1.10:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:azure99/blossom-v6.3:latest}
+          keep-alive: 300s
+
+app:
+  category:
+    resolver:
+      mode: HYBRID
+
+  parser:
+    general:
+      mode: HYBRID
+    travel:
+      mode: HYBRID
+    dev:
+      mode: HYBRID
+    mice:
+      mode: HYBRID 
+  ollama:
+    base-url: http://192.168.1.10:11434
+    model-source: RUNNING
+    default-general-model: gemma2:9b
+    default-dev-model: qwen2.5-coder:14b
+    default-mice-model: exaone3.5:7.8b
+    default-travel-search-model: gemma2:9b
+    default-travel-plan-model: deepseek-r1:14b
+
+server:
+  port: 8080
+
+logging:
+  pattern:
+    console: "%clr(%-5level){green} %clr(%logger.%M\\(\\)){cyan}: %msg%n"
