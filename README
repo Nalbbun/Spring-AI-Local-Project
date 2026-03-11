@@ -1,5 +1,41 @@
-1
-2
-3
-3
-\
+# Nalbbun AI Local
+
+로컬 환경에서 동작하는 멀티 카테고리 AI 챗 프로젝트입니다.  
+Spring Boot + Spring AI 기반으로 구성되어 있으며, 다음과 같은 기능을 포함합니다.
+
+- 카테고리 자동 분류
+  - GENERAL
+  - TRAVEL
+  - DEV
+  - MICE
+- 카테고리별 parser / handler / workflow 구조
+- SSE 기반 스트리밍 응답
+- conversation memory
+- category summary / important notes 저장
+- Ollama / OpenAI 혼합 모델 사용
+- 디버그 페이지를 통한 runtime 설정 및 모델 선택
+
+---
+
+## 1. 주요 구조
+
+```text
+src/main/java/ai/local/nalbbun
+├─category
+│  ├─common
+│  ├─general
+│  ├─travel
+│  ├─dev
+│  └─mice
+├─config
+├─controller
+├─debug
+├─model
+├─orchestrator
+├─registry
+├─service
+│  ├─llm
+│  ├─memory
+│  ├─prompt
+│  └─search
+└─support
