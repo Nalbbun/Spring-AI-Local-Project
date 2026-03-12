@@ -11,6 +11,7 @@ import ai.local.nalbbun.category.common.CategoryParserMode;
 import ai.local.nalbbun.category.common.CategoryResolverMode;
 import ai.local.nalbbun.debug.model.DebugRuntimeConfig;
 import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.service.memory.ConversationMemoryService;
 
 @Service
 public class DebugRuntimeConfigService {
@@ -18,15 +19,21 @@ public class DebugRuntimeConfigService {
     private final AtomicReference<CategoryResolverMode> resolverMode;
     private final Map<ChatCategory, AtomicReference<CategoryParserMode>> parserModes =
             new EnumMap<>(ChatCategory.class);
+    private final String configuredMemoryStore;
+    private final ConversationMemoryService conversationMemoryService;
 
     public DebugRuntimeConfigService(
             @Value("${app.category.resolver.mode:HYBRID}") String resolverMode,
             @Value("${app.parser.general.mode:HYBRID}") String generalMode,
             @Value("${app.parser.travel.mode:HYBRID}") String travelMode,
             @Value("${app.parser.dev.mode:HYBRID}") String devMode,
-            @Value("${app.parser.mice.mode:HYBRID}") String miceMode
+            @Value("${app.parser.mice.mode:HYBRID}") String miceMode,
+            @Value("${app.memory.store:in-memory}") String configuredMemoryStore,
+            ConversationMemoryService conversationMemoryService
     ) {
         this.resolverMode = new AtomicReference<>(safeResolverMode(resolverMode));
+        this.configuredMemoryStore = configuredMemoryStore;
+        this.conversationMemoryService = conversationMemoryService;
 
         parserModes.put(ChatCategory.GENERAL, new AtomicReference<>(safeParserMode(generalMode)));
         parserModes.put(ChatCategory.TRAVEL, new AtomicReference<>(safeParserMode(travelMode)));
@@ -64,6 +71,8 @@ public class DebugRuntimeConfigService {
         config.setTravelParserMode(getParserMode(ChatCategory.TRAVEL).name());
         config.setDevParserMode(getParserMode(ChatCategory.DEV).name());
         config.setMiceParserMode(getParserMode(ChatCategory.MICE).name());
+        config.setMemoryStore(normalizeMemoryStore(configuredMemoryStore));
+        config.setMemoryServiceType(conversationMemoryService.getClass().getSimpleName());
         return config;
     }
 
@@ -102,6 +111,10 @@ public class DebugRuntimeConfigService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String normalizeMemoryStore(String value) {
+        return hasText(value) ? value.trim().toLowerCase() : "in-memory";
     }
 
     private CategoryResolverMode safeResolverMode(String value) {

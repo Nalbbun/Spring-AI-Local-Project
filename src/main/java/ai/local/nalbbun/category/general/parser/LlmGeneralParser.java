@@ -3,6 +3,7 @@ package ai.local.nalbbun.category.general.parser;
 import ai.local.nalbbun.category.common.parser.CategoryParsingStrategy;
 import ai.local.nalbbun.category.general.model.GeneralContext;
 import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.service.llm.LlmJsonSupport;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
@@ -31,36 +32,29 @@ public class LlmGeneralParser implements CategoryParsingStrategy<GeneralContext>
             {"intent":"general_qa"}
 
             규칙:
-            1) JSON만 반환
-            2) intent는 짧게 작성
+            1) JSON 객체만 반환
+            2) code block, 설명문, 마크다운 금지
+            3) intent는 짧게 작성
             """, state.getUserQuery());
 
         try {
             String raw = chatClient.prompt().user(prompt).call().content();
-            String json = cleanJson(raw);
-            JsonNode node = objectMapper.readTree(json);
+            JsonNode node = objectMapper.readTree(LlmJsonSupport.extractObject(raw));
 
             if (node.has("intent") && !node.get("intent").isNull()) {
-                context.setIntent(node.get("intent").asText());
+                context.setIntent(node.get("intent").asText("general_qa").trim());
             }
         } catch (Exception ignored) {
         }
 
+        if (context.getIntent() == null || context.getIntent().isBlank()) {
+            context.setIntent("general_qa");
+        }
         return context;
     }
 
     @Override
     public String mode() {
         return "LLM";
-    }
-
-    private String cleanJson(String raw) {
-        if (raw == null) return "{}";
-        String text = raw.trim();
-        if (text.startsWith("```")) {
-            text = text.replaceFirst("^```(?:json)?\\s*", "");
-            text = text.replaceFirst("```\\s*$", "");
-        }
-        return text.trim();
     }
 }

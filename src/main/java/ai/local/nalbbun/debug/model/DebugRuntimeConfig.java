@@ -9,4 +9,6 @@ public class DebugRuntimeConfig {
     private String travelParserMode;
     private String devParserMode;
     private String miceParserMode;
+    private String memoryStore;
+    private String memoryServiceType;
 }

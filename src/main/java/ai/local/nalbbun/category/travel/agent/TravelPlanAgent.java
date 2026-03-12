@@ -141,6 +141,6 @@ public class TravelPlanAgent {
     }
     
     public String describeModel() {
-        return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_SEARCH, true);
+        return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_PLAN, false);
     }
 }

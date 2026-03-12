@@ -3,6 +3,7 @@ package ai.local.nalbbun.category.travel.parser;
 import ai.local.nalbbun.category.common.parser.CategoryParsingStrategy;
 import ai.local.nalbbun.category.travel.model.TravelContext;
 import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.service.llm.LlmJsonSupport;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
@@ -24,7 +25,7 @@ public class LlmTravelParser implements CategoryParsingStrategy<TravelContext> {
         String userQuery = state.getUserQuery();
 
         String prompt = String.format("""
-            다음 사용자 질문에서 여행 정보를 추출하여 JSON 형식으로 반환하세요.
+            다음 사용자 질문에서 여행 정보를 추출하여 JSON 객체 형식으로 반환하세요.
 
             사용자 질문: "%s"
 
@@ -34,11 +35,12 @@ public class LlmTravelParser implements CategoryParsingStrategy<TravelContext> {
             - maxBudget: 총 예산 (숫자만, 원 단위)
 
             규칙:
-            1) JSON만 반환하세요.
-            2) destination을 임의로 특정 지역으로 고정하지 마세요.
-            3) 값이 불명확하면 null로 두세요.
-            4) "20만원"은 200000으로 변환하세요.
-            5) "2박3일"은 days=3 으로 변환하세요.
+            1) JSON 객체만 반환하세요.
+            2) code block, 설명문, 마크다운 금지
+            3) destination을 임의로 특정 지역으로 고정하지 마세요.
+            4) 값이 불명확하면 null로 두세요.
+            5) "20만원"은 200000으로 변환하세요.
+            6) "2박3일"은 days=3 으로 변환하세요.
 
             예시:
             {"destination":"부산","days":3,"maxBudget":800000}
@@ -50,11 +52,10 @@ public class LlmTravelParser implements CategoryParsingStrategy<TravelContext> {
                     .call()
                     .content();
 
-            String json = cleanJson(raw);
-            JsonNode node = objectMapper.readTree(json);
+            JsonNode node = objectMapper.readTree(LlmJsonSupport.extractObject(raw));
 
             if (node.has("destination") && !node.get("destination").isNull()) {
-                String destination = node.get("destination").asText();
+                String destination = node.get("destination").asText("").trim();
                 if (!destination.isBlank()) {
                     context.setDestination(destination);
                 }
@@ -62,7 +63,7 @@ public class LlmTravelParser implements CategoryParsingStrategy<TravelContext> {
 
             if (node.has("days") && !node.get("days").isNull()) {
                 int days = node.get("days").asInt();
-                if (days > 0) {
+                if (days > 0 && days <= 30) {
                     context.setDays(days);
                 }
             }
@@ -83,18 +84,5 @@ public class LlmTravelParser implements CategoryParsingStrategy<TravelContext> {
     @Override
     public String mode() {
         return "LLM";
-    }
-
-    private String cleanJson(String raw) {
-        if (raw == null) {
-            return "{}";
-        }
-
-        String text = raw.trim();
-        if (text.startsWith("```")) {
-            text = text.replaceFirst("^```(?:json)?\\s*", "");
-            text = text.replaceFirst("```\\s*$", "");
-        }
-        return text.trim();
     }
 }
