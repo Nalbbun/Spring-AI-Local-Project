@@ -64,7 +64,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
     @Override
     public List<MemoryMessage> recentMessages(String conversationId, int limit) {
         List<String> encoded = redisTemplate.opsForList().range(messagesKey(conversationId), 0, -1);
-        List<MemoryMessage> all = decodeList(encoded, new TypeReference<>() {});
+        List<MemoryMessage> all = decodeList(encoded, new TypeReference<MemoryMessage>() {});
         if (all.size() <= limit) {
             return all;
         }
@@ -86,7 +86,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
                     .append(message.getCategory())
                     .append("] ")
                     .append(message.getContent())
-                    .append("");
+                    .append("\n");
         }
         return sb.toString().trim();
     }
@@ -119,7 +119,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
     @Override
     public List<String> getImportantNotes(String conversationId, ChatCategory category) {
         List<String> encoded = redisTemplate.opsForList().range(notesKey(conversationId), 0, -1);
-        List<ImportantNote> notes = decodeList(encoded, new TypeReference<>() {});
+        List<ImportantNote> notes = decodeList(encoded, new TypeReference<ImportantNote>() {});
         List<String> result = new ArrayList<>();
         for (ImportantNote note : notes) {
             if (note.getCategory() == category) {
@@ -143,7 +143,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         }
 
         List<String> encodedNotes = redisTemplate.opsForList().range(notesKey(conversationId), 0, -1);
-        List<ImportantNote> notes = decodeList(encodedNotes, new TypeReference<>() {});
+        List<ImportantNote> notes = decodeList(encodedNotes, new TypeReference<ImportantNote>() {});
 
         return new ConversationMemorySnapshot(
                 conversationId,
@@ -198,7 +198,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         }
     }
 
-    private <T> List<T> decodeList(List<String> values, TypeReference<List<T>> typeReference) {
+    private <T> List<T> decodeList(List<String> values, TypeReference<T> typeReference) {
         List<T> result = new ArrayList<>();
         if (values == null || values.isEmpty()) {
             return result;
