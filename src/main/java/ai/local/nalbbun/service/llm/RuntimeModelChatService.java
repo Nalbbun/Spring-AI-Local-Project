@@ -1,111 +1,120 @@
 package ai.local.nalbbun.service.llm;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
 import ai.local.nalbbun.debug.model.RuntimeModelTarget;
-import ai.local.nalbbun.debug.service.DebugRuntimeModelConfigService;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class RuntimeModelChatService {
 
     private final ChatClient.Builder openaiBuilder;
     private final ChatClient.Builder ollamaBuilder;
-    private final DebugRuntimeModelConfigService debugRuntimeModelConfigService;
-
-    private final Set<String> toolCapableOllamaModels = new HashSet<>(List.of(
-            "qwen2.5-coder:14b",
-            "qwen3-coder:latest",
-            "deepseek-r1:14b",
-            "exaone3.5:7.8b",
-            "gemma2:9b"
-    ));
+    private final RuntimeModelResolver runtimeModelResolver;
+    private final Executor llmTaskExecutor;
+    private final long timeoutMs;
+    private final int retryAttempts;
+    private final long retryBackoffMs;
 
     public RuntimeModelChatService(
             @Qualifier("openaiBuilder") ChatClient.Builder openaiBuilder,
             @Qualifier("ollamaBuilder") ChatClient.Builder ollamaBuilder,
-            DebugRuntimeModelConfigService debugRuntimeModelConfigService
+            RuntimeModelResolver runtimeModelResolver,
+            @Qualifier("llmTaskExecutor") Executor llmTaskExecutor,
+            @Value("${app.llm.timeout-ms:45000}") long timeoutMs,
+            @Value("${app.llm.retry-attempts:2}") int retryAttempts,
+            @Value("${app.llm.retry-backoff-ms:800}") long retryBackoffMs
     ) {
         this.openaiBuilder = openaiBuilder;
         this.ollamaBuilder = ollamaBuilder;
-        this.debugRuntimeModelConfigService = debugRuntimeModelConfigService;
+        this.runtimeModelResolver = runtimeModelResolver;
+        this.llmTaskExecutor = llmTaskExecutor;
+        this.timeoutMs = timeoutMs;
+        this.retryAttempts = Math.max(1, retryAttempts);
+        this.retryBackoffMs = Math.max(0, retryBackoffMs);
     }
 
     public String callText(RuntimeModelTarget target, String systemPrompt, String userPrompt) {
-        ResolvedRuntimeModel resolved = resolve(target, false);
+        RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, false);
+        return executeWithPolicy(target, resolved, () -> {
+            if (resolved.ollama()) {
+                ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+                return client.prompt()
+                        .user(userPrompt)
+                        .options(OllamaChatOptions.builder()
+                                .model(resolved.modelName())
+                                .build())
+                        .call()
+                        .content();
+            }
 
-        if (resolved.ollama()) {
-            ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+            ChatClient client = openaiBuilder.defaultSystem(systemPrompt).build();
             return client.prompt()
                     .user(userPrompt)
-                    .options(OllamaChatOptions.builder()
-                            .model(resolved.modelName())
-                            .build())
                     .call()
                     .content();
-        }
-
-        ChatClient client = openaiBuilder.defaultSystem(systemPrompt).build();
-        return client.prompt()
-                .user(userPrompt)
-                .call()
-                .content();
+        });
     }
 
     public <T> T callEntity(RuntimeModelTarget target,
                             String systemPrompt,
                             String userPrompt,
                             Class<T> responseType) {
-        ResolvedRuntimeModel resolved = resolve(target, false);
+        RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, false);
+        return executeWithPolicy(target, resolved, () -> {
+            if (resolved.ollama()) {
+                ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+                return client.prompt()
+                        .user(userPrompt)
+                        .options(OllamaChatOptions.builder()
+                                .model(resolved.modelName())
+                                .build())
+                        .call()
+                        .entity(responseType);
+            }
 
-        if (resolved.ollama()) {
-            ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+            ChatClient client = openaiBuilder.defaultSystem(systemPrompt).build();
             return client.prompt()
                     .user(userPrompt)
-                    .options(OllamaChatOptions.builder()
-                            .model(resolved.modelName())
-                            .build())
                     .call()
                     .entity(responseType);
-        }
-
-        ChatClient client = openaiBuilder.defaultSystem(systemPrompt).build();
-        return client.prompt()
-                .user(userPrompt)
-                .call()
-                .entity(responseType);
+        });
     }
 
     public <T> T callEntity(RuntimeModelTarget target,
                             String systemPrompt,
                             String userPrompt,
                             ParameterizedTypeReference<T> responseType) {
-        ResolvedRuntimeModel resolved = resolve(target, false);
+        RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, false);
+        return executeWithPolicy(target, resolved, () -> {
+            if (resolved.ollama()) {
+                ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+                return client.prompt()
+                        .user(userPrompt)
+                        .options(OllamaChatOptions.builder()
+                                .model(resolved.modelName())
+                                .build())
+                        .call()
+                        .entity(responseType);
+            }
 
-        if (resolved.ollama()) {
-            ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+            ChatClient client = openaiBuilder.defaultSystem(systemPrompt).build();
             return client.prompt()
                     .user(userPrompt)
-                    .options(OllamaChatOptions.builder()
-                            .model(resolved.modelName())
-                            .build())
                     .call()
                     .entity(responseType);
-        }
-
-        ChatClient client = openaiBuilder.defaultSystem(systemPrompt).build();
-        return client.prompt()
-                .user(userPrompt)
-                .call()
-                .entity(responseType);
+        });
     }
 
     public <T> T callEntityWithTools(RuntimeModelTarget target,
@@ -113,74 +122,80 @@ public class RuntimeModelChatService {
                                      String userPrompt,
                                      Object toolObject,
                                      ParameterizedTypeReference<T> responseType) {
-        ResolvedRuntimeModel resolved = resolve(target, true);
+        RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, true);
+        return executeWithPolicy(target, resolved, () -> {
+            if (resolved.ollama()) {
+                ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+                return client.prompt()
+                        .user(userPrompt)
+                        .tools(toolObject)
+                        .options(OllamaChatOptions.builder()
+                                .model(resolved.modelName())
+                                .build())
+                        .call()
+                        .entity(responseType);
+            }
 
-        if (resolved.ollama()) {
-            ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+            ChatClient client = openaiBuilder.defaultSystem(systemPrompt).build();
             return client.prompt()
                     .user(userPrompt)
                     .tools(toolObject)
-                    .options(OllamaChatOptions.builder()
-                            .model(resolved.modelName())
-                            .build())
                     .call()
                     .entity(responseType);
-        }
-
-        ChatClient client = openaiBuilder.defaultSystem(systemPrompt).build();
-        return client.prompt()
-                .user(userPrompt)
-                .tools(toolObject)
-                .call()
-                .entity(responseType);
+        });
     }
 
     public String describeResolvedModel(RuntimeModelTarget target, boolean requiresTools) {
-        ResolvedRuntimeModel resolved = resolve(target, requiresTools);
-        return resolved.ollama()
-                ? "OLLAMA:" + resolved.modelName()
-                : "OPENAI:default";
+        return runtimeModelResolver.resolve(target, requiresTools).describe();
     }
 
-    private ResolvedRuntimeModel resolve(RuntimeModelTarget target, boolean requiresTools) {
-        String configuredModel = getConfiguredModel(target);
+    private <T> T executeWithPolicy(RuntimeModelTarget target,
+                                    RuntimeModelSelection resolved,
+                                    Supplier<T> supplier) {
+        Exception lastException = null;
 
-        if (configuredModel == null || configuredModel.isBlank()) {
-            return new ResolvedRuntimeModel(false, null);
+        for (int attempt = 1; attempt <= retryAttempts; attempt++) {
+            try {
+                if (resolved.fallbackApplied()) {
+                    log.warn("LLM fallback applied. target={}, resolution={}", target, resolved.describe());
+                } else {
+                    log.debug("LLM call. target={}, resolution={}", target, resolved.describe());
+                }
+
+                return CompletableFuture.supplyAsync(supplier, llmTaskExecutor)
+                        .orTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                        .join();
+            } catch (Exception e) {
+                lastException = unwrap(e);
+                log.warn("LLM call failed. target={}, attempt={}/{}, reason={}",
+                        target, attempt, retryAttempts, lastException.getMessage());
+                sleepBackoff(attempt);
+            }
         }
 
-        if (requiresTools && !supportsTools(configuredModel)) {
-            return new ResolvedRuntimeModel(false, null);
-        }
-
-        return new ResolvedRuntimeModel(true, configuredModel);
+        throw new IllegalStateException(
+                "LLM 호출 실패: target=%s, timeoutMs=%d, attempts=%d, cause=%s"
+                        .formatted(target, timeoutMs, retryAttempts, lastException == null ? "unknown" : lastException.getMessage()),
+                lastException
+        );
     }
 
-    private String getConfiguredModel(RuntimeModelTarget target) {
-        return switch (target) {
-            case GENERAL -> debugRuntimeModelConfigService.getGeneralModel();
-            case DEV -> debugRuntimeModelConfigService.getDevModel();
-            case MICE -> debugRuntimeModelConfigService.getMiceModel();
-            case TRAVEL_SEARCH -> debugRuntimeModelConfigService.getTravelSearchModel();
-            case TRAVEL_PLAN -> debugRuntimeModelConfigService.getTravelPlanModel();
-        };
+    private Exception unwrap(Exception exception) {
+        Throwable current = exception;
+        while (current.getCause() != null && current instanceof RuntimeException) {
+            current = current.getCause();
+        }
+        return current instanceof Exception e ? e : new RuntimeException(current);
     }
 
-    private boolean supportsTools(String modelName) {
-        String normalized = modelName == null ? "" : modelName.trim().toLowerCase(Locale.ROOT);
-
-        if (normalized.isBlank()) {
-            return false;
+    private void sleepBackoff(int attempt) {
+        if (attempt >= retryAttempts || retryBackoffMs <= 0) {
+            return;
         }
-
-        if (normalized.contains("blossom")) {
-            return false;
+        try {
+            Thread.sleep(retryBackoffMs * attempt);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
         }
-
-        return toolCapableOllamaModels.stream()
-                .anyMatch(allowed -> allowed.equalsIgnoreCase(modelName));
-    }
-
-    private record ResolvedRuntimeModel(boolean ollama, String modelName) {
     }
 }

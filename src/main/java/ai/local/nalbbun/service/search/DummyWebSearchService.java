@@ -14,6 +14,12 @@ import java.util.Locale;
 public class DummyWebSearchService implements WebSearchPort {
 
     @Override
+    public String providerName() {
+        return "dummy";
+    }
+
+
+    @Override
     public String search(String query) {
         String q = normalize(query);
 

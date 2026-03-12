@@ -5,6 +5,7 @@ import ai.local.nalbbun.model.common.ConversationMemorySnapshot;
 import ai.local.nalbbun.model.common.ImportantNote;
 import ai.local.nalbbun.model.common.MemoryMessage;
 import ai.local.nalbbun.model.common.MemorySummary;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@ConditionalOnProperty(prefix = "app.memory", name = "store", havingValue = "in-memory", matchIfMissing = true)
 public class InMemoryConversationMemoryService implements ConversationMemoryService {
 
     private static final int MAX_MESSAGES_PER_CONVERSATION = 50;

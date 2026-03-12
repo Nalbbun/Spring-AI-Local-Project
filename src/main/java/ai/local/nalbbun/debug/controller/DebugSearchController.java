@@ -2,6 +2,7 @@ package ai.local.nalbbun.debug.controller;
 
 import ai.local.nalbbun.port.WebSearchPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 @RestController
 @Profile("local")
+@ConditionalOnProperty(prefix = "app.debug", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class DebugSearchController {
 
@@ -20,7 +22,7 @@ public class DebugSearchController {
     @GetMapping("/debug/api/search")
     public Map<String, Object> search(@RequestParam(name = "query") String query) {
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("provider", "dummy");
+        response.put("provider", webSearchPort.providerName());
         response.put("query", query);
         response.put("result", webSearchPort.search(query));
         return response;
@@ -29,7 +31,7 @@ public class DebugSearchController {
     @GetMapping("/debug/api/search/fetch")
     public Map<String, Object> fetch(@RequestParam(name = "url") String url) {
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("provider", "dummy");
+        response.put("provider", webSearchPort.providerName());
         response.put("url", url);
         response.put("result", webSearchPort.fetch(url));
         return response;

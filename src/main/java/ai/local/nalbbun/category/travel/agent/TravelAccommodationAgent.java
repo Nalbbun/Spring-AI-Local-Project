@@ -99,7 +99,7 @@ public class TravelAccommodationAgent {
 
         List<Accommodation> normalized = new ArrayList<>(items.size());
         for (Accommodation accommodation : items) {
-            if (accommodation == null) {
+            if (accommodation == null || accommodation.getName() == null || accommodation.getName().isBlank()) {
                 continue;
             }
 

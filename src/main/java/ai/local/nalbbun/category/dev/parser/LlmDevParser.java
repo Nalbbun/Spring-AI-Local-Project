@@ -1,8 +1,11 @@
 package ai.local.nalbbun.category.dev.parser;
 
+import java.util.Set;
+
 import ai.local.nalbbun.category.common.parser.CategoryParsingStrategy;
 import ai.local.nalbbun.category.dev.model.DevContext;
 import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.service.llm.LlmJsonSupport;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
@@ -11,6 +14,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class LlmDevParser implements CategoryParsingStrategy<DevContext> {
+
+    private static final Set<String> ALLOWED_TASK_TYPES = Set.of(
+            "refactoring", "troubleshooting", "setup", "implementation"
+    );
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -35,24 +42,32 @@ public class LlmDevParser implements CategoryParsingStrategy<DevContext> {
             }
 
             규칙:
-            1) JSON만 반환
-            2) 모르면 null 또는 빈 배열
+            1) JSON 객체만 반환
+            2) code block, 설명문, 마크다운 금지
+            3) 모르면 null 또는 빈 배열
             """, state.getUserQuery());
 
         try {
             String raw = chatClient.prompt().user(prompt).call().content();
-            String json = cleanJson(raw);
-            JsonNode node = objectMapper.readTree(json);
+            JsonNode node = objectMapper.readTree(LlmJsonSupport.extractObject(raw));
 
             if (node.has("taskType") && !node.get("taskType").isNull()) {
-                context.setTaskType(node.get("taskType").asText());
+                String taskType = node.get("taskType").asText("").trim().toLowerCase();
+                if (ALLOWED_TASK_TYPES.contains(taskType)) {
+                    context.setTaskType(taskType);
+                }
             }
             if (node.has("topic") && !node.get("topic").isNull()) {
-                context.setTopic(node.get("topic").asText());
+                context.setTopic(node.get("topic").asText().trim());
             }
             if (node.has("stackKeywords") && node.get("stackKeywords").isArray()) {
                 context.getStackKeywords().clear();
-                node.get("stackKeywords").forEach(n -> context.getStackKeywords().add(n.asText()));
+                node.get("stackKeywords").forEach(n -> {
+                    String keyword = n.asText("").trim();
+                    if (!keyword.isBlank()) {
+                        context.getStackKeywords().add(keyword);
+                    }
+                });
             }
         } catch (Exception ignored) {
         }
@@ -63,15 +78,5 @@ public class LlmDevParser implements CategoryParsingStrategy<DevContext> {
     @Override
     public String mode() {
         return "LLM";
-    }
-
-    private String cleanJson(String raw) {
-        if (raw == null) return "{}";
-        String text = raw.trim();
-        if (text.startsWith("```")) {
-            text = text.replaceFirst("^```(?:json)?\\s*", "");
-            text = text.replaceFirst("```\\s*$", "");
-        }
-        return text.trim();
     }
 }

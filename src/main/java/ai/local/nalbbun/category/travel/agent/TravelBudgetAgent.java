@@ -7,22 +7,13 @@ import ai.local.nalbbun.category.travel.model.DaySchedule;
 import ai.local.nalbbun.category.travel.model.Plan;
 import ai.local.nalbbun.category.travel.model.ScheduleItem;
 import ai.local.nalbbun.category.travel.model.TravelContext;
-import ai.local.nalbbun.debug.model.RuntimeModelTarget;
-import ai.local.nalbbun.port.WebSearchPort;
-import ai.local.nalbbun.service.llm.RuntimeModelChatService;
 
 @Component
 public class TravelBudgetAgent {
 
-    private final RuntimeModelChatService runtimeModelChatService;
-    
-    public TravelBudgetAgent(
-            RuntimeModelChatService runtimeModelChatService,
-            WebSearchPort webSearchPort
-    ) {
-        this.runtimeModelChatService = runtimeModelChatService; 
+    public TravelBudgetAgent() {
     }
-    
+
     public void execute(TravelContext context) {
         Integer maxBudget = context.getMaxBudget();
         Plan plan = context.getPlan();
@@ -87,8 +78,8 @@ public class TravelBudgetAgent {
         plan.setAttractions(attractionsCost);
         plan.setTotalCost(mealsCost + accommodationCost + attractionsCost);
     }
-    
+
     public String describeModel() {
-        return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_SEARCH, true);
+        return "INTERNAL:rule-based-budget-analysis";
     }
 }

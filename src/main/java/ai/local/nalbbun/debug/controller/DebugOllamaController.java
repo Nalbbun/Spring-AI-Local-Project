@@ -2,6 +2,7 @@ package ai.local.nalbbun.debug.controller;
 
 import java.util.List;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @Profile("local")
+@ConditionalOnProperty(prefix = "app.debug", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 @RequestMapping("/debug/api/ollama")
 public class DebugOllamaController {

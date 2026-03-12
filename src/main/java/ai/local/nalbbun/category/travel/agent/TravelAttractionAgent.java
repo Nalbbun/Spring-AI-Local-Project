@@ -111,7 +111,7 @@ public class TravelAttractionAgent {
 
         List<Attraction> normalized = new ArrayList<>(items.size());
         for (Attraction a : items) {
-            if (a == null) {
+            if (a == null || a.getName() == null || a.getName().isBlank()) {
                 continue;
             }
 
