@@ -1,0 +1,26 @@
+app:
+  debug:
+    enabled: true
+
+  llm:
+    fallback-policy: ${APP_LLM_FALLBACK_POLICY:ALLOW_OPENAI}
+
+  memory:
+    store: ${APP_MEMORY_STORE:in-memory}
+
+  search:
+    provider: ${APP_SEARCH_PROVIDER:dummy}
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/nalbbun_ai}
+    username: ${SPRING_DATASOURCE_USERNAME:nalbbun}
+    password: ${SPRING_DATASOURCE_PASSWORD:nalbbun1234}
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      database: ${SPRING_DATA_REDIS_DATABASE:0}
+      timeout: 3s
