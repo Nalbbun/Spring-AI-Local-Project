@@ -18,10 +18,7 @@ public class RuntimeModelResolver {
     private final ExternalLlmFallbackPolicy fallbackPolicy;
     private final Set<String> toolCapableOllamaModels = new HashSet<>(List.of(
             "qwen2.5-coder:14b",
-            "qwen3-coder:latest",
-            "deepseek-r1:14b",
-            "exaone3.5:7.8b",
-            "gemma2:9b"
+            "qwen3-coder:latest"
     ));
 
     public RuntimeModelResolver(
