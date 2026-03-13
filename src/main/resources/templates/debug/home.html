@@ -183,6 +183,7 @@
         <span class="status-item">conversation id <strong id="statusConversationId">-</strong></span>
         <span class="status-item">store type <strong id="statusStoreType">-</strong></span>
         <span class="status-item">fallback policy <strong id="statusFallbackPolicy">-</strong></span>
+        <span class="status-item">db <strong id="statusDb">-</strong></span>
     </div>
 	<div class="card">
 	    <h2>Ollama Model Debug</h2>
@@ -308,16 +309,100 @@
                     <option value="MICE">MICE</option>
                 </select>
             </div>
+            <div>
+                <label for="fallbackPolicy">Fallback Policy</label>
+                <select id="fallbackPolicy">
+                    <option value="ALLOW_OPENAI">ALLOW_OPENAI</option>
+                    <option value="BLOCK_OPENAI">BLOCK_OPENAI</option>
+                </select>
+            </div>
+            <div>
+                <label for="llmTimeoutMs">LLM Timeout (ms)</label>
+                <input id="llmTimeoutMs" type="number" min="1000" step="100">
+            </div>
+            <div>
+                <label for="llmRetryAttempts">LLM Retry Attempts</label>
+                <input id="llmRetryAttempts" type="number" min="1" step="1">
+            </div>
+            <div>
+                <label for="llmRetryBackoffMs">LLM Retry Backoff (ms)</label>
+                <input id="llmRetryBackoffMs" type="number" min="0" step="100">
+            </div>
+            <div>
+                <label for="ragEnabled">RAG Enabled</label>
+                <select id="ragEnabled">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+            <div>
+                <label for="ragTopK">RAG Top-K</label>
+                <input id="ragTopK" type="number" min="1" step="1">
+            </div>
+            <div>
+                <label for="ragSimilarityThreshold">RAG Similarity Threshold</label>
+                <input id="ragSimilarityThreshold" type="number" min="0" max="1" step="0.01">
+            </div>
+            <div>
+                <label for="ragIncludeCitations">RAG Include Citations</label>
+                <select id="ragIncludeCitations">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+            <div>
+                <label for="ragGeneralEnabled">RAG GENERAL Enabled</label>
+                <select id="ragGeneralEnabled">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+            <div>
+                <label for="ragDevEnabled">RAG DEV Enabled</label>
+                <select id="ragDevEnabled">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+            <div>
+                <label for="ragMiceEnabled">RAG MICE Enabled</label>
+                <select id="ragMiceEnabled">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+            <div>
+                <label for="ragTravelEnabled">RAG TRAVEL Enabled</label>
+                <select id="ragTravelEnabled">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+            <div>
+                <label for="ragDatasetLocation">RAG Eval Dataset Location</label>
+                <input id="ragDatasetLocation" placeholder="classpath:rag/eval/default-eval-set.json">
+            </div>
         </div>
 
         <div class="buttons">
             <button class="success" onclick="loadDebugConfig()">현재 설정 조회</button>
             <button class="primary" onclick="saveDebugConfig()">설정 저장</button>
             <button class="secondary" onclick="resetDebugConfig()">설정 초기화</button>
+            <button class="secondary" onclick="loadDbInfo()">DB 현황 조회</button>
         </div>
 
         <div id="configStatus" class="status-box">디버그 설정 상태 대기 중</div>
         <div id="runtimeStoreStatus" class="status-box">메모리 저장소 정보 대기 중</div>
+        <div class="grid-2">
+            <div>
+                <h3>Server / Runtime Settings</h3>
+                <div id="serverSettingsPanel" class="light-panel">서버 설정 정보 대기 중</div>
+            </div>
+            <div>
+                <h3>DB / Registry Status</h3>
+                <div id="dbInfoPanel" class="light-panel">DB 현황 정보 대기 중</div>
+            </div>
+        </div>
     </div>
 
     <div class="card">
@@ -353,7 +438,7 @@
 
     <div class="card">
         <h2>RAG 업로드 테스트</h2>
-        <p class="small">source를 비워두면 파일명 또는 title 기준으로 자동 생성됩니다. version을 비우면 v1을 사용합니다.</p>
+        <p class="small">source를 비워두면 파일명 또는 title 기준으로 자동 생성됩니다. version을 비우면 v1을 사용합니다. PDF/Markdown/HTML, 텍스트 계열 문서와 주요 코드·설정 파일 업로드를 지원합니다.</p>
         <div class="grid-3">
             <div>
                 <label for="ragCategory">RAG Category</label>
@@ -378,11 +463,11 @@
             </div>
             <div>
                 <label for="ragFile">단일 파일</label>
-                <input id="ragFile" type="file" accept=".pdf,.md,.markdown,.txt,.log,.yaml,.yml,.json,.xml,.csv">
+                <input id="ragFile" type="file" accept=".pdf,.md,.markdown,.txt,.log,.yaml,.yml,.json,.xml,.csv,.tsv,.html,.htm,.properties,.conf,.cfg,.ini,.sql,.java,.kt,.kts,.gradle,.sh,.bash,.zsh,.bat,.cmd,.ps1,.py,.js,.jsx,.ts,.tsx,.css,.scss,.less,.c,.cpp,.cc,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.scala,.r,.vue,.svelte,.toml,.lock,.tex,.adoc,.asciidoc,.rst">
             </div>
             <div>
                 <label for="ragFiles">멀티파일</label>
-                <input id="ragFiles" type="file" multiple accept=".pdf,.md,.markdown,.txt,.log,.yaml,.yml,.json,.xml,.csv">
+                <input id="ragFiles" type="file" multiple accept=".pdf,.md,.markdown,.txt,.log,.yaml,.yml,.json,.xml,.csv,.tsv,.html,.htm,.properties,.conf,.cfg,.ini,.sql,.java,.kt,.kts,.gradle,.sh,.bash,.zsh,.bat,.cmd,.ps1,.py,.js,.jsx,.ts,.tsx,.css,.scss,.less,.c,.cpp,.cc,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.scala,.r,.vue,.svelte,.toml,.lock,.tex,.adoc,.asciidoc,.rst">
             </div>
         </div>
         <div class="buttons">
@@ -451,6 +536,38 @@ conversationId=${conversationId}
         );
     }
 
+    function renderServerSettings(data) {
+        const profiles = Array.isArray(data.activeProfiles) && data.activeProfiles.length > 0
+            ? data.activeProfiles.join(', ')
+            : '-';
+        document.getElementById('serverSettingsPanel').textContent =
+            `application=${data.applicationName || '-'}
+profiles=${profiles}
+debugEnabled=${data.debugEnabled}
+serverPort=${data.serverPort || '-'}
+datasourceUrl=${data.datasourceUrl || '-'}
+datasourceUsername=${data.datasourceUsername || '-'}
+redis=${data.redisHost || '-'}:${data.redisPort || '-'}
+ollamaBaseUrl=${data.ollamaBaseUrl || '-'}
+ragVectorStore=${data.ragVectorStore || '-'}
+ragRegistryBaseDir=${data.ragRegistryBaseDir || '-'}
+llmTimeoutMs=${data.llmTimeoutMs || '-'}
+llmRetryAttempts=${data.llmRetryAttempts || '-'}
+llmRetryBackoffMs=${data.llmRetryBackoffMs || '-'}
+* datasource/redis/port/profile 등은 조회 전용이며 실제 변경은 재시작이 필요합니다.`;
+    }
+
+    async function loadDbInfo() {
+        try {
+            const data = await fetchJson('/debug/api/rag/db-info');
+            document.getElementById('statusDb').textContent = data?.jdbc?.connected ? 'connected' : 'offline';
+            document.getElementById('dbInfoPanel').textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+            document.getElementById('statusDb').textContent = 'error';
+            document.getElementById('dbInfoPanel').textContent = 'DB 현황 조회 실패: ' + e.message;
+        }
+    }
+
     function logLine(text) {
         const log = document.getElementById("streamLog");
         log.textContent += text + "\n";
@@ -511,6 +628,19 @@ conversationId=${conversationId}
             document.getElementById('travelParserMode').value = data.travelParserMode || 'HYBRID';
             document.getElementById('devParserMode').value = data.devParserMode || 'HYBRID';
             document.getElementById('miceParserMode').value = data.miceParserMode || 'HYBRID';
+            document.getElementById('fallbackPolicy').value = data.fallbackPolicy || 'BLOCK_OPENAI';
+            document.getElementById('llmTimeoutMs').value = data.llmTimeoutMs || 45000;
+            document.getElementById('llmRetryAttempts').value = data.llmRetryAttempts || 2;
+            document.getElementById('llmRetryBackoffMs').value = data.llmRetryBackoffMs || 800;
+            document.getElementById('ragEnabled').value = String(data.ragEnabled ?? true);
+            document.getElementById('ragTopK').value = data.ragTopK || 4;
+            document.getElementById('ragSimilarityThreshold').value = data.ragSimilarityThreshold ?? 0.72;
+            document.getElementById('ragIncludeCitations').value = String(data.ragIncludeCitations ?? true);
+            document.getElementById('ragGeneralEnabled').value = String(data.ragGeneralEnabled ?? false);
+            document.getElementById('ragDevEnabled').value = String(data.ragDevEnabled ?? true);
+            document.getElementById('ragMiceEnabled').value = String(data.ragMiceEnabled ?? true);
+            document.getElementById('ragTravelEnabled').value = String(data.ragTravelEnabled ?? false);
+            document.getElementById('ragDatasetLocation').value = data.ragDatasetLocation || '';
 
             setConfigStatus(
                 `설정 조회 완료
@@ -520,9 +650,14 @@ travel=${data.travelParserMode}
 dev=${data.devParserMode}
 mice=${data.miceParserMode}
 fallbackPolicy=${data.fallbackPolicy}
+ragEnabled=${data.ragEnabled}
+ragTopK=${data.ragTopK}
+similarityThreshold=${data.ragSimilarityThreshold}
 conversationId=${data.conversationId}`
             );
             renderMemoryStoreInfo(data);
+            renderServerSettings(data);
+            await loadDbInfo();
         } catch (e) {
             setConfigStatus('설정 조회 실패: ' + e.message);
         }
@@ -534,7 +669,20 @@ conversationId=${data.conversationId}`
             generalParserMode: document.getElementById('generalParserMode').value,
             travelParserMode: document.getElementById('travelParserMode').value,
             devParserMode: document.getElementById('devParserMode').value,
-            miceParserMode: document.getElementById('miceParserMode').value
+            miceParserMode: document.getElementById('miceParserMode').value,
+            fallbackPolicy: document.getElementById('fallbackPolicy').value,
+            llmTimeoutMs: Number(document.getElementById('llmTimeoutMs').value || 45000),
+            llmRetryAttempts: Number(document.getElementById('llmRetryAttempts').value || 2),
+            llmRetryBackoffMs: Number(document.getElementById('llmRetryBackoffMs').value || 800),
+            ragEnabled: document.getElementById('ragEnabled').value === 'true',
+            ragTopK: Number(document.getElementById('ragTopK').value || 4),
+            ragSimilarityThreshold: Number(document.getElementById('ragSimilarityThreshold').value || 0.72),
+            ragIncludeCitations: document.getElementById('ragIncludeCitations').value === 'true',
+            ragGeneralEnabled: document.getElementById('ragGeneralEnabled').value === 'true',
+            ragDevEnabled: document.getElementById('ragDevEnabled').value === 'true',
+            ragMiceEnabled: document.getElementById('ragMiceEnabled').value === 'true',
+            ragTravelEnabled: document.getElementById('ragTravelEnabled').value === 'true',
+            ragDatasetLocation: document.getElementById('ragDatasetLocation').value
         };
 
         try {
@@ -552,9 +700,14 @@ travel=${data.travelParserMode}
 dev=${data.devParserMode}
 mice=${data.miceParserMode}
 fallbackPolicy=${data.fallbackPolicy}
+ragEnabled=${data.ragEnabled}
+ragTopK=${data.ragTopK}
+similarityThreshold=${data.ragSimilarityThreshold}
 conversationId=${data.conversationId}`
             );
             renderMemoryStoreInfo(data);
+            renderServerSettings(data);
+            await loadDbInfo();
         } catch (e) {
             setConfigStatus('설정 저장 실패: ' + e.message);
         }
@@ -562,18 +715,11 @@ conversationId=${data.conversationId}`
 
     async function resetDebugConfig() {
         try {
-            const data = await fetchJson('/debug/api/config/reset', {
+            await fetchJson('/debug/api/config/reset', {
                 method: 'POST'
             });
-
-            document.getElementById('resolverMode').value = data.resolverMode || 'HYBRID';
-            document.getElementById('generalParserMode').value = data.generalParserMode || 'HYBRID';
-            document.getElementById('travelParserMode').value = data.travelParserMode || 'HYBRID';
-            document.getElementById('devParserMode').value = data.devParserMode || 'HYBRID';
-            document.getElementById('miceParserMode').value = data.miceParserMode || 'HYBRID';
-
-            setConfigStatus(`설정 초기화 완료\nfallbackPolicy=${data.fallbackPolicy}\nconversationId=${data.conversationId}`);
-            renderMemoryStoreInfo(data);
+            await loadDebugConfig();
+            setConfigStatus('설정 초기화 완료');
         } catch (e) {
             setConfigStatus('설정 초기화 실패: ' + e.message);
         }
@@ -764,6 +910,7 @@ conversationId=${data.conversationId}`
 	window.addEventListener('load', async () => {
 	    await loadDebugConfig();
 	    await loadOllamaModelConfig();
+	    await loadDbInfo();
 	});
 	
 	function setOllamaModelStatus(text) {

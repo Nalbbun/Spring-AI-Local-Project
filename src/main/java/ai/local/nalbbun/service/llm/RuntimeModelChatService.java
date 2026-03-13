@@ -8,11 +8,11 @@ import java.util.function.Supplier;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
 import ai.local.nalbbun.debug.model.RuntimeModelTarget;
+import ai.local.nalbbun.debug.service.DebugRuntimeConfigService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -23,26 +23,20 @@ public class RuntimeModelChatService {
     private final ChatClient.Builder ollamaBuilder;
     private final RuntimeModelResolver runtimeModelResolver;
     private final Executor llmTaskExecutor;
-    private final long timeoutMs;
-    private final int retryAttempts;
-    private final long retryBackoffMs;
+    private final DebugRuntimeConfigService debugRuntimeConfigService;
 
     public RuntimeModelChatService(
             @Qualifier("openaiBuilder") ChatClient.Builder openaiBuilder,
             @Qualifier("ollamaBuilder") ChatClient.Builder ollamaBuilder,
             RuntimeModelResolver runtimeModelResolver,
             @Qualifier("llmTaskExecutor") Executor llmTaskExecutor,
-            @Value("${app.llm.timeout-ms:45000}") long timeoutMs,
-            @Value("${app.llm.retry-attempts:2}") int retryAttempts,
-            @Value("${app.llm.retry-backoff-ms:800}") long retryBackoffMs
+            DebugRuntimeConfigService debugRuntimeConfigService
     ) {
         this.openaiBuilder = openaiBuilder;
         this.ollamaBuilder = ollamaBuilder;
         this.runtimeModelResolver = runtimeModelResolver;
         this.llmTaskExecutor = llmTaskExecutor;
-        this.timeoutMs = timeoutMs;
-        this.retryAttempts = Math.max(1, retryAttempts);
-        this.retryBackoffMs = Math.max(0, retryBackoffMs);
+        this.debugRuntimeConfigService = debugRuntimeConfigService;
     }
 
     public String callText(RuntimeModelTarget target, String systemPrompt, String userPrompt) {
@@ -153,6 +147,8 @@ public class RuntimeModelChatService {
                                     RuntimeModelSelection resolved,
                                     Supplier<T> supplier) {
         Exception lastException = null;
+        int retryAttempts = debugRuntimeConfigService.getLlmRetryAttempts();
+        long timeoutMs = debugRuntimeConfigService.getLlmTimeoutMs();
 
         for (int attempt = 1; attempt <= retryAttempts; attempt++) {
             try {
@@ -169,7 +165,7 @@ public class RuntimeModelChatService {
                 lastException = unwrap(e);
                 log.warn("LLM call failed. target={}, attempt={}/{}, reason={}",
                         target, attempt, retryAttempts, lastException.getMessage());
-                sleepBackoff(attempt);
+                sleepBackoff(attempt, retryAttempts);
             }
         }
 
@@ -188,7 +184,8 @@ public class RuntimeModelChatService {
         return current instanceof Exception e ? e : new RuntimeException(current);
     }
 
-    private void sleepBackoff(int attempt) {
+    private void sleepBackoff(int attempt, int retryAttempts) {
+        long retryBackoffMs = debugRuntimeConfigService.getLlmRetryBackoffMs();
         if (attempt >= retryAttempts || retryBackoffMs <= 0) {
             return;
         }

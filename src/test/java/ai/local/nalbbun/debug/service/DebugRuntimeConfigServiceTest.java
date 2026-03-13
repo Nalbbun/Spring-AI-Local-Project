@@ -20,7 +20,7 @@ class DebugRuntimeConfigServiceTest {
                 "RULE",
                 "redis",
                 "BLOCK_OPENAI",
-                new InMemoryConversationMemoryService()
+                0, 0, 0, false, null, 0, null, null, null, 0, null, new InMemoryConversationMemoryService(), null, null
         );
 
         DebugRuntimeConfig config = service.getCurrentConfig();
@@ -41,7 +41,7 @@ class DebugRuntimeConfigServiceTest {
                 "RULE",
                 "jdbc",
                 "ALLOW_OPENAI",
-                new InMemoryConversationMemoryService()
+                0, 0, 0, false, null, 0, null, null, null, 0, null, new InMemoryConversationMemoryService(), null, null
         );
 
         DebugRuntimeConfig request = new DebugRuntimeConfig();

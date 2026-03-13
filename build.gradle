@@ -54,6 +54,10 @@ dependencies {
   implementation 'org.springframework.ai:spring-ai-jsoup-document-reader'
   implementation 'org.springframework.ai:spring-ai-pdf-document-reader'
   implementation 'org.springframework.ai:spring-ai-markdown-document-reader'
+  implementation 'org.apache.poi:poi:5.4.1'
+  implementation 'org.apache.poi:poi-ooxml:5.4.1'
+  implementation 'org.apache.poi:poi-scratchpad:5.4.1'
+  implementation 'org.jsoup:jsoup'
   
   implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
   implementation 'org.springframework.ai:spring-ai-advisors-vector-store'

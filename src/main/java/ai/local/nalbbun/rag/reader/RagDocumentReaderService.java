@@ -1,12 +1,15 @@
 package ai.local.nalbbun.rag.reader;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jsoup.Jsoup;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.jsoup.JsoupDocumentReader;
 import org.springframework.ai.reader.jsoup.config.JsoupDocumentReaderConfig;
@@ -36,25 +39,16 @@ public class RagDocumentReaderService {
 
         try {
             Resource resource = new NamedByteArrayResource(file.getBytes(), originalFilename);
-            return switch (fileType) {
-                case PDF -> new ReadResult(fileType, readPdf(resource, metadata), originalFilename);
-                case MARKDOWN -> new ReadResult(fileType, readMarkdown(resource, metadata), originalFilename);
-                case TEXT -> new ReadResult(fileType, readText(resource, metadata), originalFilename);
-            };
+            return readByFileType(fileType, resource, originalFilename, metadata);
         }
         catch (IOException e) {
             throw new IllegalStateException("업로드 파일을 읽지 못했습니다.", e);
         }
     }
 
-
     public ReadResult readStoredResource(Resource resource, String originalFilename, Map<String, Object> metadata) {
         RagFileType fileType = ragFileTypeDetector.detect(originalFilename);
-        return switch (fileType) {
-            case PDF -> new ReadResult(fileType, readPdf(resource, metadata), originalFilename);
-            case MARKDOWN -> new ReadResult(fileType, readMarkdown(resource, metadata), originalFilename);
-            case TEXT -> new ReadResult(fileType, readText(resource, metadata), originalFilename);
-        };
+        return readByFileType(fileType, resource, originalFilename, metadata);
     }
 
     public ReadResult readPdf(Resource resource, String title, String source, Map<String, Object> metadata) {
@@ -78,6 +72,15 @@ public class RagDocumentReaderService {
         return new JsoupDocumentReader(url, config).read();
     }
 
+    private ReadResult readByFileType(RagFileType fileType, Resource resource, String displayName, Map<String, Object> metadata) {
+        return switch (fileType) {
+            case PDF -> new ReadResult(fileType, readPdf(resource, metadata), displayName);
+            case MARKDOWN -> new ReadResult(fileType, readMarkdown(resource, metadata), displayName);
+            case HTML -> new ReadResult(fileType, readHtml(resource, metadata), displayName);
+            case TEXT -> new ReadResult(fileType, readText(resource, metadata), displayName);
+        };
+    }
+
     private List<Document> readPdf(Resource resource, Map<String, Object> metadata) {
         PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder()
                 .withPagesPerDocument(1)
@@ -98,13 +101,31 @@ public class RagDocumentReaderService {
         return new MarkdownDocumentReader(resource, config).read();
     }
 
+    private List<Document> readHtml(Resource resource, Map<String, Object> metadata) {
+        try (InputStream inputStream = resource.getInputStream()) {
+            String html = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            String text = Jsoup.parse(html).text();
+            return singleDocument(text, metadata);
+        }
+        catch (IOException e) {
+            throw new IllegalStateException("HTML 파일을 읽지 못했습니다.", e);
+        }
+    }
+
     private List<Document> readText(Resource resource, Map<String, Object> metadata) {
-        try {
-            String text = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            return List.of(new Document(text, metadata));
-        } catch (IOException e) {
+        try (InputStream inputStream = resource.getInputStream()) {
+            String text = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            return singleDocument(text, metadata);
+        }
+        catch (IOException e) {
             throw new IllegalStateException("텍스트 파일을 읽지 못했습니다.", e);
         }
+    }
+
+    private List<Document> singleDocument(String text, Map<String, Object> metadata) {
+        List<Document> documents = new ArrayList<>(1);
+        documents.add(new Document(text, metadata));
+        return documents;
     }
 
     private Map<String, Object> enrichMetadata(Map<String, Object> metadata, String title, String source, String readerType) {
@@ -123,16 +144,18 @@ public class RagDocumentReaderService {
     }
 
     private List<Document> applyMetadata(List<Document> documents, Map<String, Object> metadata) {
-        return documents.stream()
-                .map(document -> {
-                    Map<String, Object> merged = new LinkedHashMap<>();
-                    if (document.getMetadata() != null) {
-                        merged.putAll(document.getMetadata());
-                    }
-                    merged.putAll(metadata);
-                    return new Document(document.getText(), merged);
-                })
-                .toList();
+        List<Document> mergedDocuments = new ArrayList<>();
+        for (Document document : documents) {
+            Map<String, Object> merged = new LinkedHashMap<>();
+            if (document.getMetadata() != null) {
+                merged.putAll(document.getMetadata());
+            }
+            if (metadata != null) {
+                merged.putAll(metadata);
+            }
+            mergedDocuments.add(new Document(document.getText(), merged));
+        }
+        return mergedDocuments;
     }
 
     private void validateUrl(String url) {

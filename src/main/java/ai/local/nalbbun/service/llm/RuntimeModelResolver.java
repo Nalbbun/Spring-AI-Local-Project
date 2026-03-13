@@ -5,17 +5,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import ai.local.nalbbun.debug.model.RuntimeModelTarget;
+import ai.local.nalbbun.debug.service.DebugRuntimeConfigService;
 import ai.local.nalbbun.debug.service.DebugRuntimeModelConfigService;
 
 @Component
 public class RuntimeModelResolver {
 
     private final DebugRuntimeModelConfigService debugRuntimeModelConfigService;
-    private final ExternalLlmFallbackPolicy fallbackPolicy;
+    private final DebugRuntimeConfigService debugRuntimeConfigService;
     private final Set<String> toolCapableOllamaModels = new HashSet<>(List.of(
             "qwen2.5-coder:14b",
             "qwen3-coder:latest"
@@ -23,10 +23,10 @@ public class RuntimeModelResolver {
 
     public RuntimeModelResolver(
             DebugRuntimeModelConfigService debugRuntimeModelConfigService,
-            @Value("${app.llm.fallback-policy:ALLOW_OPENAI}") String fallbackPolicy
+            DebugRuntimeConfigService debugRuntimeConfigService
     ) {
         this.debugRuntimeModelConfigService = debugRuntimeModelConfigService;
-        this.fallbackPolicy = ExternalLlmFallbackPolicy.from(fallbackPolicy);
+        this.debugRuntimeConfigService = debugRuntimeConfigService;
     }
 
     public RuntimeModelSelection resolve(RuntimeModelTarget target, boolean requiresTools) {
@@ -44,7 +44,7 @@ public class RuntimeModelResolver {
     }
 
     private RuntimeModelSelection fallbackOrFail(RuntimeModelTarget target, String reason) {
-        if (fallbackPolicy == ExternalLlmFallbackPolicy.ALLOW_OPENAI) {
+        if (debugRuntimeConfigService.getFallbackPolicyEnum() == ExternalLlmFallbackPolicy.ALLOW_OPENAI) {
             return new RuntimeModelSelection(false, null, true, reason);
         }
 

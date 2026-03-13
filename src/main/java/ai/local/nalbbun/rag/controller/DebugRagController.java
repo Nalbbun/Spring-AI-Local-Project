@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import ai.local.nalbbun.debug.service.DebugDatabaseInfoService;
 import ai.local.nalbbun.model.category.ChatCategory;
 import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.ingest.RagDocumentIngestionService;
@@ -37,6 +38,7 @@ public class DebugRagController {
     private final RagProperties ragProperties;
     private final RagSupportService ragSupportService;
     private final RagDocumentIngestionService ragDocumentIngestionService;
+    private final DebugDatabaseInfoService debugDatabaseInfoService;
 
     @GetMapping("/status")
     public Map<String, Object> status() {
@@ -46,8 +48,15 @@ public class DebugRagController {
         response.put("topK", ragProperties.getTopK());
         response.put("similarityThreshold", ragProperties.getSimilarityThreshold());
         response.put("categories", ragProperties.getCategories());
-        response.put("supportedReaders", List.of("text", "file-single", "file-multi", "pdf", "markdown", "text-like", "web-url"));
+        response.put("supportedReaders", List.of(
+                "pdf", "markdown", "html", "text-like", "web-url"
+        ));
         return response;
+    }
+
+    @GetMapping("/db-info")
+    public Map<String, Object> dbInfo() {
+        return debugDatabaseInfoService.getInfo();
     }
 
     @GetMapping("/search")
@@ -123,7 +132,7 @@ public class DebugRagController {
             return "입력값과 설정을 다시 확인하세요.";
         }
         if (message.contains("지원하지 않는 파일 형식")) {
-            return "pdf, md, markdown, txt, log, yaml, yml, json, xml, csv 형식을 사용하세요.";
+            return "pdf, md, markdown, txt, log, yaml, yml, json, xml, csv, tsv, html, htm 및 주요 코드/설정 파일을 사용하세요.";
         }
         if (message.contains("업로드할 파일을 선택")) {
             return "파일 선택 후 다시 업로드하세요.";
