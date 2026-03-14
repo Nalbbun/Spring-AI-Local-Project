@@ -6,6 +6,7 @@ public record RagIngestionResult(
         String version,
         String title,
         int chunkCount,
-        boolean stored
+        boolean stored,
+        String traceId
 ) {
 }

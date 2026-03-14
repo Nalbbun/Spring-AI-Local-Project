@@ -433,7 +433,8 @@ conversationId=${data.conversationId}`
 	        lines.push(`[${entry.timestamp}] [${entry.traceId}] ${entry.operation} > ${entry.stage} > ${entry.status} :: ${entry.message}`);
 	        lines.push(`  - ${formatTraceDetails(entry.details)}`);
 	    });
-	    document.getElementById('ragTracePanel').textContent = lines.join('\n');
+	    document.getElementById('ragTracePanel').textContent = lines.join('
+');
 	}
 
 	async function loadLatestRagTraces() {
@@ -643,37 +644,3 @@ conversationId=${data.conversationId}`
 	        setOllamaModelStatus("모델 설정 초기화 실패: " + e.message);
 	    }
 	}
-
-function bindDebugHomeEvents() {
-    const on = (id, eventName, handler) => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener(eventName, handler);
-    };
-
-    on('ollamaModelSource', 'change', loadOllamaModels);
-    on('ollamaSearchKeyword', 'input', applyOllamaFilters);
-    on('ollamaStateFilter', 'change', applyOllamaFilters);
-    on('btnLoadOllamaConfig', 'click', loadOllamaModelConfig);
-    on('btnSaveOllamaConfig', 'click', saveOllamaModelConfig);
-    on('btnResetOllamaConfig', 'click', resetOllamaModelConfig);
-
-    on('btnLoadDebugConfig', 'click', loadDebugConfig);
-    on('btnSaveDebugConfig', 'click', saveDebugConfig);
-    on('btnResetDebugConfig', 'click', resetDebugConfig);
-    on('btnLoadDbInfo', 'click', loadDbInfo);
-
-    on('example', 'change', applyExample);
-    on('btnStream', 'click', startStream);
-    on('btnLoadMemory', 'click', loadMemory);
-    on('btnClearMemory', 'click', clearMemory);
-
-    on('btnUploadSingle', 'click', uploadSingleFile);
-    on('btnUploadMulti', 'click', uploadMultiFiles);
-
-    on('btnLoadLatestRagTraces', 'click', loadLatestRagTraces);
-    on('btnLoadTraceById', 'click', loadTraceById);
-    on('btnClearRagTraces', 'click', clearRagTraces);
-}
-
-window.addEventListener('DOMContentLoaded', bindDebugHomeEvents);
-

@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,7 @@ import ai.local.nalbbun.rag.ingest.RagIngestCommand;
 import ai.local.nalbbun.rag.ingest.RagUrlIngestCommand;
 import ai.local.nalbbun.rag.model.RagContext;
 import ai.local.nalbbun.rag.service.RagSupportService;
+import ai.local.nalbbun.rag.trace.DebugRagTraceService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -39,6 +41,7 @@ public class DebugRagController {
     private final RagSupportService ragSupportService;
     private final RagDocumentIngestionService ragDocumentIngestionService;
     private final DebugDatabaseInfoService debugDatabaseInfoService;
+    private final DebugRagTraceService debugRagTraceService;
 
     @GetMapping("/status")
     public Map<String, Object> status() {
@@ -61,8 +64,26 @@ public class DebugRagController {
 
     @GetMapping("/search")
     public RagContext search(@RequestParam("category") ChatCategory category,
-                             @RequestParam("query") String query) {
-        return ragSupportService.buildContext(category, query);
+                             @RequestParam("query") String query,
+                             @RequestParam(value = "source", required = false) String source,
+                             @RequestParam(value = "version", required = false) String version) {
+        return ragSupportService.buildContext(category, query, source, version);
+    }
+
+    @GetMapping("/traces")
+    public Map<String, Object> traces(@RequestParam(value = "limit", defaultValue = "150") int limit) {
+        return debugRagTraceService.latest(limit);
+    }
+
+    @GetMapping("/traces/{traceId}")
+    public Map<String, Object> traceById(@PathVariable("traceId") String traceId) {
+        return debugRagTraceService.byTraceId(traceId);
+    }
+
+    @PostMapping("/traces/clear")
+    public Map<String, Object> clearTraces() {
+        debugRagTraceService.clear();
+        return Map.of("status", "cleared");
     }
 
     @PostMapping("/ingest-text")

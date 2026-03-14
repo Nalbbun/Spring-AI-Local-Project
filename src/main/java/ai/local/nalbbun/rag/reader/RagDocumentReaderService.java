@@ -17,10 +17,12 @@ import org.springframework.ai.reader.markdown.MarkdownDocumentReader;
 import org.springframework.ai.reader.markdown.config.MarkdownDocumentReaderConfig;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.ai.reader.pdf.config.PdfDocumentReaderConfig;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import ai.local.nalbbun.rag.trace.DebugRagTraceService;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -28,27 +30,48 @@ import lombok.RequiredArgsConstructor;
 public class RagDocumentReaderService {
 
     private final RagFileTypeDetector ragFileTypeDetector;
+    private final ObjectProvider<DebugRagTraceService> debugRagTraceServiceProvider;
 
     public ReadResult readMultipartFile(MultipartFile file, Map<String, Object> metadata) {
+        return readMultipartFile(file, metadata, null);
+    }
+
+    public ReadResult readMultipartFile(MultipartFile file, Map<String, Object> metadata, String traceId) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("업로드 파일이 비어 있습니다.");
         }
 
         String originalFilename = file.getOriginalFilename();
         RagFileType fileType = ragFileTypeDetector.detect(originalFilename);
+        trace(traceId, "INGEST", "DETECT_FILE_TYPE", "파일 형식 판별 완료", Map.of(
+                "fileName", safeName(originalFilename),
+                "fileType", fileType.name()
+        ));
 
         try {
             Resource resource = new NamedByteArrayResource(file.getBytes(), originalFilename);
-            return readByFileType(fileType, resource, originalFilename, metadata);
+            return readByFileType(fileType, resource, originalFilename, metadata, traceId);
         }
         catch (IOException e) {
+            traceError(traceId, "INGEST", "READ_RESOURCE", "업로드 파일 바이트 읽기 실패", Map.of(
+                    "fileName", safeName(originalFilename),
+                    "reason", e.getMessage()
+            ));
             throw new IllegalStateException("업로드 파일을 읽지 못했습니다.", e);
         }
     }
 
     public ReadResult readStoredResource(Resource resource, String originalFilename, Map<String, Object> metadata) {
+        return readStoredResource(resource, originalFilename, metadata, null);
+    }
+
+    public ReadResult readStoredResource(Resource resource, String originalFilename, Map<String, Object> metadata, String traceId) {
         RagFileType fileType = ragFileTypeDetector.detect(originalFilename);
-        return readByFileType(fileType, resource, originalFilename, metadata);
+        trace(traceId, "INGEST", "DETECT_FILE_TYPE", "저장 리소스 파일 형식 판별 완료", Map.of(
+                "fileName", safeName(originalFilename),
+                "fileType", fileType.name()
+        ));
+        return readByFileType(fileType, resource, originalFilename, metadata, traceId);
     }
 
     public ReadResult readPdf(Resource resource, String title, String source, Map<String, Object> metadata) {
@@ -60,7 +83,15 @@ public class RagDocumentReaderService {
     }
 
     public List<Document> readWebUrl(String url, String title, String source, Map<String, Object> metadata) {
+        return readWebUrl(url, title, source, metadata, null);
+    }
+
+    public List<Document> readWebUrl(String url, String title, String source, Map<String, Object> metadata, String traceId) {
         validateUrl(url);
+        trace(traceId, "INGEST_URL", "FETCH_URL_BEGIN", "웹 문서 읽기 시작", Map.of(
+                "url", url,
+                "title", safeName(title)
+        ));
 
         JsoupDocumentReaderConfig config = JsoupDocumentReaderConfig.builder()
                 .selector("body")
@@ -69,16 +100,33 @@ public class RagDocumentReaderService {
                 .additionalMetadata(enrichMetadata(metadata, title, source == null || source.isBlank() ? url : source, "web-url"))
                 .build();
 
-        return new JsoupDocumentReader(url, config).read();
+        List<Document> documents = new JsoupDocumentReader(url, config).read();
+        trace(traceId, "INGEST_URL", "FETCH_URL_COMPLETE", "웹 문서 읽기 완료", Map.of(
+                "url", url,
+                "documentCount", documents.size()
+        ));
+        return documents;
     }
 
-    private ReadResult readByFileType(RagFileType fileType, Resource resource, String displayName, Map<String, Object> metadata) {
-        return switch (fileType) {
+    private ReadResult readByFileType(RagFileType fileType, Resource resource, String displayName, Map<String, Object> metadata, String traceId) {
+        trace(traceId, "INGEST", "READ_BEGIN", "파일 리더 실행 시작", Map.of(
+                "fileName", safeName(displayName),
+                "fileType", fileType.name()
+        ));
+
+        ReadResult result = switch (fileType) {
             case PDF -> new ReadResult(fileType, readPdf(resource, metadata), displayName);
             case MARKDOWN -> new ReadResult(fileType, readMarkdown(resource, metadata), displayName);
             case HTML -> new ReadResult(fileType, readHtml(resource, metadata), displayName);
             case TEXT -> new ReadResult(fileType, readText(resource, metadata), displayName);
         };
+
+        trace(traceId, "INGEST", "READ_COMPLETE", "파일 리더 실행 완료", Map.of(
+                "fileName", safeName(displayName),
+                "fileType", fileType.name(),
+                "documentCount", result.documents().size()
+        ));
+        return result;
     }
 
     private List<Document> readPdf(Resource resource, Map<String, Object> metadata) {
@@ -167,6 +215,30 @@ public class RagDocumentReaderService {
         if (scheme == null || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
             throw new IllegalArgumentException("웹 URL은 http 또는 https 이어야 합니다.");
         }
+    }
+
+    private void trace(String traceId, String operation, String stage, String message, Map<String, Object> details) {
+        if (traceId == null || traceId.isBlank()) {
+            return;
+        }
+        DebugRagTraceService service = debugRagTraceServiceProvider.getIfAvailable();
+        if (service != null) {
+            service.info(traceId, operation, stage, message, details);
+        }
+    }
+
+    private void traceError(String traceId, String operation, String stage, String message, Map<String, Object> details) {
+        if (traceId == null || traceId.isBlank()) {
+            return;
+        }
+        DebugRagTraceService service = debugRagTraceServiceProvider.getIfAvailable();
+        if (service != null) {
+            service.error(traceId, operation, stage, message, details);
+        }
+    }
+
+    private String safeName(String value) {
+        return value == null || value.isBlank() ? "-" : value;
     }
 
     public record ReadResult(RagFileType fileType, List<Document> documents, String displayName) {

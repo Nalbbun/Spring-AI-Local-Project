@@ -36,7 +36,7 @@ class RagSupportServiceTest {
                 properties,
                 retriever,
                 new RagPromptComposer(properties),
-                vectorStoreProvider
+                vectorStoreProvider, null
         );
 
         RagContext context = service.buildContext(ChatCategory.DEV, "배포 구조 설명해줘");
@@ -70,7 +70,7 @@ class RagSupportServiceTest {
                 properties,
                 retriever,
                 new RagPromptComposer(properties),
-                vectorStoreProvider
+                vectorStoreProvider, null
         );
 
         RagContext context = service.buildContext(ChatCategory.DEV, "배포 흐름 설명");
