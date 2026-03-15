@@ -23,8 +23,7 @@ import ai.local.nalbbun.service.memory.ConversationMemoryService;
 public class DebugRuntimeConfigService {
 
     private final AtomicReference<CategoryResolverMode> resolverMode;
-    private final Map<ChatCategory, AtomicReference<CategoryParserMode>> parserModes =
-            new EnumMap<>(ChatCategory.class);
+    private final Map<ChatCategory, AtomicReference<CategoryParserMode>> parserModes = new EnumMap<>(ChatCategory.class);
     private final String configuredMemoryStore;
     private final AtomicReference<String> fallbackPolicy;
     private final ConversationMemoryService conversationMemoryService;
@@ -59,6 +58,7 @@ public class DebugRuntimeConfigService {
     private final boolean defaultRagMiceEnabled;
     private final boolean defaultRagTravelEnabled;
     private final String defaultRagDatasetLocation;
+    private final int defaultRagMaxUploadFileCount;
 
     public DebugRuntimeConfigService(
             @Value("${app.category.resolver.mode:HYBRID}") String resolverMode,
@@ -89,7 +89,7 @@ public class DebugRuntimeConfigService {
         this.defaultFallbackPolicy = normalizeFallbackPolicy(fallbackPolicy);
         this.fallbackPolicy = new AtomicReference<>(this.defaultFallbackPolicy);
         this.conversationMemoryService = conversationMemoryService;
-        this.ragProperties = ragProperties;
+        this.ragProperties = ragProperties == null ? new RagProperties() : ragProperties;
         this.environment = environment;
 
         this.debugEnabled = debugEnabled;
@@ -121,15 +121,16 @@ public class DebugRuntimeConfigService {
         parserModes.put(ChatCategory.DEV, new AtomicReference<>(devParser));
         parserModes.put(ChatCategory.MICE, new AtomicReference<>(miceParser));
 
-        this.defaultRagEnabled = ragProperties.isEnabled();
-        this.defaultRagTopK = ragProperties.getTopK();
-        this.defaultRagSimilarityThreshold = ragProperties.getSimilarityThreshold();
-        this.defaultRagIncludeCitations = ragProperties.isIncludeCitations();
-        this.defaultRagGeneralEnabled = ragProperties.getCategories().isGeneral();
-        this.defaultRagDevEnabled = ragProperties.getCategories().isDev();
-        this.defaultRagMiceEnabled = ragProperties.getCategories().isMice();
-        this.defaultRagTravelEnabled = ragProperties.getCategories().isTravel();
-        this.defaultRagDatasetLocation = ragProperties.getEvaluation().getDatasetLocation();
+        this.defaultRagEnabled = this.ragProperties.isEnabled();
+        this.defaultRagTopK = this.ragProperties.getTopK();
+        this.defaultRagSimilarityThreshold = this.ragProperties.getSimilarityThreshold();
+        this.defaultRagIncludeCitations = this.ragProperties.isIncludeCitations();
+        this.defaultRagGeneralEnabled = this.ragProperties.getCategories().isGeneral();
+        this.defaultRagDevEnabled = this.ragProperties.getCategories().isDev();
+        this.defaultRagMiceEnabled = this.ragProperties.getCategories().isMice();
+        this.defaultRagTravelEnabled = this.ragProperties.getCategories().isTravel();
+        this.defaultRagDatasetLocation = this.ragProperties.getEvaluation().getDatasetLocation();
+        this.defaultRagMaxUploadFileCount = Math.max(1, this.ragProperties.getIngest().getMaxUploadFileCount());
     }
 
     public CategoryResolverMode getResolverMode() {
@@ -151,8 +152,7 @@ public class DebugRuntimeConfigService {
         if (category == null || mode == null) {
             return;
         }
-        parserModes.computeIfAbsent(category, key -> new AtomicReference<>(CategoryParserMode.HYBRID))
-                   .set(mode);
+        parserModes.computeIfAbsent(category, key -> new AtomicReference<>(CategoryParserMode.HYBRID)).set(mode);
     }
 
     public ExternalLlmFallbackPolicy getFallbackPolicyEnum() {
@@ -195,6 +195,8 @@ public class DebugRuntimeConfigService {
         config.setRedisHost(redisHost);
         config.setRedisPort(redisPort);
         config.setOllamaBaseUrl(ollamaBaseUrl);
+        config.setMultipartMaxFileSize(environment == null ? "-" : environment.getProperty("spring.servlet.multipart.max-file-size", "30MB"));
+        config.setMultipartMaxRequestSize(environment == null ? "-" : environment.getProperty("spring.servlet.multipart.max-request-size", "150MB"));
 
         config.setRagEnabled(ragProperties.isEnabled());
         config.setRagTopK(ragProperties.getTopK());
@@ -207,6 +209,7 @@ public class DebugRuntimeConfigService {
         config.setRagVectorStore(ragProperties.getVectorStore());
         config.setRagRegistryBaseDir(ragProperties.getRegistry().getBaseDir());
         config.setRagDatasetLocation(ragProperties.getEvaluation().getDatasetLocation());
+        config.setRagMaxUploadFileCount(ragProperties.getIngest().getMaxUploadFileCount());
 
         config.setLlmTimeoutMs(getLlmTimeoutMs());
         config.setLlmRetryAttempts(getLlmRetryAttempts());
@@ -276,6 +279,9 @@ public class DebugRuntimeConfigService {
         if (hasText(request.getRagDatasetLocation())) {
             ragProperties.getEvaluation().setDatasetLocation(request.getRagDatasetLocation().trim());
         }
+        if (request.getRagMaxUploadFileCount() != null) {
+            ragProperties.getIngest().setMaxUploadFileCount(Math.max(1, request.getRagMaxUploadFileCount()));
+        }
 
         return getCurrentConfig();
     }
@@ -296,6 +302,7 @@ public class DebugRuntimeConfigService {
         ragProperties.getCategories().setMice(defaultRagMiceEnabled);
         ragProperties.getCategories().setTravel(defaultRagTravelEnabled);
         ragProperties.getEvaluation().setDatasetLocation(defaultRagDatasetLocation);
+        ragProperties.getIngest().setMaxUploadFileCount(defaultRagMaxUploadFileCount);
         return getCurrentConfig();
     }
 
@@ -328,6 +335,9 @@ public class DebugRuntimeConfigService {
     }
 
     private List<String> activeProfiles() {
+        if (environment == null) {
+            return List.of("default");
+        }
         String[] profiles = environment.getActiveProfiles();
         if (profiles == null || profiles.length == 0) {
             profiles = environment.getDefaultProfiles();

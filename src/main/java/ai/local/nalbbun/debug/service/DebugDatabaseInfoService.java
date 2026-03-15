@@ -34,6 +34,9 @@ public class DebugDatabaseInfoService {
 
     public Map<String, Object> getInfo() {
         Map<String, Object> response = new LinkedHashMap<>();
+        response.put("ragEnabled", ragProperties.isEnabled());
+        response.put("vectorStoreType", ragProperties.getVectorStore());
+        response.put("registryBaseDir", ragProperties.getRegistry().getBaseDir());
         response.put("jdbc", jdbcInfo());
         response.put("vectorDb", vectorDbInfo());
         response.put("memoryDb", memoryDbInfo());
@@ -149,24 +152,45 @@ public class DebugDatabaseInfoService {
             result.put("totalFiles", 0);
             result.put("totalDirs", 0);
             result.put("totalBytes", 0L);
+            result.put("manifestCount", 0);
+            result.put("filesJsonCount", 0);
+            result.put("byCategory", Map.of());
             return result;
         }
 
+        long totalFiles = 0;
+        long totalDirs = 0;
+        long totalBytes = 0;
+        long manifestCount = 0;
+        long filesJsonCount = 0;
+        Map<String, Integer> byCategory = new LinkedHashMap<>();
         try (Stream<Path> stream = Files.walk(baseDir)) {
-            long totalFiles = 0;
-            long totalDirs = 0;
-            long totalBytes = 0;
             for (Path path : (Iterable<Path>) stream::iterator) {
                 if (Files.isDirectory(path)) {
                     totalDirs++;
-                } else {
-                    totalFiles++;
-                    totalBytes += Files.size(path);
+                    continue;
+                }
+                totalFiles++;
+                totalBytes += Files.size(path);
+                String name = path.getFileName().toString();
+                if ("manifest.json".equalsIgnoreCase(name)) {
+                    manifestCount++;
+                    Path rel = baseDir.relativize(path);
+                    if (rel.getNameCount() > 0) {
+                        String category = rel.getName(0).toString();
+                        byCategory.merge(category, 1, Integer::sum);
+                    }
+                }
+                if ("files.json".equalsIgnoreCase(name)) {
+                    filesJsonCount++;
                 }
             }
             result.put("totalFiles", totalFiles);
             result.put("totalDirs", totalDirs);
             result.put("totalBytes", totalBytes);
+            result.put("manifestCount", manifestCount);
+            result.put("filesJsonCount", filesJsonCount);
+            result.put("byCategory", byCategory);
         } catch (IOException e) {
             result.put("message", e.getMessage());
         }

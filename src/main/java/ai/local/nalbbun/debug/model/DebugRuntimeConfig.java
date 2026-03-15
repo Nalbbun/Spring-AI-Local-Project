@@ -27,6 +27,8 @@ public class DebugRuntimeConfig {
     private String redisHost;
     private Integer redisPort;
     private String ollamaBaseUrl;
+    private String multipartMaxFileSize;
+    private String multipartMaxRequestSize;
 
     private Boolean ragEnabled;
     private Integer ragTopK;
@@ -39,6 +41,7 @@ public class DebugRuntimeConfig {
     private String ragVectorStore;
     private String ragRegistryBaseDir;
     private String ragDatasetLocation;
+    private Integer ragMaxUploadFileCount;
 
     private Long llmTimeoutMs;
     private Integer llmRetryAttempts;

@@ -64,7 +64,7 @@ spring:
 
 app:
   debug:
-    enabled: ${APP_DEBUG_ENABLED:false}
+    enabled: ${APP_DEBUG_ENABLED:true}
 
   category:
     resolver:
@@ -113,6 +113,7 @@ app:
       min-chunk-size-chars: ${APP_RAG_MIN_CHUNK_SIZE_CHARS:120}
       min-chunk-length-to-embed: ${APP_RAG_MIN_CHUNK_LENGTH_TO_EMBED:10}
       max-num-chunks: ${APP_RAG_MAX_NUM_CHUNKS:128}
+      max-upload-file-count: ${APP_RAG_MAX_UPLOAD_FILE_COUNT:20}
 
   executor:
     chat:

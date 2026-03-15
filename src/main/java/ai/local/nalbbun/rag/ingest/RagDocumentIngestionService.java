@@ -15,8 +15,10 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import ai.local.nalbbun.model.category.ChatCategory;
 import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.reader.RagDocumentReaderService;
+import ai.local.nalbbun.rag.service.RagSourceRegistryService;
 import ai.local.nalbbun.rag.trace.DebugRagTraceService;
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +29,7 @@ public class RagDocumentIngestionService {
     private final ObjectProvider<VectorStore> vectorStoreProvider;
     private final RagProperties ragProperties;
     private final RagDocumentReaderService ragDocumentReaderService;
+    private final RagSourceRegistryService ragSourceRegistryService;
     private final ObjectProvider<DebugRagTraceService> debugRagTraceServiceProvider;
 
     public RagIngestionResult ingestText(RagIngestCommand command) {
@@ -52,6 +55,7 @@ public class RagDocumentIngestionService {
             Map<String, Object> metadata = createBaseMetadata(command.getCategory().name(), source, version, title, "manual-text", command.getMetadata());
             Document seed = new Document(command.getText(), metadata);
             RagIngestionResult result = storeDocuments(traceId, "INGEST_TEXT", command.getCategory().name(), source, version, title, List.of(seed));
+            ragSourceRegistryService.upsertText(command.getCategory(), source, version, title, result.chunkCount(), metadata);
             success(traceId, "INGEST_TEXT", "COMPLETE", "텍스트 문서 등록 완료", Map.of(
                     "chunkCount", result.chunkCount(),
                     "source", result.source()
@@ -80,9 +84,19 @@ public class RagDocumentIngestionService {
                     "title", title
             ));
 
+            String fileId = UUID.randomUUID().toString().substring(0, 8);
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            if (command.getMetadata() != null) {
+                metadata.putAll(command.getMetadata());
+            }
+            metadata.put("fileId", fileId);
+            metadata.put("fileName", safeFileName(file == null ? null : file.getOriginalFilename()));
+            metadata.put("originalFileName", safeFileName(file == null ? null : file.getOriginalFilename()));
+            metadata.put("contentType", blankToDefault(file == null ? null : file.getContentType(), "application/octet-stream"));
+
             RagDocumentReaderService.ReadResult readResult = ragDocumentReaderService.readMultipartFile(
                     file,
-                    createBaseMetadata(command.getCategory().name(), source, version, title, "uploaded-file", command.getMetadata()),
+                    createBaseMetadata(command.getCategory().name(), source, version, title, "uploaded-file", metadata),
                     traceId
             );
             trace(traceId, "INGEST_FILE", "READ_RESULT", "파일 파싱 결과 생성", Map.of(
@@ -91,6 +105,18 @@ public class RagDocumentIngestionService {
             ));
 
             RagIngestionResult result = storeDocuments(traceId, "INGEST_FILE", command.getCategory().name(), source, version, title, readResult.documents());
+            ragSourceRegistryService.upsertUploadedFile(
+                    command.getCategory(),
+                    source,
+                    version,
+                    title,
+                    String.valueOf(metadata.get("fileId")),
+                    String.valueOf(metadata.get("fileName")),
+                    String.valueOf(metadata.get("originalFileName")),
+                    String.valueOf(metadata.get("contentType")),
+                    result.chunkCount(),
+                    metadata
+            );
             success(traceId, "INGEST_FILE", "COMPLETE", "단일 파일 등록 완료", Map.of(
                     "chunkCount", result.chunkCount(),
                     "source", result.source()
@@ -111,6 +137,10 @@ public class RagDocumentIngestionService {
             validateCategory(command.getCategory());
             if (files == null || files.length == 0) {
                 throw new IllegalArgumentException("업로드할 파일을 선택하세요.");
+            }
+            int maxUploadFileCount = Math.max(1, ragProperties.getIngest().getMaxUploadFileCount());
+            if (files.length > maxUploadFileCount) {
+                throw new IllegalArgumentException("멀티파일 업로드 개수 제한을 초과했습니다. 현재 허용값=" + maxUploadFileCount + ", 요청값=" + files.length);
             }
 
             String version = resolveVersion(command.getVersion());
@@ -169,6 +199,18 @@ public class RagDocumentIngestionService {
                     ));
 
                     RagIngestionResult result = storeDocuments(fileTraceId, "INGEST_FILE_ITEM", command.getCategory().name(), source, version, fileTitle, readResult.documents());
+                    ragSourceRegistryService.upsertUploadedFile(
+                            command.getCategory(),
+                            source,
+                            version,
+                            fileTitle,
+                            fileId,
+                            safeFileName(file.getOriginalFilename()),
+                            safeFileName(file.getOriginalFilename()),
+                            blankToDefault(file.getContentType(), "application/octet-stream"),
+                            result.chunkCount(),
+                            perFileMetadata
+                    );
                     successCount++;
                     totalChunkCount += result.chunkCount();
                     success(fileTraceId, "INGEST_FILE_ITEM", "COMPLETE", "멀티파일 내 단건 등록 완료", Map.of(
@@ -253,6 +295,7 @@ public class RagDocumentIngestionService {
             );
 
             RagIngestionResult result = storeDocuments(traceId, "INGEST_URL", command.getCategory().name(), source, version, title, documents);
+            ragSourceRegistryService.upsertUrl(command.getCategory(), source, version, title, command.getUrl(), result.chunkCount(), command.getMetadata());
             success(traceId, "INGEST_URL", "COMPLETE", "URL 문서 등록 완료", Map.of(
                     "chunkCount", result.chunkCount(),
                     "source", result.source()
@@ -417,6 +460,90 @@ public class RagDocumentIngestionService {
         DebugRagTraceService service = debugRagTraceServiceProvider.getIfAvailable();
         if (service != null) {
             service.error(traceId, operation, stage, message, details);
+        }
+    }
+
+    public RagIngestionResult ingestReconstructedFile(
+            ai.local.nalbbun.model.category.ChatCategory category,
+            String source,
+            String version,
+            String title,
+            String fileId,
+            String fileName,
+            String originalFileName,
+            String contentType,
+            String text,
+            Map<String, Object> metadata
+    ) {
+        String traceId = startTrace("INGEST_RECONSTRUCTED_FILE", Map.of(
+                "category", category == null ? "-" : category.name(),
+                "fileName", blankToDefault(originalFileName, fileName)
+        ));
+        try {
+            validateCategory(category);
+            if (text == null || text.isBlank()) {
+                throw new IllegalArgumentException("재색인할 텍스트가 비어 있습니다.");
+            }
+
+            String resolvedSource = resolveSource(source, title, fileName);
+            String resolvedVersion = resolveVersion(version);
+            String resolvedTitle = blankToDefault(title, baseName(originalFileName));
+
+            Map<String, Object> perFileMetadata = new LinkedHashMap<>();
+            if (metadata != null) {
+                perFileMetadata.putAll(metadata);
+            }
+            perFileMetadata.put("fileId", blankToDefault(fileId, UUID.randomUUID().toString().substring(0, 8)));
+            perFileMetadata.put("fileName", safeFileName(fileName));
+            perFileMetadata.put("originalFileName", safeFileName(originalFileName));
+            perFileMetadata.put("contentType", blankToDefault(contentType, "text/plain"));
+
+            trace(traceId, "INGEST_RECONSTRUCTED_FILE", "PREPARE_REINDEX", "재색인용 문서 재구성", Map.of(
+                    "source", resolvedSource,
+                    "version", resolvedVersion,
+                    "title", resolvedTitle,
+                    "fileId", String.valueOf(perFileMetadata.get("fileId"))
+            ));
+
+            Map<String, Object> baseMetadata = createBaseMetadata(
+                    category.name(),
+                    resolvedSource,
+                    resolvedVersion,
+                    resolvedTitle,
+                    "reindexed-file",
+                    perFileMetadata
+            );
+
+            RagIngestionResult result = storeDocuments(
+                    traceId,
+                    "INGEST_RECONSTRUCTED_FILE",
+                    category.name(),
+                    resolvedSource,
+                    resolvedVersion,
+                    resolvedTitle,
+                    List.of(new Document(text, baseMetadata))
+            );
+            ragSourceRegistryService.upsertUploadedFile(
+                    category,
+                    resolvedSource,
+                    resolvedVersion,
+                    resolvedTitle,
+                    String.valueOf(perFileMetadata.get("fileId")),
+                    String.valueOf(perFileMetadata.get("fileName")),
+                    String.valueOf(perFileMetadata.get("originalFileName")),
+                    String.valueOf(perFileMetadata.get("contentType")),
+                    result.chunkCount(),
+                    perFileMetadata
+            );
+
+            success(traceId, "INGEST_RECONSTRUCTED_FILE", "COMPLETE", "재구성 문서 재색인 완료", Map.of(
+                    "chunkCount", result.chunkCount(),
+                    "source", result.source()
+            ));
+            return result;
+        } catch (RuntimeException e) {
+            error(traceId, "INGEST_RECONSTRUCTED_FILE", "FAILED", "재구성 문서 재색인 실패", Map.of("reason", e.getMessage()));
+            throw e;
         }
     }
 }

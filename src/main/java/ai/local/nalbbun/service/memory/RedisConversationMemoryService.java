@@ -5,10 +5,9 @@ import ai.local.nalbbun.model.common.ConversationMemorySnapshot;
 import ai.local.nalbbun.model.common.ImportantNote;
 import ai.local.nalbbun.model.common.MemoryMessage;
 import ai.local.nalbbun.model.common.MemorySummary;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -42,7 +41,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
             @Value("${app.memory.redis.ttl-hours:24}") long ttlHours
     ) {
         this.redisTemplate = redisTemplate;
-        this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        this.objectMapper = JsonMapper.builder().findAndAddModules().build();
         this.ttl = Duration.ofHours(Math.max(1, ttlHours));
     }
 
@@ -185,7 +184,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
     private String encode(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new IllegalStateException("Redis 메모리 직렬화에 실패했습니다.", e);
         }
     }
@@ -193,7 +192,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
     private <T> T decode(String value, Class<T> type) {
         try {
             return objectMapper.readValue(value, type);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new IllegalStateException("Redis 메모리 역직렬화에 실패했습니다.", e);
         }
     }
@@ -209,7 +208,7 @@ public class RedisConversationMemoryService implements ConversationMemoryService
             }
             try {
                 result.add(objectMapper.readValue(value, objectMapper.constructType(typeReference)));
-            } catch (JsonProcessingException e) {
+            } catch (Exception e) {
                 throw new IllegalStateException("Redis 메모리 목록 역직렬화에 실패했습니다.", e);
             }
         }

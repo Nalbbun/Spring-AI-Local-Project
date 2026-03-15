@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Agent Chat Debug Console</title>
-        <link rel="stylesheet" href="/css/console-common.css">
+    <link rel="stylesheet" href="/css/console-common.css">
     <link rel="stylesheet" href="/css/debug-home.css">
-
 </head>
 <body>
 <div class="loading-overlay" id="loadingOverlay">
@@ -14,333 +13,207 @@
         <div id="loadingText">처리 중입니다...</div>
     </div>
 </div>
-<div class="container">
+<div class="container debug-container">
     <div class="sticky-status-bar">
         <span class="status-label">Runtime Status</span>
         <span class="status-item">conversation id <strong id="statusConversationId">-</strong></span>
         <span class="status-item">store type <strong id="statusStoreType">-</strong></span>
         <span class="status-item">fallback policy <strong id="statusFallbackPolicy">-</strong></span>
         <span class="status-item">db <strong id="statusDb">-</strong></span>
+        <span class="status-item">rag <strong id="ragEnabled">-</strong></span>
+        <span class="status-item">vector <strong id="ragStore">-</strong></span>
+        <span class="status-item">registry <strong id="ragRegistry">-</strong></span>
+        <span class="status-item">catalog <strong id="ragFilter">-</strong></span>
     </div>
-	<div class="card">
-	    <h2>Ollama Model Debug</h2>
-	    <p>실행 중 모델(/api/ps) 또는 설치 모델(/api/tags)을 읽어서 선택합니다.</p>
 
-	    <div class="grid-3">
-	        <div>
-	            <label for="ollamaModelSource">Model Source</label>
-	            <select id="ollamaModelSource">
-	                <option value="RUNNING">RUNNING (/api/ps)</option>
-	                <option value="INSTALLED">INSTALLED (/api/tags)</option>
-	                <option value="ALL">ALL (RUNNING + INSTALLED)</option>
-	            </select>
-	        </div>
-	        <div>
-	            <label for="ollamaSearchKeyword">검색어</label>
-	            <input id="ollamaSearchKeyword" placeholder="예: qwen">
-	        </div>
-	        <div>
-	            <label for="ollamaStateFilter">상태 필터</label>
-	            <select id="ollamaStateFilter">
-	                <option value="ALL">ALL</option>
-	                <option value="RUNNING">RUNNING</option>
-	                <option value="INSTALLED">INSTALLED</option>
-	                <option value="RUNNING+INSTALLED">RUNNING+INSTALLED</option>
-	            </select>
-	        </div>
-	        <div>
-	            <label for="travelSearchModel">TRAVEL Search Model</label>
-	            <select id="travelSearchModel"></select>
-	        </div>
-	        <div>
-	            <label for="travelPlanModel">TRAVEL Plan Model</label>
-	            <select id="travelPlanModel"></select>
-	        </div>
-	        <div>
-	            <label for="generalModel">GENERAL Model</label>
-	            <select id="generalModel"></select>
-	        </div>
-	        <div>
-	            <label for="devModel">DEV Model</label>
-	            <select id="devModel"></select>
-	        </div>
-	        <div>
-	            <label for="miceModel">MICE Model</label>
-	            <select id="miceModel"></select>
-	        </div>
-	        <div>
-	            <label>모델 통계</label>
-	            <div id="ollamaModelSummary" class="status-box">모델 목록 미조회</div>
-	        </div>
-	    </div>
-
-	    <div class="model-browser">
-	        <div class="table-wrap">
-	            <table>
-	                <thead><tr><th>표시명</th><th>Name</th><th>State</th><th>Size</th></tr></thead>
-	                <tbody id="ollamaModelTable"><tr><td colspan="4">아직 조회하지 않음</td></tr></tbody>
-	            </table>
-	        </div>
-	    </div>
-
-	    <div class="buttons">
-	        <button id="btnLoadOllamaConfig" class="success" type="button">현재 모델 설정 조회</button>
-	        <button id="btnSaveOllamaConfig" class="primary" type="button">모델 설정 저장</button>
-	        <button id="btnResetOllamaConfig" class="secondary" type="button">모델 설정 초기화</button>
-	    </div>
-
-	    <div id="ollamaModelStatus" class="status-box">Ollama 모델 설정 상태 대기 중</div>
-	</div>
     <div class="card">
-        <h1>Agent Chat Debug Console</h1>
-        <p>resolver mode / parser mode를 런타임으로 바꿔가며 테스트하는 UI</p>
-
+        <h2>Ollama Model Debug</h2>
+        <p class="small">실행 중 모델(/api/ps) 또는 설치 모델(/api/tags)을 읽어서 선택합니다.</p>
         <div class="grid-3">
             <div>
-                <label for="resolverMode">Category Resolver Mode</label>
-                <select id="resolverMode">
-                    <option value="RULE">RULE</option>
-                    <option value="LLM">LLM</option>
-                    <option value="HYBRID">HYBRID</option>
+                <label for="ollamaModelSource">Model Source</label>
+                <select id="ollamaModelSource">
+                    <option value="RUNNING">RUNNING (/api/ps)</option>
+                    <option value="INSTALLED">INSTALLED (/api/tags)</option>
+                    <option value="ALL">ALL (RUNNING + INSTALLED)</option>
                 </select>
             </div>
             <div>
-                <label for="generalParserMode">GENERAL Parser Mode</label>
-                <select id="generalParserMode">
-                    <option value="RULE">RULE</option>
-                    <option value="LLM">LLM</option>
-                    <option value="HYBRID">HYBRID</option>
+                <label for="ollamaSearchKeyword">검색어</label>
+                <input id="ollamaSearchKeyword" placeholder="예: qwen">
+            </div>
+            <div>
+                <label for="ollamaStateFilter">상태 필터</label>
+                <select id="ollamaStateFilter">
+                    <option value="ALL">ALL</option>
+                    <option value="RUNNING">RUNNING</option>
+                    <option value="INSTALLED">INSTALLED</option>
+                    <option value="RUNNING+INSTALLED">RUNNING+INSTALLED</option>
                 </select>
             </div>
-            <div>
-                <label for="travelParserMode">TRAVEL Parser Mode</label>
-                <select id="travelParserMode">
-                    <option value="RULE">RULE</option>
-                    <option value="LLM">LLM</option>
-                    <option value="HYBRID">HYBRID</option>
-                </select>
-            </div>
-            <div>
-                <label for="devParserMode">DEV Parser Mode</label>
-                <select id="devParserMode">
-                    <option value="RULE">RULE</option>
-                    <option value="LLM">LLM</option>
-                    <option value="HYBRID">HYBRID</option>
-                </select>
-            </div>
-            <div>
-                <label for="miceParserMode">MICE Parser Mode</label>
-                <select id="miceParserMode">
-                    <option value="RULE">RULE</option>
-                    <option value="LLM">LLM</option>
-                    <option value="HYBRID">HYBRID</option>
-                </select>
-            </div>
-            <div>
-                <label for="category">Request Category (optional)</label>
-                <select id="category">
-                    <option value="">자동 분류</option>
-                    <option value="GENERAL">GENERAL</option>
-                    <option value="TRAVEL">TRAVEL</option>
-                    <option value="DEV">DEV</option>
-                    <option value="MICE">MICE</option>
-                </select>
-            </div>
-            <div>
-                <label for="fallbackPolicy">Fallback Policy</label>
-                <select id="fallbackPolicy">
-                    <option value="ALLOW_OPENAI">ALLOW_OPENAI</option>
-                    <option value="BLOCK_OPENAI">BLOCK_OPENAI</option>
-                </select>
-            </div>
-            <div>
-                <label for="llmTimeoutMs">LLM Timeout (ms)</label>
-                <input id="llmTimeoutMs" type="number" min="1000" step="100">
-            </div>
-            <div>
-                <label for="llmRetryAttempts">LLM Retry Attempts</label>
-                <input id="llmRetryAttempts" type="number" min="1" step="1">
-            </div>
-            <div>
-                <label for="llmRetryBackoffMs">LLM Retry Backoff (ms)</label>
-                <input id="llmRetryBackoffMs" type="number" min="0" step="100">
-            </div>
-            <div>
-                <label for="ragEnabled">RAG Enabled</label>
-                <select id="ragEnabled">
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                </select>
-            </div>
-            <div>
-                <label for="ragTopK">RAG Top-K</label>
-                <input id="ragTopK" type="number" min="1" step="1">
-            </div>
-            <div>
-                <label for="ragSimilarityThreshold">RAG Similarity Threshold</label>
-                <input id="ragSimilarityThreshold" type="number" min="0" max="1" step="0.01">
-            </div>
-            <div>
-                <label for="ragIncludeCitations">RAG Include Citations</label>
-                <select id="ragIncludeCitations">
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                </select>
-            </div>
-            <div>
-                <label for="ragGeneralEnabled">RAG GENERAL Enabled</label>
-                <select id="ragGeneralEnabled">
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                </select>
-            </div>
-            <div>
-                <label for="ragDevEnabled">RAG DEV Enabled</label>
-                <select id="ragDevEnabled">
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                </select>
-            </div>
-            <div>
-                <label for="ragMiceEnabled">RAG MICE Enabled</label>
-                <select id="ragMiceEnabled">
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                </select>
-            </div>
-            <div>
-                <label for="ragTravelEnabled">RAG TRAVEL Enabled</label>
-                <select id="ragTravelEnabled">
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                </select>
-            </div>
-            <div>
-                <label for="ragDatasetLocation">RAG Eval Dataset Location</label>
-                <input id="ragDatasetLocation" placeholder="classpath:rag/eval/default-eval-set.json">
-            </div>
+            <div><label for="travelSearchModel">TRAVEL Search Model</label><select id="travelSearchModel"></select></div>
+            <div><label for="travelPlanModel">TRAVEL Plan Model</label><select id="travelPlanModel"></select></div>
+            <div><label for="generalModel">GENERAL Model</label><select id="generalModel"></select></div>
+            <div><label for="devModel">DEV Model</label><select id="devModel"></select></div>
+            <div><label for="miceModel">MICE Model</label><select id="miceModel"></select></div>
+            <div><label>모델 통계</label><div id="ollamaModelSummary" class="status-box">모델 목록 미조회</div></div>
         </div>
+        <div class="table-wrap"><table><thead><tr><th>표시명</th><th>Name</th><th>State</th><th>Size</th></tr></thead><tbody id="ollamaModelTable"><tr><td colspan="4">아직 조회하지 않음</td></tr></tbody></table></div>
+        <div class="buttons">
+            <button id="btnLoadOllamaConfig" class="success" type="button">현재 모델 설정 조회</button>
+            <button id="btnSaveOllamaConfig" class="primary" type="button">모델 설정 저장</button>
+            <button id="btnResetOllamaConfig" class="secondary" type="button">모델 설정 초기화</button>
+        </div>
+        <div id="ollamaModelStatus" class="status-box">Ollama 모델 설정 상태 대기 중</div>
+    </div>
 
+    <div class="card">
+        <h1>Agent Chat Debug Console</h1>
+        <p class="small">resolver mode / parser mode를 런타임으로 바꿔가며 테스트하는 UI</p>
+        <div class="grid-3">
+            <div><label for="resolverMode">Category Resolver Mode</label><select id="resolverMode"><option value="RULE">RULE</option><option value="LLM">LLM</option><option value="HYBRID">HYBRID</option></select></div>
+            <div><label for="generalParserMode">GENERAL Parser Mode</label><select id="generalParserMode"><option value="RULE">RULE</option><option value="LLM">LLM</option><option value="HYBRID">HYBRID</option></select></div>
+            <div><label for="travelParserMode">TRAVEL Parser Mode</label><select id="travelParserMode"><option value="RULE">RULE</option><option value="LLM">LLM</option><option value="HYBRID">HYBRID</option></select></div>
+            <div><label for="devParserMode">DEV Parser Mode</label><select id="devParserMode"><option value="RULE">RULE</option><option value="LLM">LLM</option><option value="HYBRID">HYBRID</option></select></div>
+            <div><label for="miceParserMode">MICE Parser Mode</label><select id="miceParserMode"><option value="RULE">RULE</option><option value="LLM">LLM</option><option value="HYBRID">HYBRID</option></select></div>
+            <div><label for="fallbackPolicy">Fallback Policy</label><select id="fallbackPolicy"><option value="ALLOW_OPENAI">ALLOW_OPENAI</option><option value="BLOCK_OPENAI">BLOCK_OPENAI</option></select></div>
+            <div><label for="llmTimeoutMs">LLM Timeout (ms)</label><input id="llmTimeoutMs" type="number" min="1000" step="100"></div>
+            <div><label for="llmRetryAttempts">LLM Retry Attempts</label><input id="llmRetryAttempts" type="number" min="1" step="1"></div>
+            <div><label for="llmRetryBackoffMs">LLM Retry Backoff (ms)</label><input id="llmRetryBackoffMs" type="number" min="0" step="100"></div>
+            <div><label for="ragEnabledSelect">RAG Enabled</label><select id="ragEnabledSelect"><option value="true">true</option><option value="false">false</option></select></div>
+            <div><label for="ragTopK">RAG Top-K</label><input id="ragTopK" type="number" min="1" step="1"></div>
+            <div><label for="ragSimilarityThreshold">RAG Similarity Threshold</label><input id="ragSimilarityThreshold" type="number" min="0" max="1" step="0.01"></div>
+            <div><label for="ragIncludeCitations">RAG Include Citations</label><select id="ragIncludeCitations"><option value="true">true</option><option value="false">false</option></select></div>
+            <div><label for="ragGeneralEnabled">RAG GENERAL Enabled</label><select id="ragGeneralEnabled"><option value="true">true</option><option value="false">false</option></select></div>
+            <div><label for="ragDevEnabled">RAG DEV Enabled</label><select id="ragDevEnabled"><option value="true">true</option><option value="false">false</option></select></div>
+            <div><label for="ragMiceEnabled">RAG MICE Enabled</label><select id="ragMiceEnabled"><option value="true">true</option><option value="false">false</option></select></div>
+            <div><label for="ragTravelEnabled">RAG TRAVEL Enabled</label><select id="ragTravelEnabled"><option value="true">true</option><option value="false">false</option></select></div>
+            <div><label for="ragMaxUploadFileCount">RAG Max Upload File Count</label><input id="ragMaxUploadFileCount" type="number" min="1" step="1"></div>
+            <div><label for="ragDatasetLocation">RAG Eval Dataset Location</label><input id="ragDatasetLocation" placeholder="classpath:rag/eval/default-eval-set.json"></div>
+        </div>
         <div class="buttons">
             <button id="btnLoadDebugConfig" class="success" type="button">현재 설정 조회</button>
             <button id="btnSaveDebugConfig" class="primary" type="button">설정 저장</button>
             <button id="btnResetDebugConfig" class="secondary" type="button">설정 초기화</button>
-            <button id="btnLoadDbInfo" class="secondary" type="button">DB 현황 조회</button>
+            <button id="btnLoadDbInfo" class="secondary" type="button">DB 현황 갱신</button>
         </div>
+        <div id="configStatus" class="status-box">설정 상태 대기 중</div>
+    </div>
 
-        <div id="configStatus" class="status-box">디버그 설정 상태 대기 중</div>
-        <div id="runtimeStoreStatus" class="status-box">메모리 저장소 정보 대기 중</div>
-        <div class="grid-2">
-            <div>
-                <h3>Server / Runtime Settings</h3>
-                <div id="serverSettingsPanel" class="light-panel">서버 설정 정보 대기 중</div>
-            </div>
-            <div>
-                <h3>DB / Registry Status</h3>
-                <div id="dbInfoPanel" class="light-panel">DB 현황 정보 대기 중</div>
-            </div>
+    <div class="grid-2">
+        <div class="card">
+            <h3>서버/런타임 설정</h3>
+            <div id="runtimeStoreStatus" class="light-panel">아직 조회하지 않음</div>
+            <div id="serverSettingsPanel" class="light-panel top-gap">아직 조회하지 않음</div>
+        </div>
+        <div class="card">
+            <h3>DB / Registry 상태</h3>
+            <div id="dbInfoStats" class="stat-grid"></div>
+            <div id="dbInfoPanel" class="light-panel top-gap">아직 조회하지 않음</div>
         </div>
     </div>
 
     <div class="card">
-        <h2>질문 테스트</h2>
-
-        <div class="grid-2">
+        <h2>질문 및 스트리밍</h2>
+        <div class="grid-3">
             <div>
                 <label for="example">예시 질문</label>
                 <select id="example">
-                    <option value="">직접 입력</option>
-                    <option value="안녕 오늘 뭐 도와줄 수 있어?">GENERAL 예시</option>
-                    <option value="부산 2박3일 80만원 여행 일정 짜줘">TRAVEL 예시</option>
-                    <option value="Spring Boot 프로젝트를 새 Gradle 구조로 리팩토링 순서 정리해줘">DEV 예시</option>
-                    <option value="국제 포럼 운영 제안서의 배경 목표 방향 구조를 정리해줘">MICE 예시</option>
-                    <option value="제주도 여행 일정도 짜주고 Spring Boot 리팩토링 순서도 설명해줘">혼합 의도 예시</option>
+                    <option value="">선택 안 함</option>
+                    <option value="프로젝트 배포 흐름을 설명해줘">프로젝트 배포 흐름을 설명해줘</option>
+                    <option value="이 시스템의 아키텍처를 요약해줘">이 시스템의 아키텍처를 요약해줘</option>
+                    <option value="RAG 등록된 source 기준으로 요약해줘">RAG 등록된 source 기준으로 요약해줘</option>
                 </select>
             </div>
-            <div>
-                <label for="message">메시지</label>
-                <textarea id="message" spellcheck="false">안녕 오늘 뭐 도와줄 수 있어?</textarea>
-            </div>
+            <div><label for="category">Request Category</label><select id="category"><option value="">자동 분류</option><option value="GENERAL">GENERAL</option><option value="DEV">DEV</option><option value="MICE">MICE</option><option value="TRAVEL">TRAVEL</option></select></div>
+            <div><label for="requestSource">Source Filter</label><input id="requestSource" placeholder="선택 source 또는 직접 입력"></div>
+            <div><label for="requestVersion">Version Filter</label><input id="requestVersion" placeholder="예: v1"></div>
+            <div class="span-2"><label for="message">메시지</label><textarea id="message" spellcheck="false">안녕 오늘 뭐 도와줄 수 있어?</textarea></div>
         </div>
-
         <div class="buttons">
             <button id="btnStream" class="primary" type="button">스트리밍 전송</button>
+            <button id="btnPreviewSearch" class="secondary" type="button">RAG 검색 미리보기</button>
             <button id="btnLoadMemory" class="secondary" type="button">메모리 조회</button>
             <button id="btnClearMemory" class="danger" type="button">메모리 초기화</button>
         </div>
-
-        <div class="small">권장: mode를 바꾼 뒤 같은 질문을 반복해서 결과 차이를 확인하세요.</div>
     </div>
 
+    <div class="card">
+        <h2>RAG Source Catalog</h2>
+        <p class="small">새로고침 후에도 registry/DB에 남아 있는 source, version, file 목록을 조회하고 선택할 수 있습니다.</p>
+        <div class="grid-3">
+            <div><label for="sourceKey">Selected Source</label><input id="sourceKey" placeholder="source"></div>
+            <div><label for="sourceVersion">Selected Version</label><input id="sourceVersion" placeholder="version"></div>
+            <div><label for="targetVersion">Target Version</label><input id="targetVersion" placeholder="예: v2"></div>
+            <div class="span-2"><label for="compareQuery">Compare Query</label><input id="compareQuery" placeholder="버전 비교시 함께 검색할 질의"></div>
+            <div><label>Catalog Action</label><div class="buttons compact-buttons"><button id="btnLoadSources" class="secondary" type="button">Source 목록 조회</button><button id="btnLoadSourceFiles" class="secondary" type="button">파일 목록 조회</button></div></div>
+        </div>
+        <div id="sourceHint" class="status-box">source 목록에서 항목을 선택하거나 Source를 직접 입력하세요.</div>
+        <div class="buttons">
+            <button id="purgeVectorBtn" class="danger" type="button">Source 삭제(DB만)</button>
+            <button id="purgeRegistryBtn" class="danger" type="button">Source 삭제(DB+Registry)</button>
+            <button id="reindexSameBtn" class="secondary" type="button">동일 버전 재색인</button>
+            <button id="reindexCopyBtn" class="primary" type="button">새 버전으로 재색인</button>
+            <button id="compareBtn" class="success" type="button">버전 비교</button>
+        </div>
+        <div class="grid-2 top-gap">
+            <div>
+                <h3>Source 목록</h3>
+                <div id="sourceTablePanel" class="light-panel">아직 조회하지 않음</div>
+            </div>
+            <div>
+                <h3>파일 목록</h3>
+                <div id="sourceFilesTablePanel" class="light-panel">아직 조회하지 않음</div>
+            </div>
+        </div>
+        <div id="resultPanel" class="light-panel top-gap">아직 조회하지 않음</div>
+    </div>
 
     <div class="card">
-        <h2>RAG 업로드 테스트</h2>
-        <p class="small">source를 비워두면 파일명 또는 title 기준으로 자동 생성됩니다. version을 비우면 v1을 사용합니다. PDF/Markdown/HTML, 텍스트 계열 문서와 주요 코드·설정 파일 업로드를 지원합니다.</p>
+        <h2>RAG 등록 / 보강</h2>
         <div class="grid-3">
-            <div>
-                <label for="ragCategory">RAG Category</label>
-                <select id="ragCategory">
-                    <option value="DEV">DEV</option>
-                    <option value="MICE">MICE</option>
-                    <option value="GENERAL">GENERAL</option>
-                    <option value="TRAVEL">TRAVEL</option>
-                </select>
-            </div>
-            <div>
-                <label for="ragSource">Source (optional)</label>
-                <input id="ragSource" placeholder="예: project-readme">
-            </div>
-            <div>
-                <label for="ragVersion">Version</label>
-                <input id="ragVersion" value="v1">
-            </div>
-            <div>
-                <label for="ragTitle">Title (optional)</label>
-                <input id="ragTitle" placeholder="예: Project README">
-            </div>
-            <div>
-                <label for="ragFile">단일 파일</label>
-                <input id="ragFile" type="file" accept=".pdf,.md,.markdown,.txt,.log,.yaml,.yml,.json,.xml,.csv,.tsv,.html,.htm,.properties,.conf,.cfg,.ini,.sql,.java,.kt,.kts,.gradle,.sh,.bash,.zsh,.bat,.cmd,.ps1,.py,.js,.jsx,.ts,.tsx,.css,.scss,.less,.c,.cpp,.cc,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.scala,.r,.vue,.svelte,.toml,.lock,.tex,.adoc,.asciidoc,.rst">
-            </div>
-            <div>
-                <label for="ragFiles">멀티파일</label>
-                <input id="ragFiles" type="file" multiple accept=".pdf,.md,.markdown,.txt,.log,.yaml,.yml,.json,.xml,.csv,.tsv,.html,.htm,.properties,.conf,.cfg,.ini,.sql,.java,.kt,.kts,.gradle,.sh,.bash,.zsh,.bat,.cmd,.ps1,.py,.js,.jsx,.ts,.tsx,.css,.scss,.less,.c,.cpp,.cc,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.scala,.r,.vue,.svelte,.toml,.lock,.tex,.adoc,.asciidoc,.rst">
-            </div>
+            <div><label for="ingestSource">Ingest Source</label><input id="ingestSource" placeholder="예: project-readme"></div>
+            <div><label for="ingestVersion">Ingest Version</label><input id="ingestVersion" value="v1"></div>
+            <div><label for="ingestTitle">Ingest Title</label><input id="ingestTitle" placeholder="예: Project README"></div>
+            <div class="span-2"><label for="ingestMetadata">Metadata JSON</label><textarea id="ingestMetadata" spellcheck="false" placeholder='{"team":"backend","owner":"dev"}'></textarea></div>
+            <div><label for="ingestFiles">멀티파일 등록</label><input id="ingestFiles" type="file" multiple></div>
+            <div class="span-2"><label for="ingestTextBody">텍스트 직접 등록</label><textarea id="ingestTextBody" spellcheck="false" placeholder="문서를 직접 붙여 넣어 등록합니다."></textarea></div>
+            <div><label for="ingestUrl">URL 등록</label><input id="ingestUrl" placeholder="https://..."></div>
+        </div>
+        <div class="buttons">
+            <button id="btnIngestFiles" class="primary" type="button">멀티파일 등록</button>
+            <button id="btnIngestText" class="secondary" type="button">텍스트 등록</button>
+            <button id="btnIngestUrl" class="success" type="button">URL 등록</button>
+        </div>
+        <div id="ingestPanel" class="light-panel top-gap">아직 실행하지 않음</div>
+    </div>
+
+    <div class="card">
+        <h2>RAG 빠른 업로드</h2>
+        <p class="small">단일/멀티 업로드. 파일 개수 제한은 RAG Max Upload File Count 설정으로 제어합니다. 업로드 총 용량은 서버 multipart 설정의 max-request-size, 개별 파일은 max-file-size 영향을 받습니다.</p>
+        <div class="grid-3">
+            <div><label for="ragCategory">RAG Category</label><select id="ragCategory"><option value="DEV">DEV</option><option value="MICE">MICE</option><option value="GENERAL">GENERAL</option><option value="TRAVEL">TRAVEL</option></select></div>
+            <div><label for="ragSource">Source</label><input id="ragSource" placeholder="예: project-readme"></div>
+            <div><label for="ragVersion">Version</label><input id="ragVersion" value="v1"></div>
+            <div><label for="ragTitle">Title</label><input id="ragTitle" placeholder="예: Project README"></div>
+            <div><label for="ragFile">단일 파일</label><input id="ragFile" type="file"></div>
+            <div><label for="ragFiles">멀티파일</label><input id="ragFiles" type="file" multiple></div>
         </div>
         <div class="buttons">
             <button id="btnUploadSingle" class="success" type="button">단일 파일 업로드</button>
             <button id="btnUploadMulti" class="primary" type="button">멀티파일 업로드</button>
         </div>
         <div id="uploadStatus" class="status-box">업로드 상태 대기 중</div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>File</th><th>Source</th><th>Version</th><th>Title</th><th>Chunks</th><th>Trace</th><th>Status</th><th>Message</th></tr></thead>
-                <tbody id="uploadResultTable"><tr><td colspan="8">아직 결과가 없습니다.</td></tr></tbody>
-            </table>
-        </div>
+        <div class="table-wrap"><table><thead><tr><th>File</th><th>Source</th><th>Version</th><th>Title</th><th>Chunks</th><th>Trace</th><th>Status</th><th>Message</th></tr></thead><tbody id="uploadResultTable"><tr><td colspan="8">아직 결과가 없습니다.</td></tr></tbody></table></div>
     </div>
-
 
     <div class="card">
         <h2>RAG Trace Timeline</h2>
         <p class="small">문서등록 → 파싱 → 청킹 → 벡터저장 → 검색/리트리버 순서를 실제 실행 로그 기준으로 표시합니다.</p>
         <div class="grid-3">
-            <div>
-                <label for="ragTraceId">Trace ID</label>
-                <input id="ragTraceId" placeholder="예: a1b2c3d4">
-            </div>
-            <div>
-                <label for="ragTraceLimit">Latest Limit</label>
-                <input id="ragTraceLimit" type="number" min="10" step="10" value="150">
-            </div>
-            <div>
-                <label>조회 액션</label>
-                <div class="buttons" style="margin-top:0;">
-                    <button id="btnLoadLatestRagTraces" class="secondary" type="button">최신 로그 조회</button>
-                    <button id="btnLoadTraceById" class="primary" type="button">Trace 상세 조회</button>
-                    <button id="btnClearRagTraces" class="danger" type="button">Trace 비우기</button>
-                </div>
-            </div>
+            <div><label for="ragTraceId">Trace ID</label><input id="ragTraceId" placeholder="예: a1b2c3d4"></div>
+            <div><label for="ragTraceLimit">Latest Limit</label><input id="ragTraceLimit" type="number" min="10" step="10" value="150"></div>
+            <div><label>조회 액션</label><div class="buttons compact-buttons"><button id="btnLoadLatestRagTraces" class="secondary" type="button">최신 로그 조회</button><button id="btnLoadTraceById" class="primary" type="button">Trace 상세 조회</button><button id="btnClearRagTraces" class="danger" type="button">Trace 비우기</button></div></div>
         </div>
         <div id="ragTraceSummary" class="status-box">RAG trace 대기 중</div>
         <div id="ragTracePanel" class="panel">아직 조회하지 않음</div>
@@ -350,20 +223,16 @@
         <div class="card">
             <h3>Agent 이벤트</h3>
             <div id="agentChips" class="chips"></div>
-            <div id="streamLog" class="panel"></div>
+            <div id="streamLog" class="panel">아직 실행하지 않음</div>
         </div>
-
         <div class="card">
             <h3>메모리 상태</h3>
-            <div class="chips">
-                <span id="memoryStoreBadge" class="chip">store: -</span>
-                <span id="memoryServiceBadge" class="chip">service: -</span>
-            </div>
+            <div class="chips"><span id="memoryStoreBadge" class="chip">store: -</span><span id="memoryServiceBadge" class="chip">service: -</span></div>
             <div id="memoryPanel" class="light-panel">아직 조회하지 않음</div>
         </div>
     </div>
 </div>
-
-    <script src="/js/debug-home.js"></script>
+<script src="/js/rag-common.js"></script>
+<script src="/js/debug-home.js"></script>
 </body>
 </html>
