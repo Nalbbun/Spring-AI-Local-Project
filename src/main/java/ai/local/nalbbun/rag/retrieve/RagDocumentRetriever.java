@@ -1,20 +1,18 @@
 package ai.local.nalbbun.rag.retrieve;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import ai.local.nalbbun.model.category.ChatCategory;
 import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.model.RagRetrievedDocument;
 import ai.local.nalbbun.rag.service.RagMetadataSupport;
-import ai.local.nalbbun.rag.trace.DebugRagTraceService;
+import ai.local.nalbbun.rag.service.RuntimeOllamaVectorStoreFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,61 +21,37 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RagDocumentRetriever {
 
-    private final ObjectProvider<VectorStore> vectorStoreProvider;
+    private final RuntimeOllamaVectorStoreFactory runtimeVectorStoreFactory;
     private final RagProperties ragProperties;
     private final RagMetadataSupport ragMetadataSupport;
-    private final ObjectProvider<DebugRagTraceService> debugRagTraceServiceProvider;
 
     public List<RagRetrievedDocument> retrieve(ChatCategory category, String query) {
-        return retrieve(category, query, null, null, null);
+        return retrieve(category, query, null, null);
     }
 
     public List<RagRetrievedDocument> retrieve(ChatCategory category, String query, String sourceFilter, String versionFilter) {
-        return retrieve(category, query, sourceFilter, versionFilter, null);
-    }
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
 
-    public List<RagRetrievedDocument> retrieve(ChatCategory category, String query, String sourceFilter, String versionFilter, String traceId) {
-        VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
-        if (vectorStore == null || query == null || query.isBlank()) {
-            trace(traceId, "RETRIEVE", "SKIP", "리트리버 실행 조건 불충분", Map.of(
-                    "vectorStoreAvailable", vectorStore != null,
-                    "hasQuery", query != null && !query.isBlank()
-            ));
+        VectorStore vectorStore = runtimeVectorStoreFactory.create();
+        if (vectorStore == null) {
             return List.of();
         }
 
         try {
-            String filterExpression = ragMetadataSupport.buildFilterExpression(category, sourceFilter, versionFilter);
-            trace(traceId, "RETRIEVE", "REQUEST_BUILD", "SearchRequest 구성", Map.of(
-                    "category", category.name(),
-                    "topK", ragProperties.getTopK(),
-                    "similarityThreshold", ragProperties.getSimilarityThreshold(),
-                    "sourceFilter", safeValue(sourceFilter),
-                    "versionFilter", safeValue(versionFilter),
-                    "filterExpression", safeValue(filterExpression)
-            ));
-
             SearchRequest request = SearchRequest.builder()
                     .query(query)
                     .topK(ragProperties.getTopK())
                     .similarityThreshold(ragProperties.getSimilarityThreshold())
-                    .filterExpression(filterExpression)
+                    .filterExpression(ragMetadataSupport.buildFilterExpression(category, sourceFilter, versionFilter))
                     .build();
 
-            List<Document> searched = vectorStore.similaritySearch(request);
-            trace(traceId, "RETRIEVE", "SIMILARITY_SEARCH_COMPLETE", "유사도 검색 완료", Map.of(
-                    "hitCount", searched.size()
-            ));
-
-            return searched.stream()
+            return vectorStore.similaritySearch(request).stream()
                     .map(document -> toRetrievedDocument(category, document))
                     .toList();
         } catch (Exception e) {
             log.warn("RAG retrieval failed. category={}, source={}, version={}, reason={}", category, sourceFilter, versionFilter, e.getMessage());
-            error(traceId, "RETRIEVE", "FAILED", "리트리버 실행 실패", Map.of(
-                    "reason", e.getMessage(),
-                    "category", category.name()
-            ));
             return List.of();
         }
     }
@@ -95,29 +69,5 @@ public class RagDocumentRetriever {
                 .text(document.getText())
                 .score(document.getScore())
                 .build();
-    }
-
-    private void trace(String traceId, String operation, String stage, String message, Map<String, Object> details) {
-        if (traceId == null || traceId.isBlank()) {
-            return;
-        }
-        DebugRagTraceService service = debugRagTraceServiceProvider.getIfAvailable();
-        if (service != null) {
-            service.info(traceId, operation, stage, message, new LinkedHashMap<>(details));
-        }
-    }
-
-    private void error(String traceId, String operation, String stage, String message, Map<String, Object> details) {
-        if (traceId == null || traceId.isBlank()) {
-            return;
-        }
-        DebugRagTraceService service = debugRagTraceServiceProvider.getIfAvailable();
-        if (service != null) {
-            service.error(traceId, operation, stage, message, new LinkedHashMap<>(details));
-        }
-    }
-
-    private String safeValue(String value) {
-        return value == null || value.isBlank() ? "-" : value;
     }
 }

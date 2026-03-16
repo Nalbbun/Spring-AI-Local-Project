@@ -1,0 +1,146 @@
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  application:
+    name: nalbbun-ai-local
+
+  output:
+    ansi:
+      enabled: ALWAYS
+
+  thymeleaf:
+    cache: false
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 30MB
+      max-request-size: 150MB
+    encoding:
+      enabled: true
+      charset: UTF-8
+      force: true
+
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
+          no-store: true
+          must-revalidate: true
+
+  ai:
+    chat:
+      client:
+        enabled: true
+
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4.1-mini}
+          temperature: 0.7
+
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:gemma2:9b}
+          keep-alive: 300s
+      embedding:
+        options:
+          model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+          keep-alive: 300s
+
+    model:
+      embedding: ${SPRING_AI_MODEL_EMBEDDING:ollama}
+
+    vectorstore:
+      type: ${SPRING_AI_VECTORSTORE_TYPE:pgvector}
+      pgvector:
+        initialize-schema: ${SPRING_AI_VECTORSTORE_PGVECTOR_INITIALIZE_SCHEMA:true}
+        dimensions: ${SPRING_AI_VECTORSTORE_PGVECTOR_DIMENSIONS:768}
+
+app:
+  debug:
+    enabled: ${APP_DEBUG_ENABLED:true}
+
+  category:
+    resolver:
+      mode: HYBRID
+
+  parser:
+    general:
+      mode: HYBRID
+    travel:
+      mode: HYBRID
+    dev:
+      mode: HYBRID
+    mice:
+      mode: HYBRID
+
+  llm:
+    fallback-policy: ${APP_LLM_FALLBACK_POLICY:BLOCK_OPENAI}
+    timeout-ms: ${APP_LLM_TIMEOUT_MS:45000}
+    retry-attempts: ${APP_LLM_RETRY_ATTEMPTS:2}
+    retry-backoff-ms: ${APP_LLM_RETRY_BACKOFF_MS:800}
+
+  memory:
+    store: ${APP_MEMORY_STORE:jdbc}
+    redis:
+      ttl-hours: ${APP_MEMORY_REDIS_TTL_HOURS:24}
+
+  search:
+    provider: ${APP_SEARCH_PROVIDER:tavily}
+    tavily:
+      api-key: ${TAVILY_API_KEY:}
+      max-results: ${TAVILY_MAX_RESULTS:5}
+
+  rag:
+    enabled: ${APP_RAG_ENABLED:true}
+    vector-store: ${APP_RAG_VECTOR_STORE:pgvector}
+    top-k: ${APP_RAG_TOP_K:4}
+    similarity-threshold: ${APP_RAG_SIMILARITY_THRESHOLD:0.72}
+    include-citations: ${APP_RAG_INCLUDE_CITATIONS:true}
+    categories:
+      general: ${APP_RAG_GENERAL_ENABLED:false}
+      dev: ${APP_RAG_DEV_ENABLED:true}
+      mice: ${APP_RAG_MICE_ENABLED:true}
+      travel: ${APP_RAG_TRAVEL_ENABLED:false}
+    ingest:
+      chunk-size: ${APP_RAG_CHUNK_SIZE:350}
+      min-chunk-size-chars: ${APP_RAG_MIN_CHUNK_SIZE_CHARS:120}
+      min-chunk-length-to-embed: ${APP_RAG_MIN_CHUNK_LENGTH_TO_EMBED:10}
+      max-num-chunks: ${APP_RAG_MAX_NUM_CHUNKS:128}
+      max-upload-file-count: ${APP_RAG_MAX_UPLOAD_FILE_COUNT:20}
+
+  executor:
+    chat:
+      core-pool-size: 4
+      max-pool-size: 8
+      queue-capacity: 100
+    travel:
+      core-pool-size: 6
+      max-pool-size: 12
+      queue-capacity: 100
+    llm:
+      core-pool-size: 4
+      max-pool-size: 8
+      queue-capacity: 50
+
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+    model-source: RUNNING
+    default-general-model: ${APP_OLLAMA_GENERAL_MODEL:gemma2:9b}
+    default-dev-model: ${APP_OLLAMA_DEV_MODEL:qwen2.5-coder:14b}
+    default-mice-model: ${APP_OLLAMA_MICE_MODEL:exaone3.5:7.8b}
+    default-travel-search-model: ${APP_OLLAMA_TRAVEL_SEARCH_MODEL:gemma2:9b}
+    default-travel-plan-model: ${APP_OLLAMA_TRAVEL_PLAN_MODEL:exaone3.5:7.8b}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  pattern:
+    console: "%clr(%-5level){green} %clr(%logger.%M\\(\\)){cyan}: %msg%n"

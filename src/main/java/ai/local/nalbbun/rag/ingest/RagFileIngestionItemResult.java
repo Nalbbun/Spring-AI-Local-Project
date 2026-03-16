@@ -10,7 +10,6 @@ public record RagFileIngestionItemResult(
         String title,
         int chunkCount,
         boolean stored,
-        String traceId,
         String message
 ) {
     public RagFileIngestionItemResult(String fileName,
@@ -20,6 +19,6 @@ public record RagFileIngestionItemResult(
                                       int chunkCount,
                                       boolean stored,
                                       String message) {
-        this(null, fileName, fileName, null, source, version, title, chunkCount, stored, null, message);
+        this(null, fileName, fileName, null, source, version, title, chunkCount, stored, message);
     }
 }

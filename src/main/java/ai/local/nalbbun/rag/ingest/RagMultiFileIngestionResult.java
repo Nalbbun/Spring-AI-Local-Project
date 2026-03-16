@@ -10,7 +10,6 @@ public record RagMultiFileIngestionResult(
         int successCount,
         int failCount,
         int totalChunkCount,
-        String traceId,
         List<RagFileIngestionItemResult> files
 ) {
 }

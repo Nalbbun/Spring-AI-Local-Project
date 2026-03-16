@@ -1,0 +1,22 @@
+[
+  {
+    "id": "dev-readme-v1",
+    "category": "DEV",
+    "query": "README 구조와 실행 흐름을 설명해줘",
+    "source": "project-readme",
+    "version": "v1",
+    "minHits": 1,
+    "expectedSources": ["project-readme"],
+    "expectedVersions": ["v1"]
+  },
+  {
+    "id": "mice-runbook-v2",
+    "category": "MICE",
+    "query": "행사 운영 체크리스트와 제안 구조를 정리해줘",
+    "source": "event-runbook",
+    "version": "v2",
+    "minHits": 1,
+    "expectedSources": ["event-runbook"],
+    "expectedVersions": ["v2"]
+  }
+]

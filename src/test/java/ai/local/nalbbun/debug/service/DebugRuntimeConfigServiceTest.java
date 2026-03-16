@@ -1,15 +1,12 @@
 package ai.local.nalbbun.debug.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import org.junit.jupiter.api.Test;
-import org.springframework.mock.env.MockEnvironment;
-
 import ai.local.nalbbun.category.common.CategoryParserMode;
 import ai.local.nalbbun.debug.model.DebugRuntimeConfig;
 import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.service.memory.InMemoryConversationMemoryService;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DebugRuntimeConfigServiceTest {
 
@@ -23,8 +20,7 @@ class DebugRuntimeConfigServiceTest {
                 "RULE",
                 "redis",
                 "BLOCK_OPENAI",
-                0, 0, 0, false, null, 0, null, null, null, 0, null,
-                new InMemoryConversationMemoryService(), new RagProperties(), new MockEnvironment()
+                new InMemoryConversationMemoryService()
         );
 
         DebugRuntimeConfig config = service.getCurrentConfig();
@@ -45,8 +41,7 @@ class DebugRuntimeConfigServiceTest {
                 "RULE",
                 "jdbc",
                 "ALLOW_OPENAI",
-                0, 0, 0, false, null, 0, null, null, null, 0, null,
-                new InMemoryConversationMemoryService(), new RagProperties(), new MockEnvironment()
+                new InMemoryConversationMemoryService()
         );
 
         DebugRuntimeConfig request = new DebugRuntimeConfig();

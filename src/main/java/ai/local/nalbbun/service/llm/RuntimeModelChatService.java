@@ -6,13 +6,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.ollama.OllamaChatModel;
+import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
 import ai.local.nalbbun.debug.model.RuntimeModelTarget;
-import ai.local.nalbbun.debug.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.debug.service.DebugRuntimeOllamaConnectionService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -20,35 +23,38 @@ import lombok.extern.slf4j.Slf4j;
 public class RuntimeModelChatService {
 
     private final ChatClient.Builder openaiBuilder;
-    private final ChatClient.Builder ollamaBuilder;
     private final RuntimeModelResolver runtimeModelResolver;
     private final Executor llmTaskExecutor;
-    private final DebugRuntimeConfigService debugRuntimeConfigService;
+    private final long timeoutMs;
+    private final int retryAttempts;
+    private final long retryBackoffMs;
+    private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
 
     public RuntimeModelChatService(
             @Qualifier("openaiBuilder") ChatClient.Builder openaiBuilder,
-            @Qualifier("ollamaBuilder") ChatClient.Builder ollamaBuilder,
             RuntimeModelResolver runtimeModelResolver,
             @Qualifier("llmTaskExecutor") Executor llmTaskExecutor,
-            DebugRuntimeConfigService debugRuntimeConfigService
+            DebugRuntimeOllamaConnectionService ollamaConnectionService,
+            @Value("${app.llm.timeout-ms:45000}") long timeoutMs,
+            @Value("${app.llm.retry-attempts:2}") int retryAttempts,
+            @Value("${app.llm.retry-backoff-ms:800}") long retryBackoffMs
     ) {
         this.openaiBuilder = openaiBuilder;
-        this.ollamaBuilder = ollamaBuilder;
         this.runtimeModelResolver = runtimeModelResolver;
         this.llmTaskExecutor = llmTaskExecutor;
-        this.debugRuntimeConfigService = debugRuntimeConfigService;
+        this.ollamaConnectionService = ollamaConnectionService;
+        this.timeoutMs = timeoutMs;
+        this.retryAttempts = Math.max(1, retryAttempts);
+        this.retryBackoffMs = Math.max(0, retryBackoffMs);
     }
 
     public String callText(RuntimeModelTarget target, String systemPrompt, String userPrompt) {
         RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, false);
         return executeWithPolicy(target, resolved, () -> {
             if (resolved.ollama()) {
-                ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+                ChatClient client = runtimeOllamaClient(systemPrompt, resolved.modelName());
                 return client.prompt()
                         .user(userPrompt)
-                        .options(OllamaChatOptions.builder()
-                                .model(resolved.modelName())
-                                .build())
                         .call()
                         .content();
             }
@@ -68,12 +74,9 @@ public class RuntimeModelChatService {
         RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, false);
         return executeWithPolicy(target, resolved, () -> {
             if (resolved.ollama()) {
-                ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+                ChatClient client = runtimeOllamaClient(systemPrompt, resolved.modelName());
                 return client.prompt()
                         .user(userPrompt)
-                        .options(OllamaChatOptions.builder()
-                                .model(resolved.modelName())
-                                .build())
                         .call()
                         .entity(responseType);
             }
@@ -93,12 +96,9 @@ public class RuntimeModelChatService {
         RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, false);
         return executeWithPolicy(target, resolved, () -> {
             if (resolved.ollama()) {
-                ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+                ChatClient client = runtimeOllamaClient(systemPrompt, resolved.modelName());
                 return client.prompt()
                         .user(userPrompt)
-                        .options(OllamaChatOptions.builder()
-                                .model(resolved.modelName())
-                                .build())
                         .call()
                         .entity(responseType);
             }
@@ -119,13 +119,10 @@ public class RuntimeModelChatService {
         RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, true);
         return executeWithPolicy(target, resolved, () -> {
             if (resolved.ollama()) {
-                ChatClient client = ollamaBuilder.defaultSystem(systemPrompt).build();
+                ChatClient client = runtimeOllamaClient(systemPrompt, resolved.modelName());
                 return client.prompt()
                         .user(userPrompt)
                         .tools(toolObject)
-                        .options(OllamaChatOptions.builder()
-                                .model(resolved.modelName())
-                                .build())
                         .call()
                         .entity(responseType);
             }
@@ -143,12 +140,27 @@ public class RuntimeModelChatService {
         return runtimeModelResolver.resolve(target, requiresTools).describe();
     }
 
+    private ChatClient runtimeOllamaClient(String systemPrompt, String modelName) {
+        String baseUrl = ollamaConnectionService.getBaseUrl();
+        OllamaApi ollamaApi = OllamaApi.builder()
+                .baseUrl(baseUrl)
+                .build();
+        OllamaChatModel chatModel = OllamaChatModel.builder()
+                .ollamaApi(ollamaApi)
+                .defaultOptions(OllamaChatOptions.builder()
+                        .model(modelName)
+                        .build())
+                .build();
+        log.debug("Using runtime Ollama connection. baseUrl={}, model={}", baseUrl, modelName);
+        return ChatClient.builder(chatModel)
+                .defaultSystem(systemPrompt)
+                .build();
+    }
+
     private <T> T executeWithPolicy(RuntimeModelTarget target,
                                     RuntimeModelSelection resolved,
                                     Supplier<T> supplier) {
         Exception lastException = null;
-        int retryAttempts = debugRuntimeConfigService.getLlmRetryAttempts();
-        long timeoutMs = debugRuntimeConfigService.getLlmTimeoutMs();
 
         for (int attempt = 1; attempt <= retryAttempts; attempt++) {
             try {
@@ -165,7 +177,7 @@ public class RuntimeModelChatService {
                 lastException = unwrap(e);
                 log.warn("LLM call failed. target={}, attempt={}/{}, reason={}",
                         target, attempt, retryAttempts, lastException.getMessage());
-                sleepBackoff(attempt, retryAttempts);
+                sleepBackoff(attempt);
             }
         }
 
@@ -184,8 +196,7 @@ public class RuntimeModelChatService {
         return current instanceof Exception e ? e : new RuntimeException(current);
     }
 
-    private void sleepBackoff(int attempt, int retryAttempts) {
-        long retryBackoffMs = debugRuntimeConfigService.getLlmRetryBackoffMs();
+    private void sleepBackoff(int attempt) {
         if (attempt >= retryAttempts || retryBackoffMs <= 0) {
             return;
         }

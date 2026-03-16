@@ -23,9 +23,6 @@ public class RagProperties {
     private Evaluation evaluation = new Evaluation();
 
     public boolean isCategoryEnabled(ChatCategory category) {
-        if (category == null) {
-            return false;
-        }
         return switch (category) {
             case GENERAL -> categories.isGeneral();
             case DEV -> categories.isDev();
@@ -48,7 +45,6 @@ public class RagProperties {
         private int minChunkSizeChars = 120;
         private int minChunkLengthToEmbed = 10;
         private int maxNumChunks = 128;
-        private int maxUploadFileCount = 20;
     }
 
     @Data

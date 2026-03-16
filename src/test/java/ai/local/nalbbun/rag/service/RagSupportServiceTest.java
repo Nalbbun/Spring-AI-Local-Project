@@ -3,7 +3,6 @@ package ai.local.nalbbun.rag.service;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -17,7 +16,8 @@ import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.model.RagContext;
 import ai.local.nalbbun.rag.model.RagRetrievedDocument;
 import ai.local.nalbbun.rag.retrieve.RagDocumentRetriever;
-import ai.local.nalbbun.rag.trace.DebugRagTraceService;
+
+import static org.mockito.Mockito.mock;
 
 class RagSupportServiceTest {
 
@@ -31,15 +31,12 @@ class RagSupportServiceTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<VectorStore> vectorStoreProvider = (ObjectProvider<VectorStore>) mock(ObjectProvider.class);
         when(vectorStoreProvider.getIfAvailable()).thenReturn(mock(VectorStore.class));
-        @SuppressWarnings("unchecked")
-        ObjectProvider<DebugRagTraceService> traceProvider = (ObjectProvider<DebugRagTraceService>) mock(ObjectProvider.class);
 
         RagSupportService service = new RagSupportService(
                 properties,
                 retriever,
                 new RagPromptComposer(properties),
-                vectorStoreProvider,
-                traceProvider
+                vectorStoreProvider
         );
 
         RagContext context = service.buildContext(ChatCategory.DEV, "배포 구조 설명해줘");
@@ -54,7 +51,7 @@ class RagSupportServiceTest {
         properties.setEnabled(true);
 
         RagDocumentRetriever retriever = mock(RagDocumentRetriever.class);
-        when(retriever.retrieve(any(), any(), any(), any(), any())).thenReturn(List.of(
+        when(retriever.retrieve(any(), any())).thenReturn(List.of(
                 RagRetrievedDocument.builder()
                         .id("doc-1")
                         .title("README")
@@ -68,15 +65,12 @@ class RagSupportServiceTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<VectorStore> vectorStoreProvider = (ObjectProvider<VectorStore>) mock(ObjectProvider.class);
         when(vectorStoreProvider.getIfAvailable()).thenReturn(mock(VectorStore.class));
-        @SuppressWarnings("unchecked")
-        ObjectProvider<DebugRagTraceService> traceProvider = (ObjectProvider<DebugRagTraceService>) mock(ObjectProvider.class);
 
         RagSupportService service = new RagSupportService(
                 properties,
                 retriever,
                 new RagPromptComposer(properties),
-                vectorStoreProvider,
-                traceProvider
+                vectorStoreProvider
         );
 
         RagContext context = service.buildContext(ChatCategory.DEV, "배포 흐름 설명");

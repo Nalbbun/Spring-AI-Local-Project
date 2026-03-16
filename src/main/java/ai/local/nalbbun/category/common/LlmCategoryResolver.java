@@ -1,22 +1,31 @@
 package ai.local.nalbbun.category.common;
 
+import ai.local.nalbbun.debug.service.DebugRuntimeOllamaConnectionService;
 import ai.local.nalbbun.model.category.CategoryResolution;
 import ai.local.nalbbun.model.category.ChatCategory;
 import ai.local.nalbbun.service.llm.LlmJsonSupport;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.ai.ollama.OllamaChatModel;
+import org.springframework.ai.ollama.api.OllamaApi;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class LlmCategoryResolver {
 
-    private final ChatClient chatClient;
+    private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
+    private final String categoryModel;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public LlmCategoryResolver(@Qualifier("ollamaBuilder") ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build();
+    public LlmCategoryResolver(
+            DebugRuntimeOllamaConnectionService ollamaConnectionService,
+            @Value("${app.ollama.default-general-model:${spring.ai.ollama.chat.options.model:gemma2:9b}}") String categoryModel
+    ) {
+        this.ollamaConnectionService = ollamaConnectionService;
+        this.categoryModel = categoryModel;
     }
 
     public CategoryResolution resolve(String userQuery) {
@@ -42,7 +51,7 @@ public class LlmCategoryResolver {
             """, userQuery);
 
         try {
-            String raw = chatClient.prompt()
+            String raw = runtimeChatClient().prompt()
                     .user(prompt)
                     .call()
                     .content();
@@ -57,6 +66,19 @@ public class LlmCategoryResolver {
         } catch (Exception e) {
             return new CategoryResolution(ChatCategory.GENERAL, 50, mode(), "llm classification failed");
         }
+    }
+
+    private ChatClient runtimeChatClient() {
+        OllamaApi ollamaApi = OllamaApi.builder()
+                .baseUrl(ollamaConnectionService.getBaseUrl())
+                .build();
+        OllamaChatModel chatModel = OllamaChatModel.builder()
+                .ollamaApi(ollamaApi)
+                .defaultOptions(OllamaChatOptions.builder()
+                        .model(categoryModel)
+                        .build())
+                .build();
+        return ChatClient.builder(chatModel).build();
     }
 
     public String mode() {
