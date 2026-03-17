@@ -8,6 +8,13 @@ import org.springframework.stereotype.Service;
 import ai.local.nalbbun.debug.model.llm.DebugOllamaModelConfig;
 import ai.local.nalbbun.debug.model.llm.OllamaModelSource;
 
+/**
+ * Debug Runtime Model Config Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Service
 public class DebugRuntimeModelConfigService {
 
@@ -20,6 +27,12 @@ public class DebugRuntimeModelConfigService {
     private final AtomicReference<String> residentModelList = new AtomicReference<>("");
     private final AtomicReference<String> residentKeepAlive = new AtomicReference<>("24h");
 
+    /**
+     * Debug Runtime Model Config Service 인스턴스를 초기화한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public DebugRuntimeModelConfigService(
             @Value("${app.ollama.model-source:RUNNING}") String modelSource,
             @Value("${app.ollama.default-general-model:}") String generalModel,
@@ -40,6 +53,12 @@ public class DebugRuntimeModelConfigService {
         this.residentKeepAlive.set(defaultIfBlank(residentKeepAlive, "24h"));
     }
 
+    /**
+     * Current Config 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public DebugOllamaModelConfig getCurrentConfig() {
         DebugOllamaModelConfig config = new DebugOllamaModelConfig();
         config.setModelSource(modelSource.get().name());
@@ -53,6 +72,12 @@ public class DebugRuntimeModelConfigService {
         return config;
     }
 
+    /**
+     * update 작업을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public DebugOllamaModelConfig update(DebugOllamaModelConfig request) {
         if (request == null) {
             return getCurrentConfig();
@@ -86,6 +111,12 @@ public class DebugRuntimeModelConfigService {
         return getCurrentConfig();
     }
 
+    /**
+     * reset 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public DebugOllamaModelConfig reset() {
         modelSource.set(OllamaModelSource.RUNNING);
         generalModel.set("");
@@ -98,38 +129,92 @@ public class DebugRuntimeModelConfigService {
         return getCurrentConfig();
     }
 
+    /**
+     * Model Source 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public OllamaModelSource getModelSource() {
         return modelSource.get();
     }
 
+    /**
+     * General Model 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String getGeneralModel() {
         return generalModel.get();
     }
 
+    /**
+     * Dev Model 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String getDevModel() {
         return devModel.get();
     }
 
+    /**
+     * Mice Model 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String getMiceModel() {
         return miceModel.get();
     }
 
+    /**
+     * Travel Search Model 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String getTravelSearchModel() {
         return travelSearchModel.get();
     }
 
+    /**
+     * Travel Plan Model 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String getTravelPlanModel() {
         return travelPlanModel.get();
     }
 
+    /**
+     * Resident Model List 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String getResidentModelList() {
         return residentModelList.get();
     }
 
+    /**
+     * Resident Keep Alive 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String getResidentKeepAlive() {
         return residentKeepAlive.get();
     }
 
+    /**
+     * safe Source 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private OllamaModelSource safeSource(String value) {
         try {
             return OllamaModelSource.valueOf(value.trim().toUpperCase());
@@ -138,14 +223,32 @@ public class DebugRuntimeModelConfigService {
         }
     }
 
+    /**
+     * has Text 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 
+    /**
+     * safe 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String safe(String value) {
         return value == null ? "" : value.trim();
     }
 
+    /**
+     * default If Blank 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String defaultIfBlank(String value, String defaultValue) {
         String safeValue = safe(value);
         return safeValue.isBlank() ? defaultValue : safeValue;

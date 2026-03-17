@@ -1,6 +1,6 @@
 (() => {
   const { qs, val, setText, fetchJson, pretty, htmlEscape } = window.UiCommon;
-  const { startStream, logLine, appendResult } = window.ChatCommon;
+  const { startStream, logLine, appendToken } = window.ChatCommon;
   let agentEs = null;
   let startTime = null;
   const steps = {};
@@ -9,12 +9,14 @@
   const resultEl = () => qs('agentResult');
   const stepsEl  = () => qs('agentSteps');
 
+  // 토큰 누적 상태
+  const tokenState = { text: '' };
+
   // ── 에이전트 단계 표시 ─────────────────────────────────
   function upsertStep(agent, status, msg) {
     const container = stepsEl();
     if (!container) return;
-    const idle = container.querySelector('.step-idle');
-    if (idle) idle.remove();
+    container.querySelector('.step-idle')?.remove();
 
     const icon = { running: '⏳', complete: '✅', error: '❌' }[status] || '🔵';
     const cls  = `agent-step ${status}`;
@@ -44,15 +46,13 @@
       setText('planModelChip',   `plan: ${cfg?.travelPlanModel || '-'}`);
       setText('agentModelInfo',
         `TRAVEL Search: ${cfg?.travelSearchModel || '-'}\nTRAVEL Plan  : ${cfg?.travelPlanModel || '-'}`);
-
-      // select 동기화
-      const select = (id, val) => {
+      const sel = (id, v) => {
         const el = qs(id);
-        if (!el || !val) return;
-        [...el.options].forEach(o => { o.selected = o.value === val; });
+        if (!el || !v) return;
+        [...el.options].forEach(o => { o.selected = o.value === v; });
       };
-      select('travelSearchModel', cfg?.travelSearchModel);
-      select('travelPlanModel',   cfg?.travelPlanModel);
+      sel('travelSearchModel', cfg?.travelSearchModel);
+      sel('travelPlanModel',   cfg?.travelPlanModel);
     } catch { /* 무시 */ }
 
     try {
@@ -64,8 +64,8 @@
   // ── 모델 목록 로드 ─────────────────────────────────────
   async function loadModels() {
     try {
-      const list = await fetchJson('/debug/api/ollama/models?source=RUNNING');
-      const models = (list || []).map(m => m.name || m.model || String(m));
+      const list   = await fetchJson('/debug/api/ollama/models?source=RUNNING');
+      const models = (list || []).map(m => m.name || m.model || '').filter(Boolean);
       ['travelSearchModel', 'travelPlanModel'].forEach(id => {
         const sel = qs(id);
         if (!sel) return;
@@ -87,8 +87,7 @@
     };
     try {
       const d = await fetchJson('/debug/api/ollama/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       setText('agentModelSaveStatus', '저장 완료\n' + pretty(d));
@@ -114,19 +113,43 @@
     const query = val('searchQuery');
     if (!query) return;
     try {
-      setText('webSearchResult', `검색 중: ${query}`);
+      setText('webSearchResult', `검색 중: ${query}...`);
       const d = await fetchJson(`/debug/api/search?query=${encodeURIComponent(query)}`);
-      const results = d?.result?.results || d?.result || [];
-      if (Array.isArray(results) && results.length) {
-        qs('webSearchResult').innerHTML = results.map((r, i) => `
-          <div style="border-bottom:1px solid #1e293b;padding:8px 0">
-            <div style="font-weight:700;color:#93c5fd">#${i+1} ${htmlEscape(r.title || '-')}</div>
-            <div style="font-size:12px;color:#64748b">${htmlEscape(r.url || '')}</div>
-            <div style="font-size:13px;margin-top:4px">${htmlEscape(r.content || r.snippet || '')}</div>
-          </div>`).join('');
-      } else {
-        setText('webSearchResult', '결과 없음\n' + pretty(d));
+      const text = typeof d?.result === 'string' ? d.result : pretty(d);
+      if (!text?.trim()) { setText('webSearchResult', '검색 결과 없음'); return; }
+
+      const panel = qs('webSearchResult');
+      const lines = text.split('\n');
+      let html = '';
+      let inItem = false;
+      let itemBuf = [];
+
+      const flushItem = () => {
+        if (!itemBuf.length) return;
+        const [title, url, ...rest] = itemBuf;
+        html += `<div style="border-bottom:1px solid #1e293b;padding:8px 0">
+          <div style="font-weight:700;color:#93c5fd">${htmlEscape(title || '')}</div>
+          ${url ? `<div style="font-size:12px;color:#64748b">${htmlEscape(url)}</div>` : ''}
+          ${rest.length ? `<div style="font-size:13px;margin-top:4px;color:#cbd5e1">${htmlEscape(rest.join(' ').trim())}</div>` : ''}
+        </div>`;
+        itemBuf = [];
+      };
+
+      for (const line of lines) {
+        if (line.startsWith('[요약]')) {
+          html += `<div style="background:#0f2a1e;border:1px solid #047857;border-radius:8px;
+            padding:8px 10px;margin-bottom:8px;font-size:13px;color:#6ee7b7">${htmlEscape(line)}</div>`;
+        } else if (/^\[\d+\]/.test(line)) {
+          flushItem(); inItem = true;
+          itemBuf.push(line.replace(/^\[\d+\]\s*/, ''));
+        } else if (inItem && line.trim()) {
+          itemBuf.push(line.trim());
+        } else if (inItem && !line.trim()) {
+          flushItem(); inItem = false;
+        }
       }
+      flushItem();
+      panel.innerHTML = html || `<pre style="white-space:pre-wrap;font-size:13px">${htmlEscape(text)}</pre>`;
     } catch (e) {
       setText('webSearchResult', '검색 실패: ' + e.message);
     }
@@ -138,6 +161,8 @@
     const category = val('agentCategory');
     if (!message) { logLine(logEl(), '[error] 질문을 입력하세요.'); return; }
     if (agentEs) { agentEs.close(); agentEs = null; }
+
+    tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
     if (stepsEl())  stepsEl().innerHTML    = '';
@@ -151,7 +176,7 @@
 
     agentEs = startStream({
       url,
-      onToken: data => appendResult(resultEl(), data),
+      onToken: token => appendToken(resultEl(), token, tokenState),
       onAgent: ({ agent, status, message: msg }) => {
         logLine(logEl(), `[${agent}] ${status} — ${msg}`);
         upsertStep(agent, status, msg);
@@ -168,9 +193,11 @@
   }
 
   function clearAgent() {
+    tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
-    if (stepsEl())  stepsEl().innerHTML    = '<div class="step-idle">에이전트를 실행하면 단계별 진행 상황이 표시됩니다.</div>';
+    if (stepsEl())  stepsEl().innerHTML    =
+      '<div class="step-idle">에이전트를 실행하면 단계별 진행 상황이 표시됩니다.</div>';
     setText('elapsedTime', '-');
     Object.keys(steps).forEach(k => delete steps[k]);
     if (agentEs) { agentEs.close(); agentEs = null; }
@@ -192,9 +219,7 @@
     qs('btnSaveAgentModels')?.addEventListener('click', saveAgentModels);
     qs('btnResetAgentModels')?.addEventListener('click', resetAgentModels);
     qs('btnWebSearch')?.addEventListener('click', webSearch);
-    qs('searchQuery')?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') webSearch();
-    });
+    qs('searchQuery')?.addEventListener('keydown', e => { if (e.key === 'Enter') webSearch(); });
     qs('btnRunAgent')?.addEventListener('click', runAgent);
     qs('btnClearAgent')?.addEventListener('click', clearAgent);
     qs('btnMemoryClear')?.addEventListener('click', memoryClear);

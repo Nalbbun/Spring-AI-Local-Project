@@ -4,18 +4,30 @@
 <nav th:fragment="nav" class="site-nav">
     <div class="nav-inner">
         <a class="nav-brand" href="/">🤖 Nalbbun AI</a>
-        <div class="nav-links">
-            <a href="/" th:classappend="${currentPage == 'chat'} ? 'active'">💬 일반채팅</a>
-            <a href="/chat/rag" th:classappend="${currentPage == 'chat-rag'} ? 'active'">📚 RAG채팅</a>
-            <a href="/chat/agent" th:classappend="${currentPage == 'chat-agent'} ? 'active'">🤖 에이전트채팅</a>
+        <div class="nav-links" id="siteNavLinks">
+            <a href="/"           data-path="/"           >💬 일반채팅</a>
+            <a href="/chat/rag"   data-path="/chat/rag"   >📚 RAG채팅</a>
+            <a href="/chat/agent" data-path="/chat/agent" >🤖 에이전트채팅</a>
             <span class="nav-divider">|</span>
-            <a href="/settings" th:classappend="${currentPage == 'settings'} ? 'active'">⚙️ 설정</a>
-            <a href="/rag" th:classappend="${currentPage == 'rag'} ? 'active'">🗄 RAG관리</a>
-            <a href="/agent" th:classappend="${currentPage == 'agent'} ? 'active'">🚀 에이전트관리</a>
+            <a href="/settings"   data-path="/settings"   >⚙️ 설정</a>
+            <a href="/rag"        data-path="/rag"        >🗄 RAG관리</a>
+            <a href="/agent"      data-path="/agent"      >🚀 에이전트관리</a>
             <span class="nav-divider">|</span>
-            <a href="/debug" class="nav-debug">🔧 Debug</a>
+            <a href="/" class="nav-debug">🔧 Debug</a>
         </div>
     </div>
+    <script>
+    (function() {
+        var path = window.location.pathname;
+        document.querySelectorAll('#siteNavLinks a[data-path]').forEach(function(a) {
+            var dp = a.getAttribute('data-path');
+            // 정확히 일치하거나 (루트 제외) 경로 접두사 일치
+            if (dp === '/' ? path === '/' : path === dp || path.startsWith(dp + '/')) {
+                a.classList.add('active');
+            }
+        });
+    })();
+    </script>
 </nav>
 </body>
 </html>

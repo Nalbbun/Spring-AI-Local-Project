@@ -1,36 +1,48 @@
+/**
+ * settings-page.js
+ * ① Ollama 연결  ② 카테고리별 모델  ③ 모델 브라우저/Pull/Run
+ * ④ RAG 설정    ⑤ Resolver/Parser 모드  ⑥ 즉시 테스트
+ */
 (() => {
-  const { qs, val, setVal, setText, fetchJson, pretty } = window.UiCommon;
-  const { startStream, logLine, appendResult } = window.ChatCommon;
+  const { qs, val, setVal, setText, fetchJson, pretty, htmlEscape } = window.UiCommon;
+  const { startStream, logLine, appendToken } = window.ChatCommon;
   let testEs = null;
+  const testTokenState = { text: '' };
 
-  // ── 유틸 ───────────────────────────────────────────────
-  function selectVal(id, value) {
+  // ── 공통 유틸 ──────────────────────────────────────────
+  function selectSet(id, value) {
     const el = qs(id);
-    if (!el || !value) return;
-    [...el.options].forEach(o => { o.selected = o.value === value; });
+    if (!el || value == null) return;
+    const str = String(value);
+    [...el.options].forEach(o => { o.selected = o.value === str; });
   }
 
   function fillModelSelects(models) {
-    const ids = ['generalModel', 'devModel', 'miceModel', 'travelSearchModel', 'travelPlanModel'];
+    const ids = ['generalModel','devModel','miceModel','travelSearchModel','travelPlanModel'];
     ids.forEach(id => {
       const sel = qs(id);
       if (!sel) return;
       const cur = sel.value;
       sel.innerHTML = '<option value="">-- 선택 --</option>' +
-        models.map(m => `<option value="${m}">${m}</option>`).join('');
-      if (cur) selectVal(id, cur);
+        models.map(m => `<option value="${htmlEscape(m)}">${htmlEscape(m)}</option>`).join('');
+      if (cur) selectSet(id, cur);
     });
   }
 
-  // ── Ollama 연결 ────────────────────────────────────────
+  // ══════════════════════════════════════════════════════
+  // ① Ollama 연결
+  // ══════════════════════════════════════════════════════
   async function checkConn() {
     try {
       const d = await fetchJson('/debug/api/ollama/connection');
       setText('ollamaConnStatus',
-        `status: ${d.status}\nreachable: ${d.reachable}\nrunning: ${d.runningCount}\ninstalled: ${d.installedCount}\nmessage: ${d.message || '-'}`);
-      setText('ollamaStatusChip', `ollama: ${d.reachable ? '🟢 connected' : '🔴 offline'}`);
+        `status: ${d.status}  reachable: ${d.reachable}\n` +
+        `running: ${d.runningCount}  installed: ${d.installedCount}\n` +
+        `message: ${d.message || '-'}`);
+      setText('ollamaStatusChip', `ollama: ${d.reachable ? '🟢 ok' : '🔴 offline'}`);
     } catch (e) {
       setText('ollamaConnStatus', '조회 실패: ' + e.message);
+      setText('ollamaStatusChip', 'ollama: ❌ error');
     }
   }
 
@@ -58,15 +70,20 @@
     }
   }
 
-  // ── 모델 목록 ──────────────────────────────────────────
-  async function loadModels() {
+  // ══════════════════════════════════════════════════════
+  // ② 카테고리별 모델
+  // ══════════════════════════════════════════════════════
+  async function loadModels(silent) {
     try {
-      const list = await fetchJson('/debug/api/ollama/models?source=RUNNING');
-      const models = (list || []).map(m => m.name || m.model || String(m));
+      const list   = await fetchJson('/debug/api/ollama/models?source=RUNNING');
+      const models = (list || []).map(m => m.name || m.model || '').filter(Boolean);
       fillModelSelects(models);
-      setText('modelStatus', `모델 ${models.length}개 조회 완료: ${models.join(', ')}`);
+      if (!silent)
+        setText('modelStatus', `RUNNING 모델 ${models.length}개: ${models.join(', ') || '(없음)'}`);
+      return models;
     } catch (e) {
-      setText('modelStatus', '모델 조회 실패: ' + e.message);
+      if (!silent) setText('modelStatus', '모델 조회 실패: ' + e.message);
+      return [];
     }
   }
 
@@ -80,8 +97,7 @@
     };
     try {
       const d = await fetchJson('/debug/api/ollama/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       setText('modelStatus', '모델 저장 완료\n' + pretty(d));
@@ -100,7 +116,183 @@
     }
   }
 
-  // ── Resolver / Parser 모드 ────────────────────────────
+  // ══════════════════════════════════════════════════════
+  // ③ 모델 브라우저 / Pull / Run
+  // ══════════════════════════════════════════════════════
+  async function browseModels() {
+    const source  = val('modelBrowserSource') || 'RUNNING';
+    const tbody   = qs('modelBrowserTable');
+    const statusEl = qs('modelBrowserStatus');
+
+    if (statusEl) statusEl.textContent = '조회 중...';
+    if (tbody)    tbody.innerHTML = '<tr><td colspan="5">조회 중...</td></tr>';
+
+    try {
+      const list = await fetchJson(
+        `/debug/api/ollama/models?source=${encodeURIComponent(source)}`
+      );
+
+      if (!list || !list.length) {
+        tbody.innerHTML = '<tr><td colspan="5">모델 없음 (Ollama 실행 여부 및 baseUrl 확인)</td></tr>';
+        if (statusEl) statusEl.textContent = `${source} 모델 0개`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(m => {
+        const name   = m.name || m.model || '-';
+        const state  = m.state || '-';
+        const sizeGb = m.size ? (m.size / 1e9).toFixed(1) + ' GB' : '-';
+        const mod    = (m.modifiedAt || '').substring(0, 10) || '-';
+        const color  = state.toUpperCase().includes('RUNNING') ? '#34d399' : '#94a3b8';
+        const safe   = name.replace(/'/g, "\\'");
+        return `<tr>
+          <td><code style="font-size:13px">${htmlEscape(name)}</code></td>
+          <td><span style="color:${color}">${htmlEscape(state)}</span></td>
+          <td>${sizeGb}</td>
+          <td>${mod}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="green"   style="width:auto;padding:4px 8px;font-size:12px"
+                onclick="window._quickRun('${safe}')">▶ Run</button>
+              <button class="primary" style="width:auto;padding:4px 8px;font-size:12px"
+                onclick="window._quickPull('${safe}')">⬇ Pull</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      if (statusEl) statusEl.textContent = `${source} 모델 ${list.length}개 조회 완료`;
+      fillModelSelects(list.map(m => m.name || m.model || '').filter(Boolean));
+
+    } catch (e) {
+      if (tbody) tbody.innerHTML =
+        `<tr><td colspan="5" style="color:#f87171">조회 실패: ${htmlEscape(e.message)}<br>
+         <span style="font-size:12px;color:#94a3b8">Ollama 실행 상태 및 baseUrl을 확인하세요.</span></td></tr>`;
+      if (statusEl) statusEl.textContent = '조회 실패';
+    }
+  }
+
+  window._quickRun  = name => { setVal('actionModelName', name); selectSet('actionPull','false'); runModelAction(); };
+  window._quickPull = name => { setVal('actionModelName', name); selectSet('actionPull','true');  runModelAction(); };
+
+  async function applyResidentModels() {
+    const list      = val('residentModelList');
+    const keepAlive = val('residentKeepAlive') || '24h';
+    if (!list.trim()) { setText('modelActionStatus', '⚠ 상주 모델 목록을 입력하세요.'); return; }
+
+    const models = list.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    setText('modelActionStatus', `상주 모델 ${models.length}개 로드 중 (keepAlive=${keepAlive})...`);
+
+    try {
+      await fetchJson('/debug/api/ollama/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ residentModelList: list, residentKeepAlive: keepAlive }),
+      });
+    } catch { /* config 저장 실패 무시 */ }
+
+    const lines = [];
+    for (const model of models) {
+      try {
+        const r = await fetchJson('/debug/api/ollama/models/action', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, pull: false, keepAlive }),
+        });
+        lines.push(`${r.success ? '✅' : '❌'} ${model} — ${r.message || (r.success ? 'ok' : 'fail')}`);
+      } catch (e) {
+        lines.push(`❌ ${model} — ${e.message}`);
+      }
+    }
+    setText('modelActionStatus',
+      `상주 모델 로드 완료 (keepAlive=${keepAlive})\n` + lines.join('\n'));
+    await browseModels();
+  }
+
+  async function runModelAction() {
+    const model     = val('actionModelName').trim();
+    const pull      = val('actionPull') === 'true';
+    const keepAlive = val('actionKeepAlive') || '24h';
+    if (!model) { setText('modelActionStatus', '⚠ 모델명을 입력하세요.'); return; }
+
+    setText('modelActionStatus',
+      `${pull ? 'Pull 영구 설치' : `PS 로드 (keepAlive=${keepAlive})`} 실행 중: ${model}...`);
+    try {
+      const r = await fetchJson('/debug/api/ollama/models/action', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, pull, keepAlive }),
+      });
+      setText('modelActionStatus',
+        `작업 완료\naction: ${r.action||'-'}  model: ${r.model||'-'}\n` +
+        `keepAlive: ${r.keepAlive||'-'}  success: ${r.success}\n` +
+        `running: ${r.runningCount??'-'}  installed: ${r.installedCount??'-'}\n` +
+        `message: ${r.message||'-'}` +
+        (r.runningModels?.length ? '\n\nRUNNING 모델\n' + r.runningModels.map(m=>`  · ${m}`).join('\n') : ''));
+      await browseModels();
+    } catch (e) {
+      setText('modelActionStatus', '작업 실패: ' + e.message);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ④ RAG 설정
+  // ══════════════════════════════════════════════════════
+  async function loadRagConfig() {
+    try {
+      const s    = await fetchJson('/debug/api/rag/status');
+      const cats = s.categories || {};
+      const ing  = s.ingest     || {};
+
+      selectSet('ragEnabled',          s.enabled);
+      selectSet('ragIncludeCitations', s.includeCitations ?? true);
+      if (s.topK != null)                setVal('ragTopK',                s.topK);
+      if (s.similarityThreshold != null) setVal('ragSimilarityThreshold', s.similarityThreshold);
+      selectSet('ragGeneralEnabled', cats.general ?? false);
+      selectSet('ragDevEnabled',     cats.dev     ?? true);
+      selectSet('ragMiceEnabled',    cats.mice    ?? true);
+      selectSet('ragTravelEnabled',  cats.travel  ?? false);
+      if (ing.chunkSize)    setVal('ragChunkSize',    ing.chunkSize);
+      if (ing.maxNumChunks) setVal('ragMaxNumChunks', ing.maxNumChunks);
+
+      setText('ragConfigStatus',
+        `RAG 설정 조회 완료\nenabled: ${s.enabled}  vectorStore: ${s.vectorStore}\n` +
+        `topK: ${s.topK}  threshold: ${s.similarityThreshold}\n` +
+        `카테고리 — GEN:${cats.general} DEV:${cats.dev} MICE:${cats.mice} TRAVEL:${cats.travel}`);
+      setText('ragStatusChip', `rag: ${s.enabled ? '✅ on' : '❌ off'}`);
+    } catch (e) {
+      setText('ragConfigStatus', 'RAG 설정 조회 실패: ' + e.message);
+    }
+  }
+
+  async function saveRagConfig() {
+    const body = {
+      enabled:             val('ragEnabled') === 'true',
+      topK:                Number(val('ragTopK') || 4),
+      similarityThreshold: Number(val('ragSimilarityThreshold') || 0.72),
+      includeCitations:    val('ragIncludeCitations') === 'true',
+      generalEnabled:      val('ragGeneralEnabled') === 'true',
+      devEnabled:          val('ragDevEnabled')     === 'true',
+      miceEnabled:         val('ragMiceEnabled')    === 'true',
+      travelEnabled:       val('ragTravelEnabled')  === 'true',
+      chunkSize:           Number(val('ragChunkSize')    || 350),
+      maxNumChunks:        Number(val('ragMaxNumChunks') || 128),
+    };
+    try {
+      const d    = await fetchJson('/debug/api/rag/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const cats = d.categories || {};
+      setText('ragConfigStatus',
+        `RAG 설정 저장 완료\nenabled: ${d.enabled}  topK: ${d.topK}  threshold: ${d.similarityThreshold}\n` +
+        `카테고리 — GEN:${cats.general} DEV:${cats.dev} MICE:${cats.mice} TRAVEL:${cats.travel}`);
+      setText('ragStatusChip', `rag: ${d.enabled ? '✅ on' : '❌ off'}`);
+    } catch (e) {
+      setText('ragConfigStatus', 'RAG 설정 저장 실패: ' + e.message);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ⑤ Resolver / Parser 모드
+  // ══════════════════════════════════════════════════════
   async function saveConfig() {
     const body = {
       resolverMode:      val('resolverMode'),
@@ -111,8 +303,7 @@
     };
     try {
       const d = await fetchJson('/debug/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       setText('configStatus', '설정 저장 완료\n' + pretty(d));
@@ -124,29 +315,32 @@
   async function resetConfig() {
     try {
       const d = await fetchJson('/debug/api/config/reset', { method: 'POST' });
-      setText('configStatus', '설정 초기화 완료\n' + pretty(d));
+      setText('configStatus', '초기화 완료\n' + pretty(d));
       await loadAll();
     } catch (e) {
       setText('configStatus', '초기화 실패: ' + e.message);
     }
   }
 
-  // ── 즉시 테스트 ────────────────────────────────────────
+  // ══════════════════════════════════════════════════════
+  // ⑥ 즉시 테스트
+  // ══════════════════════════════════════════════════════
   function runTest() {
     const message  = val('testMessage');
     const category = val('testCategory');
     if (!message) { logLine(qs('testLog'), '[error] 질문을 입력하세요.'); return; }
     if (testEs) { testEs.close(); testEs = null; }
+    testTokenState.text = '';
     if (qs('testResult')) qs('testResult').textContent = '';
     if (qs('testLog'))    qs('testLog').textContent    = '';
 
     let url = `/api/chat/stream?message=${encodeURIComponent(message)}`;
     if (category) url += `&category=${encodeURIComponent(category)}`;
-
     logLine(qs('testLog'), `[request] ${message}`);
+
     testEs = startStream({
       url,
-      onToken: data => appendResult(qs('testResult'), data),
+      onToken: token => appendToken(qs('testResult'), token, testTokenState),
       onAgent: ({ agent, status, message: msg }) =>
         logLine(qs('testLog'), `[${agent}] ${status} — ${msg}`),
       onComplete: () => logLine(qs('testLog'), '[complete] 완료'),
@@ -154,58 +348,84 @@
     });
   }
 
-  function clearTest() {
-    if (qs('testResult')) qs('testResult').textContent = '';
-    if (qs('testLog'))    qs('testLog').textContent    = '';
-    if (testEs) { testEs.close(); testEs = null; }
-  }
-
-  // ── 전체 로드 ──────────────────────────────────────────
+  // ══════════════════════════════════════════════════════
+  // 전체 초기 로드
+  // ══════════════════════════════════════════════════════
   async function loadAll() {
-    // Ollama 연결 정보
     try {
       const conn = await fetchJson('/debug/api/ollama/connection');
       setVal('ollamaBaseUrl', conn.baseUrl || '');
       setText('ollamaConnStatus',
-        `status: ${conn.status}\nreachable: ${conn.reachable}\nrunning: ${conn.runningCount}\ninstalled: ${conn.installedCount}`);
-      setText('ollamaStatusChip', `ollama: ${conn.reachable ? '🟢 connected' : '🔴 offline'}`);
+        `status: ${conn.status}  reachable: ${conn.reachable}\n` +
+        `running: ${conn.runningCount}  installed: ${conn.installedCount}`);
+      setText('ollamaStatusChip', `ollama: ${conn.reachable ? '🟢 ok' : '🔴 offline'}`);
     } catch { /* 무시 */ }
 
-    // 모델 설정 로드
+    const models = await loadModels(true);
     try {
       const cfg = await fetchJson('/debug/api/ollama/config');
-      await loadModels();   // 목록 먼저
-      selectVal('generalModel',      cfg.generalModel);
-      selectVal('devModel',          cfg.devModel);
-      selectVal('miceModel',         cfg.miceModel);
-      selectVal('travelSearchModel', cfg.travelSearchModel);
-      selectVal('travelPlanModel',   cfg.travelPlanModel);
+      if (!models.length) fillModelSelects(
+        [cfg.generalModel,cfg.devModel,cfg.miceModel,cfg.travelSearchModel,cfg.travelPlanModel]
+          .filter(Boolean));
+      selectSet('generalModel',      cfg.generalModel);
+      selectSet('devModel',          cfg.devModel);
+      selectSet('miceModel',         cfg.miceModel);
+      selectSet('travelSearchModel', cfg.travelSearchModel);
+      selectSet('travelPlanModel',   cfg.travelPlanModel);
+      if (cfg.residentModelList && qs('residentModelList'))
+        qs('residentModelList').value = cfg.residentModelList;
+      if (cfg.residentKeepAlive && qs('residentKeepAlive'))
+        qs('residentKeepAlive').value = cfg.residentKeepAlive;
     } catch { /* 무시 */ }
 
-    // Resolver/Parser 모드
+    await browseModels();
+    await loadRagConfig();
+
     try {
       const cfg = await fetchJson('/debug/api/config');
-      selectVal('resolverMode',      cfg.resolverMode);
-      selectVal('generalParserMode', cfg.generalParserMode);
-      selectVal('devParserMode',     cfg.devParserMode);
-      selectVal('miceParserMode',    cfg.miceParserMode);
-      selectVal('travelParserMode',  cfg.travelParserMode);
-      setText('fallbackChip',  `fallback: ${cfg.fallbackPolicy || '-'}`);
-      setText('memoryChip',    `memory: ${cfg.memoryStore || '-'}`);
+      selectSet('resolverMode',      cfg.resolverMode);
+      selectSet('generalParserMode', cfg.generalParserMode);
+      selectSet('devParserMode',     cfg.devParserMode);
+      selectSet('miceParserMode',    cfg.miceParserMode);
+      selectSet('travelParserMode',  cfg.travelParserMode);
+      setText('fallbackChip', `fallback: ${cfg.fallbackPolicy || '-'}`);
+      setText('memoryChip',   `memory: ${cfg.memoryStore || '-'}`);
     } catch { /* 무시 */ }
   }
 
+  // ══════════════════════════════════════════════════════
+  // 이벤트 바인딩
+  // ══════════════════════════════════════════════════════
   document.addEventListener('DOMContentLoaded', () => {
     qs('btnCheckConn')?.addEventListener('click', checkConn);
     qs('btnSaveConn')?.addEventListener('click', saveConn);
     qs('btnResetConn')?.addEventListener('click', resetConn);
-    qs('btnLoadModels')?.addEventListener('click', loadModels);
+
+    qs('btnLoadModels')?.addEventListener('click', () => loadModels(false));
     qs('btnSaveModels')?.addEventListener('click', saveModels);
     qs('btnResetModels')?.addEventListener('click', resetModels);
+
+    qs('btnBrowseModels')?.addEventListener('click', browseModels);
+    qs('btnApplyResident')?.addEventListener('click', applyResidentModels);
+    qs('btnRunAction')?.addEventListener('click', runModelAction);
+
+    qs('btnLoadRagConfig')?.addEventListener('click', loadRagConfig);
+    qs('btnSaveRagConfig')?.addEventListener('click', saveRagConfig);
+
     qs('btnSaveConfig')?.addEventListener('click', saveConfig);
     qs('btnResetConfig')?.addEventListener('click', resetConfig);
+
     qs('btnTest')?.addEventListener('click', runTest);
-    qs('btnTestClear')?.addEventListener('click', clearTest);
+    qs('btnTestClear')?.addEventListener('click', () => {
+      testTokenState.text = '';
+      if (qs('testResult')) qs('testResult').textContent = '';
+      if (qs('testLog'))    qs('testLog').textContent    = '';
+      if (testEs) { testEs.close(); testEs = null; }
+    });
+    qs('testMessage')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runTest();
+    });
+
     loadAll();
   });
 })();

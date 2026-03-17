@@ -8,17 +8,36 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Dummy Web Search Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Slf4j
 @Service
 @ConditionalOnProperty(prefix = "app.search", name = "provider", havingValue = "dummy", matchIfMissing = true)
 public class DummyWebSearchService implements WebSearchPort {
 
+    /**
+     * provider Name 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public String providerName() {
         return "dummy";
     }
 
 
+    /**
+     * search 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public String search(String query) {
         String q = normalize(query);
@@ -44,6 +63,12 @@ public class DummyWebSearchService implements WebSearchPort {
             """;
     }
 
+    /**
+     * fetch 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public String fetch(String url) {
         String u = normalize(url);
@@ -63,6 +88,12 @@ public class DummyWebSearchService implements WebSearchPort {
         return "페이지 내용을 가져왔습니다. 상세 설명이 포함되어 있습니다.";
     }
 
+    /**
+     * attraction Results 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String attractionResults(String query) {
         return formatResults("관광지", List.of(
                 "[1] 성산일출봉\n제주특별자치도 서귀포시 성산읍 일출로 284-12\n유네스코 세계자연유산. 입장료: 5,000원",
@@ -71,6 +102,12 @@ public class DummyWebSearchService implements WebSearchPort {
         ), query);
     }
 
+    /**
+     * restaurant Results 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String restaurantResults(String query) {
         return formatResults("맛집", List.of(
                 "[1] 올레국수\n제주특별자치도 제주시 귀아랑길 24\n고기국수 전문. 1인 평균 가격: 8,000원",
@@ -79,6 +116,12 @@ public class DummyWebSearchService implements WebSearchPort {
         ), query);
     }
 
+    /**
+     * accommodation Results 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String accommodationResults(String query) {
         return formatResults("숙소", List.of(
                 "[1] 메종글래드제주\n제주특별자치도 제주시 노연로 80\n도심형 호텔. 1박 요금: 120,000원",
@@ -87,6 +130,12 @@ public class DummyWebSearchService implements WebSearchPort {
         ), query);
     }
 
+    /**
+     * format Results 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String formatResults(String type, List<String> items, String query) {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format(Locale.KOREAN, "[더미 %s 검색 결과] query=%s%n%n", type, query));
@@ -94,6 +143,12 @@ public class DummyWebSearchService implements WebSearchPort {
         return sb.toString().trim();
     }
 
+    /**
+     * contains Any 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private boolean containsAny(String text, String... keywords) {
         for (String keyword : keywords) {
             if (text.contains(keyword.toLowerCase(Locale.ROOT))) {
@@ -103,6 +158,12 @@ public class DummyWebSearchService implements WebSearchPort {
         return false;
     }
 
+    /**
+     * normalize 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String normalize(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).trim();
     }

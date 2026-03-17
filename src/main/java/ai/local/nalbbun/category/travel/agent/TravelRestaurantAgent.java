@@ -16,6 +16,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Travel Restaurant Agent 타입이다.
+ *
+ * <p>기능 설명: 특정 작업 목적에 맞는 세부 처리 단위를 담당한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 호출 계층에서 전달되는 입력값과 주입된 의존성</p>
+ * <p>출력: 처리 결과 객체, 상태 변경 또는 후속 처리에 필요한 데이터</p>
+ */
 @Component
 public class TravelRestaurantAgent {
 
@@ -46,6 +53,12 @@ public class TravelRestaurantAgent {
     private final RuntimeModelChatService runtimeModelChatService;
     private final WebSearchPort webSearchPort;
 
+    /**
+     * Travel Restaurant Agent 인스턴스를 초기화한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public TravelRestaurantAgent(
             RuntimeModelChatService runtimeModelChatService,
             WebSearchPort webSearchPort
@@ -54,12 +67,24 @@ public class TravelRestaurantAgent {
         this.webSearchPort = webSearchPort;
     }
 
+    /**
+     * execute 로직을 실행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public List<Restaurant> execute(String userQuery) {
         String userMessage = String.format(USER_PROMPT_TEMPLATE, userQuery);
         List<Restaurant> result = callAsEntity(userMessage);
         return normalize(deduplicateByName(result));
     }
 
+    /**
+     * execute 로직을 실행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public void execute(TravelContext context) {
         String query;
         if (context.isReplan()) {
@@ -70,6 +95,12 @@ public class TravelRestaurantAgent {
         context.setRestaurants(execute(query));
     }
 
+    /**
+     * call As Entity 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Restaurant> callAsEntity(String userMessage) {
         try {
             return runtimeModelChatService.callEntityWithTools(
@@ -96,6 +127,12 @@ public class TravelRestaurantAgent {
         }
     }
 
+    /**
+     * deduplicate By Name 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Restaurant> deduplicateByName(List<Restaurant> items) {
         if (items == null || items.isEmpty()) {
             return List.of();
@@ -111,6 +148,12 @@ public class TravelRestaurantAgent {
         return new ArrayList<>(byName.values());
     }
 
+    /**
+     * normalize 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Restaurant> normalize(List<Restaurant> items) {
         if (items == null || items.isEmpty()) {
             return List.of();
@@ -142,6 +185,12 @@ public class TravelRestaurantAgent {
         return normalized;
     }
 
+    /**
+     * infer Default Price 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private int inferDefaultPrice(Restaurant r) {
         String name = r.getName() == null ? "" : r.getName();
         String desc = r.getDescription() == null ? "" : r.getDescription();
@@ -171,6 +220,12 @@ public class TravelRestaurantAgent {
         return DEFAULT_PRICE.get("기타");
     }
 
+    /**
+     * contains Any 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private boolean containsAny(String text, String... keywords) {
         if (text == null || text.isBlank()) {
             return false;
@@ -182,15 +237,33 @@ public class TravelRestaurantAgent {
         }
         return false;
     }
+    /**
+     * describe Model 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String describeModel() {
         return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_SEARCH, true);
     }
     
+    /**
+     * search Restaurants 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Tool(description = "맛집 정보를 인터넷에서 검색합니다. 제목, 링크, 요약을 반환합니다.")
     public String searchRestaurants(@ToolParam(description = "검색 쿼리") String query) {
         return webSearchPort.search(query);
     }
 
+    /**
+     * fetch Restaurant Info 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Tool(description = "웹 페이지의 본문 텍스트를 가져와 맛집 상세 정보를 제공합니다.")
     public String fetchRestaurantInfo(@ToolParam(description = "웹 페이지 URL") String url) {
         return webSearchPort.fetch(url);

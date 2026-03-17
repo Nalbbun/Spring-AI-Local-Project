@@ -5,6 +5,13 @@ import ai.local.nalbbun.debug.model.RuntimeModelTarget;
 import ai.local.nalbbun.service.llm.RuntimeModelChatService;
 import org.springframework.stereotype.Component;
 
+/**
+ * Travel Plan Agent 타입이다.
+ *
+ * <p>기능 설명: 특정 작업 목적에 맞는 세부 처리 단위를 담당한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 호출 계층에서 전달되는 입력값과 주입된 의존성</p>
+ * <p>출력: 처리 결과 객체, 상태 변경 또는 후속 처리에 필요한 데이터</p>
+ */
 @Component
 public class TravelPlanAgent {
 
@@ -32,10 +39,40 @@ public class TravelPlanAgent {
 
         ## 일정 작성 규칙
         1. 매일 포함할 항목:
+           /**
+            * 1 2 기능을 수행한다.
+            *
+            * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+            * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+            */
            - 오전 관광지 1-2곳 (09:00-12:00)
+           /**
+            * 식사 기능을 수행한다.
+            *
+            * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+            * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+            */
            - 점심 식사 (12:00-13:00) - 맛집에서 선택
+           /**
+            * 1 2 기능을 수행한다.
+            *
+            * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+            * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+            */
            - 오후 관광지 1-2곳 (14:00-18:00)
+           /**
+            * 식사 기능을 수행한다.
+            *
+            * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+            * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+            */
            - 저녁 식사 (18:00-19:00) - 맛집에서 선택
+           /**
+            * 체크인 기능을 수행한다.
+            *
+            * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+            * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+            */
            - 숙소 체크인 (20:00) - 마지막 날 제외
 
         2. 숙박 규칙:
@@ -55,10 +92,22 @@ public class TravelPlanAgent {
 
     private final RuntimeModelChatService runtimeModelChatService;
 
+    /**
+     * Travel Plan Agent 인스턴스를 초기화한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public TravelPlanAgent(RuntimeModelChatService runtimeModelChatService) {
         this.runtimeModelChatService = runtimeModelChatService;
     }
 
+    /**
+     * execute 로직을 실행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public void execute(TravelContext context) {
         String prompt = buildTravelPlanPrompt(context);
 
@@ -76,6 +125,12 @@ public class TravelPlanAgent {
         context.setPlan(plan);
     }
 
+    /**
+     * build Travel Plan Prompt 결과를 구성한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String buildTravelPlanPrompt(TravelContext context) {
         StringBuilder attractions = new StringBuilder();
         if (context.getAttractions() != null) {
@@ -136,10 +191,22 @@ public class TravelPlanAgent {
         return prompt;
     }
 
+    /**
+     * safe 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String safe(String s) {
         return s == null ? "" : s;
     }
     
+    /**
+     * describe Model 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String describeModel() {
         return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_PLAN, false);
     }

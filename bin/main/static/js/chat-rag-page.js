@@ -1,12 +1,16 @@
 (() => {
   const { qs, val, setText, fetchJson, pretty, htmlEscape } = window.UiCommon;
-  const { startStream, logLine, appendResult } = window.ChatCommon;
+  const { startStream, logLine, appendToken } = window.ChatCommon;
   let es = null;
 
-  const resultEl  = () => qs('result');
-  const logEl     = () => qs('eventLog');
+  const resultEl = () => qs('result');
+  const logEl    = () => qs('eventLog');
+
+  // 토큰 누적 상태
+  const tokenState = { text: '' };
 
   function clearView() {
+    tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
     setText('ragHitInfo', '');
@@ -18,6 +22,8 @@
     const category = val('category');
     if (!message) { logLine(logEl(), '[error] 메시지를 입력하세요.'); return; }
     if (es) { es.close(); es = null; }
+
+    tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
     setText('ragHitInfo', '');
@@ -33,11 +39,11 @@
 
     es = startStream({
       url,
-      onToken: data => appendResult(resultEl(), data),
+      onToken: token => appendToken(resultEl(), token, tokenState),
       onAgent: ({ agent, status, message: msg }) => {
         logLine(logEl(), `[agent:${agent}] ${status} — ${msg}`);
-        if (agent === 'RagContext' || (msg && msg.includes('rag='))) {
-          setText('ragHitInfo', msg);
+        if (agent.startsWith('RAG') || (msg && msg.includes('rag='))) {
+          setText('ragHitInfo', `[${agent}] ${msg}`);
         }
       },
       onComplete: () => logLine(logEl(), '[complete] 스트림 종료'),
@@ -58,7 +64,7 @@
       if (version) url += `&version=${encodeURIComponent(version)}`;
       const data = await fetchJson(url);
 
-      const card = qs('ragPreviewCard');
+      const card  = qs('ragPreviewCard');
       const panel = qs('ragPreviewPanel');
       if (card) card.style.display = '';
 

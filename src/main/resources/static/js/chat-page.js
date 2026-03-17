@@ -1,6 +1,6 @@
 (() => {
   const { qs, val, setText, fetchJson } = window.UiCommon;
-  const { startStream, logLine, appendResult } = window.ChatCommon;
+  const { startStream, logLine, appendToken } = window.ChatCommon;
   let es = null;
 
   const resultEl   = () => qs('result');
@@ -8,12 +8,16 @@
   const overlayEl  = () => qs('loadingOverlay');
   const loadingTxt = () => qs('loadingText');
 
+  // 토큰 누적 상태
+  const tokenState = { text: '' };
+
   function setLoading(active, text = '처리 중...') {
     if (loadingTxt()) loadingTxt().textContent = text;
     overlayEl()?.classList.toggle('active', active);
   }
 
   function clearView() {
+    tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
     if (es) { es.close(); es = null; }
@@ -24,6 +28,9 @@
     const category = val('category');
     if (!message) { logLine(logEl(), '[error] 메시지를 입력하세요.'); return; }
     if (es) { es.close(); es = null; }
+
+    // 응답 영역 초기화
+    tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
 
@@ -36,10 +43,18 @@
 
     es = startStream({
       url,
-      onToken:    data => appendResult(resultEl(), data),
-      onAgent:    ({ agent, status, message: msg }) => logLine(logEl(), `[agent:${agent}] ${status} — ${msg}`),
-      onComplete: ()   => { logLine(logEl(), '[complete] 스트림 종료'); setLoading(false); },
-      onError:    ()   => { logLine(logEl(), '[error] 스트림 오류'); setLoading(false); },
+      // token 이벤트: 토큰 단위로 누적 표시
+      onToken: token => appendToken(resultEl(), token, tokenState),
+      onAgent: ({ agent, status, message: msg }) =>
+        logLine(logEl(), `[agent:${agent}] ${status} — ${msg}`),
+      onComplete: () => {
+        logLine(logEl(), '[complete] 스트림 종료');
+        setLoading(false);
+      },
+      onError: () => {
+        logLine(logEl(), '[error] 스트림 오류');
+        setLoading(false);
+      },
     });
   }
 
@@ -61,7 +76,7 @@
     try {
       const cfg = await fetchJson('/debug/api/config');
       setText('statusMemory', `memory: ${cfg?.memoryStore || '-'}`);
-    } catch { /* 로컬 프로파일 아닌 경우 무시 */ }
+    } catch { /* local profile 외에서는 무시 */ }
   }
 
   document.addEventListener('DOMContentLoaded', () => {

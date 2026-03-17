@@ -14,6 +14,13 @@ import ai.local.nalbbun.debug.model.DebugRuntimeConfig;
 import ai.local.nalbbun.model.category.ChatCategory;
 import ai.local.nalbbun.service.memory.ConversationMemoryService;
 
+/**
+ * Debug Runtime Config Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Service
 public class DebugRuntimeConfigService {
 
@@ -26,6 +33,12 @@ public class DebugRuntimeConfigService {
 
     private DebugRuntimeOllamaConnectionService ollamaConnectionService;
 
+    /**
+     * Debug Runtime Config Service 인스턴스를 초기화한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public DebugRuntimeConfigService(
             @Value("${app.category.resolver.mode:HYBRID}") String resolverMode,
             @Value("${app.parser.general.mode:HYBRID}") String generalMode,
@@ -47,26 +60,56 @@ public class DebugRuntimeConfigService {
         parserModes.put(ChatCategory.MICE, new AtomicReference<>(safeParserMode(miceMode)));
     }
 
+    /**
+     * Ollama Connection Service 값을 설정한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     @Autowired(required = false)
     public void setOllamaConnectionService(DebugRuntimeOllamaConnectionService ollamaConnectionService) {
         this.ollamaConnectionService = ollamaConnectionService;
     }
 
+    /**
+     * Resolver Mode 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public CategoryResolverMode getResolverMode() {
         return resolverMode.get();
     }
 
+    /**
+     * Resolver Mode 값을 설정한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public void setResolverMode(CategoryResolverMode mode) {
         if (mode != null) {
             resolverMode.set(mode);
         }
     }
 
+    /**
+     * Parser Mode 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public CategoryParserMode getParserMode(ChatCategory category) {
         AtomicReference<CategoryParserMode> ref = parserModes.get(category);
         return ref == null ? CategoryParserMode.HYBRID : ref.get();
     }
 
+    /**
+     * Parser Mode 값을 설정한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public void setParserMode(ChatCategory category, CategoryParserMode mode) {
         if (category == null || mode == null) {
             return;
@@ -75,6 +118,12 @@ public class DebugRuntimeConfigService {
                    .set(mode);
     }
 
+    /**
+     * Current Config 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public DebugRuntimeConfig getCurrentConfig() {
         DebugRuntimeConfig config = new DebugRuntimeConfig();
         config.setResolverMode(getResolverMode().name());
@@ -89,6 +138,12 @@ public class DebugRuntimeConfigService {
         return config;
     }
 
+    /**
+     * update 작업을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public DebugRuntimeConfig update(DebugRuntimeConfig request) {
         if (request == null) {
             return getCurrentConfig();
@@ -113,6 +168,12 @@ public class DebugRuntimeConfigService {
         return getCurrentConfig();
     }
 
+    /**
+     * reset 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public DebugRuntimeConfig reset() {
         setResolverMode(CategoryResolverMode.HYBRID);
         setParserMode(ChatCategory.GENERAL, CategoryParserMode.HYBRID);
@@ -122,18 +183,42 @@ public class DebugRuntimeConfigService {
         return getCurrentConfig();
     }
 
+    /**
+     * has Text 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 
+    /**
+     * normalize Memory Store 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String normalizeMemoryStore(String value) {
         return hasText(value) ? value.trim().toLowerCase() : "in-memory";
     }
 
+    /**
+     * normalize Fallback Policy 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String normalizeFallbackPolicy(String value) {
         return hasText(value) ? value.trim().toUpperCase() : "BLOCK_OPENAI";
     }
 
+    /**
+     * safe Resolver Mode 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private CategoryResolverMode safeResolverMode(String value) {
         try {
             return CategoryResolverMode.valueOf(value.trim().toUpperCase());
@@ -142,6 +227,12 @@ public class DebugRuntimeConfigService {
         }
     }
 
+    /**
+     * safe Parser Mode 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private CategoryParserMode safeParserMode(String value) {
         try {
             return CategoryParserMode.valueOf(value.trim().toUpperCase());

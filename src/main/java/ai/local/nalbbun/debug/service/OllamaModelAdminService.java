@@ -12,6 +12,13 @@ import ai.local.nalbbun.debug.model.llm.DebugOllamaModelActionResult;
 import ai.local.nalbbun.debug.model.llm.OllamaModelInfo;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * Ollama Model Admin Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Service
 public class OllamaModelAdminService {
 
@@ -21,6 +28,12 @@ public class OllamaModelAdminService {
     private final OllamaModelDiscoveryService ollamaModelDiscoveryService;
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
+    /**
+     * Ollama Model Admin Service 인스턴스를 초기화한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public OllamaModelAdminService(
             DebugRuntimeOllamaConnectionService ollamaConnectionService,
             OllamaModelDiscoveryService ollamaModelDiscoveryService
@@ -29,6 +42,12 @@ public class OllamaModelAdminService {
         this.ollamaModelDiscoveryService = ollamaModelDiscoveryService;
     }
 
+    /**
+     * apply 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public DebugOllamaModelActionResult apply(DebugOllamaModelActionRequest request) {
         DebugOllamaModelActionResult result = new DebugOllamaModelActionResult();
         result.setBaseUrl(ollamaConnectionService.getBaseUrl());
@@ -68,6 +87,12 @@ public class OllamaModelAdminService {
         return result;
     }
 
+    /**
+     * pull Model 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void pullModel(String model) throws Exception {
         RestClient client = restClient();
         String body = jsonMapper.writeValueAsString(new PullRequest(model));
@@ -79,6 +104,12 @@ public class OllamaModelAdminService {
                 .body(String.class);
     }
 
+    /**
+     * warmup Model 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void warmupModel(String model, String keepAlive) throws Exception {
         RestClient client = restClient();
         String generateBody = jsonMapper.writeValueAsString(new GenerateRequest(model, keepAlive));
@@ -103,6 +134,12 @@ public class OllamaModelAdminService {
                 .body(String.class);
     }
 
+    /**
+     * fill Counts 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void fillCounts(DebugOllamaModelActionResult result) {
         List<OllamaModelInfo> running = ollamaModelDiscoveryService.getRunningModels();
         List<OllamaModelInfo> installed = ollamaModelDiscoveryService.getInstalledModels();
@@ -111,6 +148,12 @@ public class OllamaModelAdminService {
         result.setRunningModels(running.stream().map(m -> m.getName() == null ? m.getModel() : m.getName()).toList());
     }
 
+    /**
+     * normalize Keep Alive 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String normalizeKeepAlive(String value) {
         if (value == null || value.isBlank()) {
             return "24h";
@@ -118,10 +161,22 @@ public class OllamaModelAdminService {
         return value.trim();
     }
 
+    /**
+     * rest Client 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private RestClient restClient() {
         return RestClient.builder().baseUrl(ollamaConnectionService.getBaseUrl()).build();
     }
 
+    /**
+     * root Message 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String rootMessage(Throwable e) {
         Throwable current = e;
         while (current.getCause() != null) {
@@ -132,18 +187,36 @@ public class OllamaModelAdminService {
                 : current.getMessage();
     }
 
+    /**
+     * Pull Request 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private record PullRequest(String model, boolean stream) {
         private PullRequest(String model) {
             this(model, false);
         }
     }
 
+    /**
+     * Generate Request 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private record GenerateRequest(String model, String prompt, boolean stream, String keep_alive) {
         private GenerateRequest(String model, String keepAlive) {
             this(model, "", false, keepAlive);
         }
     }
 
+    /**
+     * Embed Request 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private record EmbedRequest(String model, String input, String keep_alive) {
         private EmbedRequest(String model, String keepAlive) {
             this(model, "ping", keepAlive);

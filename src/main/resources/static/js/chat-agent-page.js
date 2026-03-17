@@ -1,18 +1,23 @@
 (() => {
   const { qs, val, setText, fetchJson, htmlEscape } = window.UiCommon;
-  const { startStream, logLine, appendResult } = window.ChatCommon;
+  const { startStream, logLine, appendToken } = window.ChatCommon;
   let es = null;
   let startTime = null;
-  const steps = {};  // agent명 → DOM 요소
+  const steps = {};
 
   const resultEl = () => qs('result');
   const logEl    = () => qs('eventLog');
   const stepsEl  = () => qs('agentSteps');
 
+  // 토큰 누적 상태
+  const tokenState = { text: '' };
+
   function clearView() {
+    tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
-    if (stepsEl())  stepsEl().innerHTML = '<div class="step-idle">에이전트를 실행하면 단계별 진행 상황이 표시됩니다.</div>';
+    if (stepsEl())  stepsEl().innerHTML =
+      '<div class="step-idle">에이전트를 실행하면 단계별 진행 상황이 표시됩니다.</div>';
     setText('elapsedTime', '-');
     Object.keys(steps).forEach(k => delete steps[k]);
     if (es) { es.close(); es = null; }
@@ -21,10 +26,7 @@
   function upsertStep(agent, status, msg) {
     const container = stepsEl();
     if (!container) return;
-
-    // 처음 등장 시 idle 문구 제거
-    const idle = container.querySelector('.step-idle');
-    if (idle) idle.remove();
+    container.querySelector('.step-idle')?.remove();
 
     const icon = { running: '⏳', complete: '✅', error: '❌' }[status] || '🔵';
     const cls  = `agent-step ${status}`;
@@ -51,6 +53,8 @@
     const category = val('category');
     if (!message) { logLine(logEl(), '[error] 메시지를 입력하세요.'); return; }
     if (es) { es.close(); es = null; }
+
+    tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
     if (stepsEl())  stepsEl().innerHTML    = '';
@@ -63,7 +67,7 @@
 
     es = startStream({
       url,
-      onToken: data => appendResult(resultEl(), data),
+      onToken: token => appendToken(resultEl(), token, tokenState),
       onAgent: ({ agent, status, message: msg }) => {
         logLine(logEl(), `[${agent}] ${status} — ${msg}`);
         upsertStep(agent, status, msg);
@@ -72,7 +76,10 @@
         logLine(logEl(), '[complete] 에이전트 실행 완료');
         if (startTime) setText('elapsedTime', ((Date.now() - startTime) / 1000).toFixed(1) + 's');
       },
-      onError: () => logLine(logEl(), '[error] 스트림 오류'),
+      onError: () => {
+        logLine(logEl(), '[error] 스트림 오류');
+        if (startTime) setText('elapsedTime', ((Date.now() - startTime) / 1000).toFixed(1) + 's (오류)');
+      },
     });
   }
 
@@ -90,7 +97,7 @@
       const cfg = await fetchJson('/debug/api/ollama/config');
       setText('agentModelChip', `search: ${cfg?.travelSearchModel || '-'}`);
       setText('planModelChip',  `plan: ${cfg?.travelPlanModel || '-'}`);
-    } catch { /* local profile 아닌 경우 무시 */ }
+    } catch { /* local profile 외에서는 무시 */ }
   }
 
   document.addEventListener('DOMContentLoaded', () => {

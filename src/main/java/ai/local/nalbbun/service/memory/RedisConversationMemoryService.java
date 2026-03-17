@@ -24,6 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Redis Conversation Memory Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Service
 @Primary
 @ConditionalOnBean(StringRedisTemplate.class)
@@ -37,6 +44,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
     private final ObjectMapper objectMapper;
     private final Duration ttl;
 
+    /**
+     * Redis Conversation Memory Service 인스턴스를 초기화한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public RedisConversationMemoryService(
             StringRedisTemplate redisTemplate,
             @Value("${app.memory.redis.ttl-hours:24}") long ttlHours
@@ -46,21 +59,45 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         this.ttl = Duration.ofHours(Math.max(1, ttlHours));
     }
 
+    /**
+     * add User Message 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     @Override
     public void addUserMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("user", content, category, LocalDateTime.now()));
     }
 
+    /**
+     * add Assistant Message 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     @Override
     public void addAssistantMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("assistant", content, category, LocalDateTime.now()));
     }
 
+    /**
+     * add System Message 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     @Override
     public void addSystemMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("system", content, category, LocalDateTime.now()));
     }
 
+    /**
+     * recent Messages 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public List<MemoryMessage> recentMessages(String conversationId, int limit) {
         List<String> encoded = redisTemplate.opsForList().range(messagesKey(conversationId), 0, -1);
@@ -71,6 +108,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         return new ArrayList<>(all.subList(all.size() - limit, all.size()));
     }
 
+    /**
+     * format Recent Conversation 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public String formatRecentConversation(String conversationId, int limit) {
         List<MemoryMessage> messages = recentMessages(conversationId, limit);
@@ -91,6 +134,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         return sb.toString().trim();
     }
 
+    /**
+     * update Category Summary 작업을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     @Override
     public void updateCategorySummary(String conversationId, ChatCategory category, String summary) {
         MemorySummary payload = new MemorySummary(category, summary, LocalDateTime.now());
@@ -98,6 +147,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         touch(conversationId);
     }
 
+    /**
+     * Category Summary 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public String getCategorySummary(String conversationId, ChatCategory category) {
         Object raw = redisTemplate.opsForHash().get(summariesKey(conversationId), category.name());
@@ -108,6 +163,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         return summary == null ? "" : Objects.toString(summary.getSummary(), "");
     }
 
+    /**
+     * add Important Note 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     @Override
     public void addImportantNote(String conversationId, ChatCategory category, String note) {
         ImportantNote payload = new ImportantNote(category, note, LocalDateTime.now());
@@ -116,6 +177,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         touch(conversationId);
     }
 
+    /**
+     * Important Notes 값을 반환한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public List<String> getImportantNotes(String conversationId, ChatCategory category) {
         List<String> encoded = redisTemplate.opsForList().range(notesKey(conversationId), 0, -1);
@@ -129,6 +196,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         return result;
     }
 
+    /**
+     * snapshot 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public ConversationMemorySnapshot snapshot(String conversationId) {
         Map<Object, Object> summaryEntries = redisTemplate.opsForHash().entries(summariesKey(conversationId));
@@ -153,35 +226,77 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         );
     }
 
+    /**
+     * clear 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     @Override
     public void clear(String conversationId) {
         redisTemplate.delete(List.of(messagesKey(conversationId), summariesKey(conversationId), notesKey(conversationId)));
     }
 
+    /**
+     * append Message 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void appendMessage(String conversationId, MemoryMessage message) {
         redisTemplate.opsForList().rightPush(messagesKey(conversationId), encode(message));
         redisTemplate.opsForList().trim(messagesKey(conversationId), -MAX_MESSAGES_PER_CONVERSATION, -1);
         touch(conversationId);
     }
 
+    /**
+     * touch 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void touch(String conversationId) {
         redisTemplate.expire(messagesKey(conversationId), ttl);
         redisTemplate.expire(summariesKey(conversationId), ttl);
         redisTemplate.expire(notesKey(conversationId), ttl);
     }
 
+    /**
+     * messages Key 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String messagesKey(String conversationId) {
         return "conv:" + conversationId + ":messages";
     }
 
+    /**
+     * summaries Key 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String summariesKey(String conversationId) {
         return "conv:" + conversationId + ":summaries";
     }
 
+    /**
+     * notes Key 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String notesKey(String conversationId) {
         return "conv:" + conversationId + ":notes";
     }
 
+    /**
+     * encode 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String encode(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
@@ -190,6 +305,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         }
     }
 
+    /**
+     * decode 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private <T> T decode(String value, Class<T> type) {
         try {
             return objectMapper.readValue(value, type);
@@ -198,6 +319,12 @@ public class RedisConversationMemoryService implements ConversationMemoryService
         }
     }
 
+    /**
+     * decode List 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private <T> List<T> decodeList(List<String> values, TypeReference<T> typeReference) {
         List<T> result = new ArrayList<>();
         if (values == null || values.isEmpty()) {

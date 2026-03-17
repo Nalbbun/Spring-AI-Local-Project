@@ -20,12 +20,25 @@ import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Rag Document Reader Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class RagDocumentReaderService {
 
     private final RagFileTypeDetector ragFileTypeDetector;
 
+    /**
+     * read Multipart File 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public ReadResult readMultipartFile(MultipartFile file, Map<String, Object> metadata) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("업로드 파일이 비어 있습니다.");
@@ -48,6 +61,12 @@ public class RagDocumentReaderService {
     }
 
 
+    /**
+     * read Stored Resource 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public ReadResult readStoredResource(Resource resource, String originalFilename, Map<String, Object> metadata) {
         RagFileType fileType = ragFileTypeDetector.detect(originalFilename);
         return switch (fileType) {
@@ -57,14 +76,32 @@ public class RagDocumentReaderService {
         };
     }
 
+    /**
+     * read Pdf 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public ReadResult readPdf(Resource resource, String title, String source, Map<String, Object> metadata) {
         return new ReadResult(RagFileType.PDF, readPdf(resource, enrichMetadata(metadata, title, source, "pdf")), title);
     }
 
+    /**
+     * read Markdown 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public ReadResult readMarkdown(Resource resource, String title, String source, Map<String, Object> metadata) {
         return new ReadResult(RagFileType.MARKDOWN, readMarkdown(resource, enrichMetadata(metadata, title, source, "markdown")), title);
     }
 
+    /**
+     * read Web Url 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public List<Document> readWebUrl(String url, String title, String source, Map<String, Object> metadata) {
         validateUrl(url);
 
@@ -78,6 +115,12 @@ public class RagDocumentReaderService {
         return new JsoupDocumentReader(url, config).read();
     }
 
+    /**
+     * read Pdf 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Document> readPdf(Resource resource, Map<String, Object> metadata) {
         PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder()
                 .withPagesPerDocument(1)
@@ -87,6 +130,12 @@ public class RagDocumentReaderService {
         return applyMetadata(documents, metadata);
     }
 
+    /**
+     * read Markdown 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Document> readMarkdown(Resource resource, Map<String, Object> metadata) {
         MarkdownDocumentReaderConfig config = MarkdownDocumentReaderConfig.builder()
                 .withHorizontalRuleCreateDocument(true)
@@ -98,6 +147,12 @@ public class RagDocumentReaderService {
         return new MarkdownDocumentReader(resource, config).read();
     }
 
+    /**
+     * read Text 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Document> readText(Resource resource, Map<String, Object> metadata) {
         try {
             String text = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -107,6 +162,12 @@ public class RagDocumentReaderService {
         }
     }
 
+    /**
+     * enrich Metadata 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private Map<String, Object> enrichMetadata(Map<String, Object> metadata, String title, String source, String readerType) {
         Map<String, Object> enriched = new LinkedHashMap<>();
         if (metadata != null) {
@@ -122,6 +183,12 @@ public class RagDocumentReaderService {
         return enriched;
     }
 
+    /**
+     * apply Metadata 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Document> applyMetadata(List<Document> documents, Map<String, Object> metadata) {
         return documents.stream()
                 .map(document -> {
@@ -135,6 +202,12 @@ public class RagDocumentReaderService {
                 .toList();
     }
 
+    /**
+     * validate Url 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void validateUrl(String url) {
         if (url == null || url.isBlank()) {
             throw new IllegalArgumentException("url은 비어 있을 수 없습니다.");
@@ -146,6 +219,12 @@ public class RagDocumentReaderService {
         }
     }
 
+    /**
+     * Read Result 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public record ReadResult(RagFileType fileType, List<Document> documents, String displayName) {
     }
 }

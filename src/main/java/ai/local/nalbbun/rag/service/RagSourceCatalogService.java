@@ -20,6 +20,13 @@ import ai.local.nalbbun.rag.model.RagSourceFileEntry;
 import ai.local.nalbbun.rag.model.RagSourceManifest;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Rag Source Catalog Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class RagSourceCatalogService {
@@ -27,6 +34,12 @@ public class RagSourceCatalogService {
     private final RagSourceRegistryService registryService;
     private final ObjectProvider<DataSource> dataSourceProvider;
 
+    /**
+     * list Sources 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public List<RagSourceManifest> listSources(ChatCategory category, String source, String version) {
         Map<String, RagSourceManifest> merged = new LinkedHashMap<>();
         for (RagSourceManifest manifest : discoverVectorSources(category, source, version)) {
@@ -42,6 +55,12 @@ public class RagSourceCatalogService {
         return items;
     }
 
+    /**
+     * list Files 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public List<RagSourceFileEntry> listFiles(ChatCategory category, String source, String version) {
         List<RagSourceFileEntry> files = registryService.listFiles(category, source, version);
         if (!files.isEmpty()) {
@@ -50,6 +69,12 @@ public class RagSourceCatalogService {
         return discoverVectorFiles(category, source, version);
     }
 
+    /**
+     * discover Vector Sources 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<RagSourceManifest> discoverVectorSources(ChatCategory category, String source, String version) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) return List.of();
@@ -102,6 +127,12 @@ public class RagSourceCatalogService {
         }
     }
 
+    /**
+     * discover Vector Files 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<RagSourceFileEntry> discoverVectorFiles(ChatCategory category, String source, String version) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) return List.of();
@@ -158,26 +189,56 @@ public class RagSourceCatalogService {
         }
     }
 
+    /**
+     * append Source Filters 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void appendSourceFilters(StringBuilder sql, List<Object> params, ChatCategory category, String source, String version) {
         if (category != null) { sql.append(" AND COALESCE(metadata->>'category','GENERAL') = ?"); params.add(category.name()); }
         if (source != null && !source.isBlank()) { sql.append(" AND COALESCE(metadata->>'source','manual') = ?"); params.add(source); }
         if (version != null && !version.isBlank()) { sql.append(" AND COALESCE(metadata->>'version','v1') = ?"); params.add(version); }
     }
 
+    /**
+     * bind 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void bind(PreparedStatement ps, List<Object> params) throws Exception {
         for (int i = 0; i < params.size(); i++) {
             ps.setObject(i + 1, params.get(i));
         }
     }
 
+    /**
+     * parse Category 처리를 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private ChatCategory parseCategory(String raw) {
         try { return ChatCategory.valueOf(Objects.requireNonNullElse(raw, "GENERAL")); } catch (Exception e) { return ChatCategory.GENERAL; }
     }
 
+    /**
+     * key Of 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String keyOf(ChatCategory category, String source, String version) {
         return (category == null ? "GENERAL" : category.name()) + '|' + source + '|' + version;
     }
 
+    /**
+     * list Tables 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<String> listTables(Connection connection) throws Exception {
         try (PreparedStatement ps = connection.prepareStatement("""
                 SELECT table_name
@@ -193,6 +254,12 @@ public class RagSourceCatalogService {
         }
     }
 
+    /**
+     * find Existing Table 대상을 조회한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String findExistingTable(Connection connection, List<String> candidates) throws Exception {
         List<String> tables = listTables(connection);
         return candidates.stream().filter(tables::contains).findFirst().orElse(null);

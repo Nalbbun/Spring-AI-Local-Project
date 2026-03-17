@@ -24,6 +24,13 @@ import ai.local.nalbbun.rag.model.RagSourceFileEntry;
 import ai.local.nalbbun.rag.model.RagSourceManifest;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Rag Source Registry Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class RagSourceRegistryService {
@@ -32,10 +39,22 @@ public class RagSourceRegistryService {
     private final RagProperties ragProperties;
     private final ObjectMapper objectMapper;
 
+    /**
+     * upsert Text 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public RagSourceManifest upsertText(ChatCategory category, String source, String version, String title, int chunkCount, Map<String, Object> metadata) {
         return upsertEntry(category, source, version, title, chunkCount, "manual-text", "manual-text", "text/plain", null, metadata);
     }
 
+    /**
+     * upsert Uploaded File 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public RagSourceManifest upsertUploadedFile(ChatCategory category, String source, String version, String title, String fileId, String fileName, String originalFileName, String contentType, int chunkCount, Map<String, Object> metadata) {
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("fileName", blankToDefault(fileName, blankToDefault(originalFileName, title)));
@@ -43,10 +62,22 @@ public class RagSourceRegistryService {
         return upsertEntry(category, source, version, title, chunkCount, safeFileId(fileId), "uploaded-file", contentType, null, enrich(metadata, extra));
     }
 
+    /**
+     * upsert Url 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public RagSourceManifest upsertUrl(ChatCategory category, String source, String version, String title, String url, int chunkCount, Map<String, Object> metadata) {
         return upsertEntry(category, source, version, title, chunkCount, safeFileId(null), "web-url", "text/html", url, metadata);
     }
 
+    /**
+     * list Manifests 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public List<RagSourceManifest> listManifests(ChatCategory category, String source, String version) {
         List<RagSourceManifest> items = new ArrayList<>();
         Path base = baseDir();
@@ -70,6 +101,12 @@ public class RagSourceRegistryService {
         return items;
     }
 
+    /**
+     * list Files 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public List<RagSourceFileEntry> listFiles(ChatCategory category, String source, String version) {
         Path files = filesPath(category, source, version);
         if (!Files.exists(files)) {
@@ -81,6 +118,12 @@ public class RagSourceRegistryService {
 		return list;
     }
 
+    /**
+     * remove Source 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public int removeSource(ChatCategory category, String source, String version, boolean deleteRegistryDir) {
         List<RagSourceFileEntry> files = listFiles(category, source, version);
         int removedEntries = files.size();
@@ -98,6 +141,12 @@ public class RagSourceRegistryService {
         return removedEntries;
     }
 
+    /**
+     * remove File 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public boolean removeFile(ChatCategory category, String source, String version, String fileId) {
         Path filesPath = filesPath(category, source, version);
         if (!Files.exists(filesPath)) {
@@ -127,6 +176,12 @@ public class RagSourceRegistryService {
 		return true;
     }
 
+    /**
+     * find File 대상을 조회한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public RagSourceFileEntry findFile(ChatCategory category, String source, String version, String fileId) {
         return listFiles(category, source, version).stream()
                 .filter(item -> fileId != null && fileId.equals(item.getFileId()))
@@ -134,6 +189,12 @@ public class RagSourceRegistryService {
                 .orElse(null);
     }
 
+    /**
+     * upsert Entry 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private RagSourceManifest upsertEntry(ChatCategory category, String source, String version, String title, int chunkCount, String fileId, String ingestType, String contentType, String url, Map<String, Object> metadata) {
         Path manifestPath = manifestPath(category, source, version);
         Path filesPath = filesPath(category, source, version);
@@ -194,6 +255,12 @@ public class RagSourceRegistryService {
         }
     }
 
+    /**
+     * matches 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private boolean matches(RagSourceManifest manifest, ChatCategory category, String source, String version) {
         if (manifest == null) return false;
         if (category != null && manifest.getCategory() != category) return false;
@@ -202,26 +269,62 @@ public class RagSourceRegistryService {
         return true;
     }
 
+    /**
+     * read Manifest File 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private RagSourceManifest readManifestFile(Path path) {
         return objectMapper.readValue(path.toFile(), RagSourceManifest.class);
     }
 
+    /**
+     * base Dir 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private Path baseDir() {
         return Path.of(ragProperties.getRegistry().getBaseDir());
     }
 
+    /**
+     * version Dir 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private Path versionDir(ChatCategory category, String source, String version) {
         return baseDir().resolve(category.name().toLowerCase()).resolve(source).resolve(version);
     }
 
+    /**
+     * manifest Path 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private Path manifestPath(ChatCategory category, String source, String version) {
         return versionDir(category, source, version).resolve("manifest.json");
     }
 
+    /**
+     * files Path 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private Path filesPath(ChatCategory category, String source, String version) {
         return versionDir(category, source, version).resolve("files.json");
     }
 
+    /**
+     * delete Recursively 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void deleteRecursively(Path path) throws IOException {
         if (!Files.exists(path)) {
             return;
@@ -239,10 +342,22 @@ public class RagSourceRegistryService {
         }
     }
 
+    /**
+     * safe File Id 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String safeFileId(String fileId) {
         return blankToDefault(fileId, UUID.randomUUID().toString().substring(0, 8));
     }
 
+    /**
+     * enrich 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private Map<String, Object> enrich(Map<String, Object> left, Map<String, Object> right) {
         Map<String, Object> merged = new LinkedHashMap<>();
         if (left != null) merged.putAll(left);
@@ -250,10 +365,22 @@ public class RagSourceRegistryService {
         return merged;
     }
 
+    /**
+     * blank To Default 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String blankToDefault(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value;
     }
 
+    /**
+     * string Value 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String stringValue(Map<String, Object> metadata, String key, String defaultValue) {
         if (metadata == null) return defaultValue;
         Object value = metadata.get(key);

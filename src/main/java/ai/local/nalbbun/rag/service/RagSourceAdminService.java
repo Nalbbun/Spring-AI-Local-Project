@@ -30,6 +30,13 @@ import ai.local.nalbbun.rag.model.RagSourceReindexResult;
 import ai.local.nalbbun.rag.model.RagSourceVersionCompareResult;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Rag Source Admin Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class RagSourceAdminService {
@@ -40,6 +47,12 @@ public class RagSourceAdminService {
     private final RagDocumentIngestionService ragDocumentIngestionService;
     private final RagSupportService ragSupportService;
 
+    /**
+     * purge Source 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public RagSourcePurgeResult purgeSource(RagSourcePurgeCommand command) {
         validate(command.getCategory(), command.getSource(), command.getVersion());
         int before = countVectorRows(command.getCategory(), command.getSource(), command.getVersion(), null, null);
@@ -59,6 +72,12 @@ public class RagSourceAdminService {
                 .build();
     }
 
+    /**
+     * purge Source File 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public RagSourceFilePurgeResult purgeSourceFile(RagSourceFilePurgeCommand command) {
         validate(command.getCategory(), command.getSource(), command.getVersion());
         if (command.getFileId() == null || command.getFileId().isBlank()) {
@@ -84,6 +103,12 @@ public class RagSourceAdminService {
                 .build();
     }
 
+    /**
+     * reindex Source 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public RagSourceReindexResult reindexSource(RagSourceReindexCommand command) {
         validate(command.getCategory(), command.getSource(), command.getVersion());
         String targetVersion = resolveTargetVersion(command);
@@ -175,6 +200,12 @@ public class RagSourceAdminService {
                 .build();
     }
 
+    /**
+     * compare 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public RagSourceVersionCompareResult compare(ChatCategory category, String source, String leftVersion, String rightVersion, String query) {
         validate(category, source, leftVersion);
         if (rightVersion == null || rightVersion.isBlank()) {
@@ -214,6 +245,12 @@ public class RagSourceAdminService {
                 .build();
     }
 
+    /**
+     * reconstruct File Text 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String reconstructFileText(ChatCategory category, String source, String version, RagSourceFileEntry file) {
         List<VectorChunkRow> rows = selectChunkRows(category, source, version, file, file == null ? null : file.getFileId());
         if (rows.isEmpty()) {
@@ -232,6 +269,12 @@ public class RagSourceAdminService {
         return builder.toString();
     }
 
+    /**
+     * resolve File 결과를 계산한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private RagSourceFileEntry resolveFile(ChatCategory category, String source, String version, String fileId) {
         RagSourceFileEntry registryFile = ragSourceRegistryService.findFile(category, source, version, fileId);
         if (registryFile != null) {
@@ -243,6 +286,12 @@ public class RagSourceAdminService {
                 .orElse(null);
     }
 
+    /**
+     * count Vector Rows 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private int countVectorRows(ChatCategory category, String source, String version, RagSourceFileEntry file, String fileId) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) {
@@ -268,6 +317,12 @@ public class RagSourceAdminService {
         }
     }
 
+    /**
+     * delete Vector Rows 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private int deleteVectorRows(ChatCategory category, String source, String version, RagSourceFileEntry file, String fileId) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) {
@@ -293,6 +348,12 @@ public class RagSourceAdminService {
         return countVectorRows(category, source, version, file, fileId);
     }
 
+    /**
+     * select Chunk Rows 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<VectorChunkRow> selectChunkRows(ChatCategory category, String source, String version, RagSourceFileEntry file, String fileId) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) {
@@ -324,6 +385,12 @@ public class RagSourceAdminService {
         }
     }
 
+    /**
+     * append Source Where 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void appendSourceWhere(StringBuilder sql, List<Object> params, ChatCategory category, String source, String version) {
         sql.append(" AND COALESCE(metadata->>'category','GENERAL') = ?");
         params.add(category.name());
@@ -333,6 +400,12 @@ public class RagSourceAdminService {
         params.add(version);
     }
 
+    /**
+     * append File Where 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void appendFileWhere(StringBuilder sql, List<Object> params, RagSourceFileEntry file, String fileId) {
         if ((fileId == null || fileId.isBlank()) && file == null) {
             return;
@@ -345,12 +418,24 @@ public class RagSourceAdminService {
         params.add(title);
     }
 
+    /**
+     * bind 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void bind(PreparedStatement ps, List<Object> params) throws Exception {
         for (int i = 0; i < params.size(); i++) {
             ps.setObject(i + 1, params.get(i));
         }
     }
 
+    /**
+     * find Existing Table 대상을 조회한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String findExistingTable(Connection connection) throws Exception {
         List<String> candidates = List.of("vector_store", "spring_ai_vector_store", "rag_vector_store");
         try (PreparedStatement ps = connection.prepareStatement(
@@ -364,6 +449,12 @@ public class RagSourceAdminService {
         }
     }
 
+    /**
+     * validate 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void validate(ChatCategory category, String source, String version) {
         if (category == null) {
             throw new IllegalArgumentException("category는 필수입니다.");
@@ -376,6 +467,12 @@ public class RagSourceAdminService {
         }
     }
 
+    /**
+     * resolve Target Version 결과를 계산한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String resolveTargetVersion(RagSourceReindexCommand command) {
         if (!command.isCopyToNewVersion()) {
             return command.getVersion();
@@ -386,6 +483,12 @@ public class RagSourceAdminService {
         return command.getVersion() + "-reindexed";
     }
 
+    /**
+     * non Blank 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String nonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {
@@ -395,6 +498,18 @@ public class RagSourceAdminService {
         return "";
     }
 
+    /**
+     * Vector Chunk Row 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private record VectorChunkRow(String content, int chunkIndex) { }
+    /**
+     * Reindex Candidate 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private record ReindexCandidate(RagSourceFileEntry file, String text) { }
 }

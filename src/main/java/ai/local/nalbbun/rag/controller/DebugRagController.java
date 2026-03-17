@@ -39,6 +39,13 @@ import ai.local.nalbbun.rag.service.RagSupportService;
 import ai.local.nalbbun.rag.trace.DebugRagTraceService;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Debug Rag Controller 타입이다.
+ *
+ * <p>기능 설명: HTTP 요청을 받아 서비스 또는 오케스트레이터로 전달하고 응답을 구성한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: HTTP 요청 파라미터, 요청 본문, 세션 또는 헤더 정보</p>
+ * <p>출력: HTTP 응답, SSE 이벤트, 뷰 이름 또는 직렬화 가능한 결과</p>
+ */
 @RestController
 @Profile("local")
 @ConditionalOnProperty(prefix = "app.debug", name = "enabled", havingValue = "true")
@@ -54,6 +61,12 @@ public class DebugRagController {
     private final DebugDatabaseInfoService debugDatabaseInfoService;
     private final DebugRagTraceService debugRagTraceService;
 
+    /**
+     * status 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @GetMapping("/status")
     public Map<String, Object> status() {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -67,11 +80,23 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * db Info 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @GetMapping("/db-info")
     public Map<String, Object> dbInfo() {
         return debugDatabaseInfoService.getInfo();
     }
 
+    /**
+     * search 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @GetMapping("/search")
     public RagContext search(@RequestParam("category") ChatCategory category,
                              @RequestParam("query") String query,
@@ -80,6 +105,12 @@ public class DebugRagController {
         return ragSupportService.buildContext(category, query, source, version);
     }
 
+    /**
+     * sources 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @GetMapping("/sources")
     public List<RagSourceManifest> sources(@RequestParam("category") ChatCategory category,
                                            @RequestParam(value = "source", required = false) String source,
@@ -87,6 +118,12 @@ public class DebugRagController {
         return ragSourceCatalogService.listSources(category, source, version);
     }
 
+    /**
+     * source Files 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @GetMapping("/source/files")
     public List<RagSourceFileEntry> sourceFiles(@RequestParam("category") ChatCategory category,
                                                 @RequestParam("source") String source,
@@ -94,6 +131,12 @@ public class DebugRagController {
         return ragSourceCatalogService.listFiles(category, source, version);
     }
 
+    /**
+     * purge Source 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @PostMapping("/source/purge")
     public Map<String, Object> purgeSource(@RequestBody RagSourcePurgeCommand command) {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -104,6 +147,12 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * purge Source File 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @PostMapping("/source/file/purge")
     public Map<String, Object> purgeSourceFile(@RequestBody RagSourceFilePurgeCommand command) {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -114,6 +163,12 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * reindex Source 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @PostMapping("/source/reindex")
     public Map<String, Object> reindexSource(@RequestBody RagSourceReindexCommand command) {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -125,6 +180,12 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * compare 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @GetMapping("/source/compare")
     public Map<String, Object> compare(@RequestParam("category") ChatCategory category,
                                        @RequestParam("source") String source,
@@ -137,28 +198,58 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * traces 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @GetMapping("/traces")
     public Map<String, Object> traces(@RequestParam(value = "limit", defaultValue = "150") int limit) {
         return debugRagTraceService.latest(limit);
     }
 
+    /**
+     * trace By Id 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @GetMapping("/traces/{traceId}")
     public Map<String, Object> traceById(@PathVariable("traceId") String traceId) {
         return debugRagTraceService.byTraceId(traceId);
     }
 
+    /**
+     * clear Traces 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @PostMapping("/traces/clear")
     public Map<String, Object> clearTraces() {
         debugRagTraceService.clear();
         return Map.of("status", "cleared");
     }
 
+    /**
+     * ingest Text 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @PostMapping("/ingest-text")
     public Map<String, Object> ingestText(@RequestBody RagIngestCommand command) {
         RagIngestionResult result = ragDocumentIngestionService.ingestText(command);
         return ingestResponse(command.getCategory(), result.source(), result.version(), result);
     }
 
+    /**
+     * ingest File 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @PostMapping(value = "/ingest-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> ingestFile(@RequestParam("category") ChatCategory category,
                                           @RequestParam("file") MultipartFile file,
@@ -176,6 +267,12 @@ public class DebugRagController {
         return ingestResponse(category, result.source(), result.version(), result);
     }
 
+    /**
+     * ingest Files 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @PostMapping(value = "/ingest-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> ingestFiles(@RequestParam("category") ChatCategory category,
                                            @RequestParam("files") MultipartFile[] files,
@@ -193,12 +290,24 @@ public class DebugRagController {
         return ingestResponse(category, result.source(), result.version(), result);
     }
 
+    /**
+     * ingest Url 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @PostMapping("/ingest-url")
     public Map<String, Object> ingestUrl(@RequestBody RagUrlIngestCommand command) {
         RagIngestionResult result = ragDocumentIngestionService.ingestUrl(command);
         return ingestResponse(command.getCategory(), result.source(), result.version(), result);
     }
 
+    /**
+     * handle Bad Request 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, Object> handleBadRequest(RuntimeException e) {
@@ -209,6 +318,12 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * ingest Response 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private Map<String, Object> ingestResponse(ChatCategory category, String source, String version, Object result) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("result", result);
@@ -220,6 +335,54 @@ public class DebugRagController {
         return response;
     }
 
+    // ── RAG 런타임 설정 변경 ─────────────────────────────────────────────────
+    /**
+     * update Config 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
+    @PostMapping("/config")
+    public Map<String, Object> updateConfig(@RequestBody Map<String, Object> body) {
+        if (body.containsKey("enabled")) {
+            ragProperties.setEnabled(Boolean.parseBoolean(String.valueOf(body.get("enabled"))));
+        }
+        if (body.containsKey("topK")) {
+            ragProperties.setTopK(Integer.parseInt(String.valueOf(body.get("topK"))));
+        }
+        if (body.containsKey("similarityThreshold")) {
+            ragProperties.setSimilarityThreshold(Double.parseDouble(String.valueOf(body.get("similarityThreshold"))));
+        }
+        if (body.containsKey("includeCitations")) {
+            ragProperties.setIncludeCitations(Boolean.parseBoolean(String.valueOf(body.get("includeCitations"))));
+        }
+        if (body.containsKey("generalEnabled")) {
+            ragProperties.getCategories().setGeneral(Boolean.parseBoolean(String.valueOf(body.get("generalEnabled"))));
+        }
+        if (body.containsKey("devEnabled")) {
+            ragProperties.getCategories().setDev(Boolean.parseBoolean(String.valueOf(body.get("devEnabled"))));
+        }
+        if (body.containsKey("miceEnabled")) {
+            ragProperties.getCategories().setMice(Boolean.parseBoolean(String.valueOf(body.get("miceEnabled"))));
+        }
+        if (body.containsKey("travelEnabled")) {
+            ragProperties.getCategories().setTravel(Boolean.parseBoolean(String.valueOf(body.get("travelEnabled"))));
+        }
+        if (body.containsKey("chunkSize")) {
+            ragProperties.getIngest().setChunkSize(Integer.parseInt(String.valueOf(body.get("chunkSize"))));
+        }
+        if (body.containsKey("maxNumChunks")) {
+            ragProperties.getIngest().setMaxNumChunks(Integer.parseInt(String.valueOf(body.get("maxNumChunks"))));
+        }
+        return status();
+    }
+
+    /**
+     * find Manifest 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private RagSourceManifest findManifest(ChatCategory category, String source, String version) {
         return ragSourceCatalogService.listSources(category, source, version)
                 .stream()
@@ -227,6 +390,12 @@ public class DebugRagController {
                 .orElse(null);
     }
 
+    /**
+     * hint For 요청을 처리한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String hintFor(String message) {
         if (message == null) {
             return "입력값과 설정을 다시 확인하세요.";

@@ -17,6 +17,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import ai.local.nalbbun.port.WebSearchPort;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Tavily Web Search Service 타입이다.
+ *
+ * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
+ * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ */
 @Slf4j
 @Service
 @ConditionalOnProperty(prefix = "app.search", name = "provider", havingValue = "tavily")
@@ -31,6 +38,12 @@ public class TavilyWebSearchService implements WebSearchPort {
     private final String apiKey;
     private final int maxResults;
 
+    /**
+     * Tavily Web Search Service 인스턴스를 초기화한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public TavilyWebSearchService(
             @Value("${app.search.tavily.api-key:}") String apiKey,
             @Value("${app.search.tavily.max-results:5}") int maxResults
@@ -39,6 +52,12 @@ public class TavilyWebSearchService implements WebSearchPort {
         this.maxResults = Math.max(1, maxResults);
     }
 
+    /**
+     * search 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public String search(String query) {
         ensureApiKey();
@@ -83,6 +102,12 @@ public class TavilyWebSearchService implements WebSearchPort {
         }
     }
 
+    /**
+     * fetch 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public String fetch(String url) {
         try {
@@ -102,17 +127,35 @@ public class TavilyWebSearchService implements WebSearchPort {
         }
     }
 
+    /**
+     * provider Name 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Override
     public String providerName() {
         return "tavily";
     }
 
+    /**
+     * ensure Api Key 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     private void ensureApiKey() {
         if (apiKey.isBlank()) {
             throw new IllegalStateException("app.search.provider=tavily 인 경우 app.search.tavily.api-key 설정이 필요합니다.");
         }
     }
 
+    /**
+     * to Plain Text 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String toPlainText(String html) {
         if (html == null || html.isBlank()) {
             return "";

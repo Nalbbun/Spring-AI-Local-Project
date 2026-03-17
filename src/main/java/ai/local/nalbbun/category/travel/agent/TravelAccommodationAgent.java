@@ -15,6 +15,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Travel Accommodation Agent 타입이다.
+ *
+ * <p>기능 설명: 특정 작업 목적에 맞는 세부 처리 단위를 담당한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
+ * <p>입력: 호출 계층에서 전달되는 입력값과 주입된 의존성</p>
+ * <p>출력: 처리 결과 객체, 상태 변경 또는 후속 처리에 필요한 데이터</p>
+ */
 @Component
 public class TravelAccommodationAgent {
 
@@ -42,6 +49,12 @@ public class TravelAccommodationAgent {
     private final RuntimeModelChatService runtimeModelChatService;
     private final WebSearchPort webSearchPort;
 
+    /**
+     * Travel Accommodation Agent 인스턴스를 초기화한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public TravelAccommodationAgent(
             RuntimeModelChatService runtimeModelChatService,
             WebSearchPort webSearchPort
@@ -50,12 +63,24 @@ public class TravelAccommodationAgent {
         this.webSearchPort = webSearchPort;
     }
 
+    /**
+     * execute 로직을 실행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public List<Accommodation> execute(String userQuery) {
         String userMessage = String.format(Locale.KOREAN, USER_PROMPT_TEMPLATE, userQuery);
         List<Accommodation> result = callAsEntity(userMessage);
         return normalize(result);
     }
 
+    /**
+     * execute 로직을 실행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     */
     public void execute(TravelContext context) {
         String query;
         if (context.isReplan()) {
@@ -66,6 +91,12 @@ public class TravelAccommodationAgent {
         context.setAccommodations(execute(query));
     }
 
+    /**
+     * call As Entity 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Accommodation> callAsEntity(String userMessage) {
         try {
             return runtimeModelChatService.callEntityWithTools(
@@ -92,6 +123,12 @@ public class TravelAccommodationAgent {
         }
     }
 
+    /**
+     * normalize 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private List<Accommodation> normalize(List<Accommodation> items) {
         if (items == null || items.isEmpty()) {
             return List.of();
@@ -123,6 +160,12 @@ public class TravelAccommodationAgent {
         return normalized;
     }
 
+    /**
+     * infer Default Price 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private int inferDefaultPrice(Accommodation a) {
         String name = safe(a.getName());
         String desc = safe(a.getDescription());
@@ -143,19 +186,43 @@ public class TravelAccommodationAgent {
         return DEFAULT_PRICE_PER_NIGHT.get("숙소");
     }
 
+    /**
+     * safe 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     private String safe(String s) {
         return s == null ? "" : s;
     }
     
+    /**
+     * describe Model 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     public String describeModel() {
         return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_SEARCH, true);
     }
     
+    /**
+     * search Accommodations 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Tool(description = "숙소 정보를 인터넷에서 검색합니다. 제목, 링크, 요약을 반환합니다.")
     public String searchAccommodations(@ToolParam(description = "검색 쿼리") String query) {
         return webSearchPort.search(query);
     }
 
+    /**
+     * fetch Accommodation Info 기능을 수행한다.
+     *
+     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
+     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     */
     @Tool(description = "웹 페이지의 본문 텍스트를 가져와 숙소 상세 정보를 제공합니다.")
     public String fetchAccommodationInfo(@ToolParam(description = "웹 페이지 URL") String url) {
         return webSearchPort.fetch(url);
