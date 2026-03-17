@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class DebugOllamaModelConfig {
 
-    private String modelSource;       // RUNNING / INSTALLED / ALL
+    private String modelSource;       // RUNNING / INSTALLED
 
     private String generalModel;
     private String devModel;
@@ -14,7 +14,9 @@ public class DebugOllamaModelConfig {
     private String travelSearchModel; // tool calling 쓰는 쪽
     private String travelPlanModel;   // 일정 생성용
 
-    private String residentModels;    // comma/newline separated
-    private String residentKeepAlive; // ex) -1, 24h, 10m
-    private Boolean autoWarmupWhenNoRunningModels;
+    // 쉼표/개행 구분 상주 모델 목록
+    private String residentModelList;
+
+    // 예: -1, 24h, 10m
+    private String residentKeepAlive;
 }

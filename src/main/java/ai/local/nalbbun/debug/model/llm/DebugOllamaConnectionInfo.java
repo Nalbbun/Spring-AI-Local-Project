@@ -14,8 +14,4 @@ public class DebugOllamaConnectionInfo {
     private String message;
     private Integer runningCount;
     private Integer installedCount;
-
-    private String residentModels;
-    private String residentKeepAlive;
-    private boolean autoWarmupWhenNoRunningModels;
 }

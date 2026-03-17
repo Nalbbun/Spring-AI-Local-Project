@@ -4,6 +4,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,8 @@ public class DebugRuntimeConfigService {
     private final String configuredMemoryStore;
     private final String fallbackPolicy;
     private final ConversationMemoryService conversationMemoryService;
+
+    private DebugRuntimeOllamaConnectionService ollamaConnectionService;
 
     public DebugRuntimeConfigService(
             @Value("${app.category.resolver.mode:HYBRID}") String resolverMode,
@@ -42,6 +45,11 @@ public class DebugRuntimeConfigService {
         parserModes.put(ChatCategory.TRAVEL, new AtomicReference<>(safeParserMode(travelMode)));
         parserModes.put(ChatCategory.DEV, new AtomicReference<>(safeParserMode(devMode)));
         parserModes.put(ChatCategory.MICE, new AtomicReference<>(safeParserMode(miceMode)));
+    }
+
+    @Autowired(required = false)
+    public void setOllamaConnectionService(DebugRuntimeOllamaConnectionService ollamaConnectionService) {
+        this.ollamaConnectionService = ollamaConnectionService;
     }
 
     public CategoryResolverMode getResolverMode() {
@@ -77,6 +85,7 @@ public class DebugRuntimeConfigService {
         config.setMemoryStore(normalizeMemoryStore(configuredMemoryStore));
         config.setMemoryServiceType(conversationMemoryService.getClass().getSimpleName());
         config.setFallbackPolicy(fallbackPolicy);
+        config.setOllamaBaseUrl(ollamaConnectionService == null ? null : ollamaConnectionService.getBaseUrl());
         return config;
     }
 

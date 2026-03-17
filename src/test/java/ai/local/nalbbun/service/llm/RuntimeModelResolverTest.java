@@ -47,7 +47,7 @@ class RuntimeModelResolverTest {
                 "qwen2.5-coder:14b",
                 "exaone3.5:7.8b",
                 travelSearchModel,
-                "deepseek-r1:14b", travelSearchModel, travelSearchModel, false
+                "deepseek-r1:14b", travelSearchModel, travelSearchModel
         );
     }
 }

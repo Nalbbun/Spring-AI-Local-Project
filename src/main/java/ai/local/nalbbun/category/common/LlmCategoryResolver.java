@@ -1,5 +1,7 @@
 package ai.local.nalbbun.category.common;
 
+import java.time.Duration;
+
 import ai.local.nalbbun.debug.service.DebugRuntimeOllamaConnectionService;
 import ai.local.nalbbun.model.category.CategoryResolution;
 import ai.local.nalbbun.model.category.ChatCategory;
@@ -11,21 +13,37 @@ import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import io.netty.channel.ChannelOption;
+import reactor.netty.http.client.HttpClient;
 
 @Component
 public class LlmCategoryResolver {
 
     private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
     private final String categoryModel;
+    private final String chatKeepAlive;
+    private final long ollamaConnectTimeoutMs;
+    private final long ollamaRequestTimeoutMs;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public LlmCategoryResolver(
             DebugRuntimeOllamaConnectionService ollamaConnectionService,
-            @Value("${app.ollama.default-general-model:${spring.ai.ollama.chat.options.model:gemma2:9b}}") String categoryModel
+            @Value("${app.ollama.default-general-model:${spring.ai.ollama.chat.options.model:gemma2:9b}}") String categoryModel,
+            @Value("${spring.ai.ollama.chat.options.keep-alive:300s}") String chatKeepAlive,
+            @Value("${app.ollama.connect-timeout-ms:5000}") long ollamaConnectTimeoutMs,
+            @Value("${app.ollama.request-timeout-ms:300000}") long ollamaRequestTimeoutMs
     ) {
         this.ollamaConnectionService = ollamaConnectionService;
         this.categoryModel = categoryModel;
+        this.chatKeepAlive = (chatKeepAlive == null || chatKeepAlive.isBlank()) ? "300s" : chatKeepAlive.trim();
+        this.ollamaConnectTimeoutMs = Math.max(1000, ollamaConnectTimeoutMs);
+        this.ollamaRequestTimeoutMs = Math.max(this.ollamaConnectTimeoutMs, ollamaRequestTimeoutMs);
     }
 
     public CategoryResolution resolve(String userQuery) {
@@ -71,14 +89,31 @@ public class LlmCategoryResolver {
     private ChatClient runtimeChatClient() {
         OllamaApi ollamaApi = OllamaApi.builder()
                 .baseUrl(ollamaConnectionService.getBaseUrl())
+                .restClientBuilder(runtimeRestClientBuilder())
+                .webClientBuilder(runtimeWebClientBuilder())
                 .build();
         OllamaChatModel chatModel = OllamaChatModel.builder()
                 .ollamaApi(ollamaApi)
                 .defaultOptions(OllamaChatOptions.builder()
                         .model(categoryModel)
+                        .keepAlive(chatKeepAlive)
                         .build())
                 .build();
         return ChatClient.builder(chatModel).build();
+    }
+
+    private RestClient.Builder runtimeRestClientBuilder() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout((int) ollamaConnectTimeoutMs);
+        requestFactory.setReadTimeout((int) ollamaRequestTimeoutMs);
+        return RestClient.builder().requestFactory(requestFactory);
+    }
+
+    private WebClient.Builder runtimeWebClientBuilder() {
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, (int) ollamaConnectTimeoutMs)
+                .responseTimeout(Duration.ofMillis(ollamaRequestTimeoutMs));
+        return WebClient.builder().clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 
     public String mode() {

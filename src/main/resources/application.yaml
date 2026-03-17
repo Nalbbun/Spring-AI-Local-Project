@@ -131,6 +131,8 @@ app:
 
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+    connect-timeout-ms: ${APP_OLLAMA_CONNECT_TIMEOUT_MS:5000}
+    request-timeout-ms: ${APP_OLLAMA_REQUEST_TIMEOUT_MS:300000}
     model-source: RUNNING
     default-general-model: ${APP_OLLAMA_GENERAL_MODEL:gemma2:9b}
     default-dev-model: ${APP_OLLAMA_DEV_MODEL:qwen2.5-coder:14b}

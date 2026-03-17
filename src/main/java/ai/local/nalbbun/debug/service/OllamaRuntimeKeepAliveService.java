@@ -1,8 +1,10 @@
 package ai.local.nalbbun.debug.service;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -16,16 +18,19 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OllamaRuntimeKeepAliveService {
 
-    private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
-    private final DebugRuntimeModelConfigService modelConfigService;
+    private final DebugRuntimeOllamaConnectionService debugRuntimeOllamaConnectionService;
+    private final DebugRuntimeModelConfigService debugRuntimeModelConfigService;
 
     public DebugOllamaWarmupResult warmupConfiguredResidentModels() {
-        return warmupModels(modelConfigService.getResidentModelList(), modelConfigService.getResidentKeepAlive());
+    	return warmupModels(
+    	        parseResidentModels(debugRuntimeModelConfigService.getResidentModelList()),
+    	        debugRuntimeModelConfigService.getResidentKeepAlive()
+    	);
     }
 
     public DebugOllamaWarmupResult warmupModels(List<String> models, String keepAlive) {
         DebugOllamaWarmupResult result = new DebugOllamaWarmupResult();
-        result.setBaseUrl(ollamaConnectionService.getBaseUrl());
+        result.setBaseUrl(debugRuntimeOllamaConnectionService.getBaseUrl());
         result.setKeepAlive((keepAlive == null || keepAlive.isBlank()) ? "-1" : keepAlive.trim());
         result.getRequestedModels().addAll(models);
 
@@ -86,7 +91,19 @@ public class OllamaRuntimeKeepAliveService {
 
     private RestClient restClient() {
         return RestClient.builder()
-                .baseUrl(ollamaConnectionService.getBaseUrl())
+                .baseUrl(debugRuntimeOllamaConnectionService.getBaseUrl())
                 .build();
+    }
+    
+    private List<String> parseResidentModels(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
     }
 }

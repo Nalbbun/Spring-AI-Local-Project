@@ -1,5 +1,6 @@
 package ai.local.nalbbun.service.llm;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -12,7 +13,14 @@ import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import io.netty.channel.ChannelOption;
+import reactor.netty.http.client.HttpClient;
 
 import ai.local.nalbbun.debug.model.RuntimeModelTarget;
 import ai.local.nalbbun.debug.service.DebugRuntimeOllamaConnectionService;
@@ -28,6 +36,9 @@ public class RuntimeModelChatService {
     private final long timeoutMs;
     private final int retryAttempts;
     private final long retryBackoffMs;
+    private final long ollamaConnectTimeoutMs;
+    private final long ollamaRequestTimeoutMs;
+    private final String ollamaChatKeepAlive;
     private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
 
     public RuntimeModelChatService(
@@ -37,7 +48,10 @@ public class RuntimeModelChatService {
             DebugRuntimeOllamaConnectionService ollamaConnectionService,
             @Value("${app.llm.timeout-ms:45000}") long timeoutMs,
             @Value("${app.llm.retry-attempts:2}") int retryAttempts,
-            @Value("${app.llm.retry-backoff-ms:800}") long retryBackoffMs
+            @Value("${app.llm.retry-backoff-ms:800}") long retryBackoffMs,
+            @Value("${app.ollama.connect-timeout-ms:5000}") long ollamaConnectTimeoutMs,
+            @Value("${app.ollama.request-timeout-ms:300000}") long ollamaRequestTimeoutMs,
+            @Value("${spring.ai.ollama.chat.options.keep-alive:300s}") String ollamaChatKeepAlive
     ) {
         this.openaiBuilder = openaiBuilder;
         this.runtimeModelResolver = runtimeModelResolver;
@@ -46,6 +60,9 @@ public class RuntimeModelChatService {
         this.timeoutMs = timeoutMs;
         this.retryAttempts = Math.max(1, retryAttempts);
         this.retryBackoffMs = Math.max(0, retryBackoffMs);
+        this.ollamaConnectTimeoutMs = Math.max(1000, ollamaConnectTimeoutMs);
+        this.ollamaRequestTimeoutMs = Math.max(this.ollamaConnectTimeoutMs, ollamaRequestTimeoutMs);
+        this.ollamaChatKeepAlive = (ollamaChatKeepAlive == null || ollamaChatKeepAlive.isBlank()) ? "300s" : ollamaChatKeepAlive.trim();
     }
 
     public String callText(RuntimeModelTarget target, String systemPrompt, String userPrompt) {
@@ -144,17 +161,35 @@ public class RuntimeModelChatService {
         String baseUrl = ollamaConnectionService.getBaseUrl();
         OllamaApi ollamaApi = OllamaApi.builder()
                 .baseUrl(baseUrl)
+                .restClientBuilder(runtimeRestClientBuilder())
+                .webClientBuilder(runtimeWebClientBuilder())
                 .build();
         OllamaChatModel chatModel = OllamaChatModel.builder()
                 .ollamaApi(ollamaApi)
                 .defaultOptions(OllamaChatOptions.builder()
                         .model(modelName)
+                        .keepAlive(ollamaChatKeepAlive)
                         .build())
                 .build();
-        log.debug("Using runtime Ollama connection. baseUrl={}, model={}", baseUrl, modelName);
+        log.info("Using runtime Ollama connection. baseUrl={}, model={}, keepAlive={}, connectTimeoutMs={}, requestTimeoutMs={}",
+                baseUrl, modelName, ollamaChatKeepAlive, ollamaConnectTimeoutMs, ollamaRequestTimeoutMs);
         return ChatClient.builder(chatModel)
                 .defaultSystem(systemPrompt)
                 .build();
+    }
+
+    private RestClient.Builder runtimeRestClientBuilder() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout((int) ollamaConnectTimeoutMs);
+        requestFactory.setReadTimeout((int) ollamaRequestTimeoutMs);
+        return RestClient.builder().requestFactory(requestFactory);
+    }
+
+    private WebClient.Builder runtimeWebClientBuilder() {
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, (int) ollamaConnectTimeoutMs)
+                .responseTimeout(Duration.ofMillis(ollamaRequestTimeoutMs));
+        return WebClient.builder().clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 
     private <T> T executeWithPolicy(RuntimeModelTarget target,
@@ -170,8 +205,11 @@ public class RuntimeModelChatService {
                     log.debug("LLM call. target={}, resolution={}", target, resolved.describe());
                 }
 
+                long effectiveTimeoutMs = resolved.ollama()
+                        ? Math.max(timeoutMs, ollamaRequestTimeoutMs + 5_000L)
+                        : timeoutMs;
                 return CompletableFuture.supplyAsync(supplier, llmTaskExecutor)
-                        .orTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                        .orTimeout(effectiveTimeoutMs, TimeUnit.MILLISECONDS)
                         .join();
             } catch (Exception e) {
                 lastException = unwrap(e);

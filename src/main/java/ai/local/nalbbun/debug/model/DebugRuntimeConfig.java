@@ -13,4 +13,5 @@ public class DebugRuntimeConfig {
     private String memoryServiceType;
     private String fallbackPolicy;
     private String conversationId;
+    private String ollamaBaseUrl;
 }

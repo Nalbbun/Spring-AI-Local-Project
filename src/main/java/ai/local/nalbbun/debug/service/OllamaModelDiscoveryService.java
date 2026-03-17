@@ -6,11 +6,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import ai.local.nalbbun.debug.model.llm.DebugOllamaConnectionInfo;
-import ai.local.nalbbun.debug.model.llm.DebugOllamaWarmupResult;
 import ai.local.nalbbun.debug.model.llm.OllamaModelInfo;
 import ai.local.nalbbun.debug.model.llm.OllamaModelSource;
 import tools.jackson.databind.JsonNode;
@@ -20,46 +21,40 @@ import tools.jackson.databind.json.JsonMapper;
 public class OllamaModelDiscoveryService {
 
     private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
-    private final DebugRuntimeModelConfigService modelConfigService;
-    private final OllamaRuntimeKeepAliveService keepAliveService;
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
+    private final int connectTimeoutMs;
+    private final int readTimeoutMs;
 
     public OllamaModelDiscoveryService(
             DebugRuntimeOllamaConnectionService ollamaConnectionService,
-            DebugRuntimeModelConfigService modelConfigService,
-            OllamaRuntimeKeepAliveService keepAliveService
+            @Value("${app.ollama.connect-timeout-ms:3000}") int connectTimeoutMs,
+            @Value("${app.ollama.request-timeout-ms:5000}") int readTimeoutMs
     ) {
         this.ollamaConnectionService = ollamaConnectionService;
-        this.modelConfigService = modelConfigService;
-        this.keepAliveService = keepAliveService;
+        this.connectTimeoutMs = Math.max(1000, connectTimeoutMs);
+        this.readTimeoutMs = Math.max(this.connectTimeoutMs, readTimeoutMs);
     }
 
     public DebugOllamaConnectionInfo getDebugConnectionInfo() {
-        DebugOllamaConnectionInfo info = ollamaConnectionService.getConnectionInfo();
-        info.setResidentModels(modelConfigService.getResidentModels());
-        info.setResidentKeepAlive(modelConfigService.getResidentKeepAlive());
-        info.setAutoWarmupWhenNoRunningModels(modelConfigService.isAutoWarmupWhenNoRunningModels());
-
+        DebugOllamaConnectionInfo info = baseInfo();
         try {
-            List<OllamaModelInfo> installed = getInstalledModels();
+            restClient().get()
+                    .uri("/api/version")
+                    .retrieve()
+                    .body(String.class);
+
             List<OllamaModelInfo> running = getRunningModels();
+            List<OllamaModelInfo> installed = getInstalledModels();
+
             info.setReachable(true);
             info.setStatus("OK");
+            info.setMessage("connected");
             info.setRunningCount(running.size());
             info.setInstalledCount(installed.size());
-            if (running.isEmpty()) {
-                if (modelConfigService.isAutoWarmupWhenNoRunningModels() && !modelConfigService.getResidentModelList().isEmpty()) {
-                    info.setMessage("connected, resident warmup attempted but no running model is visible yet");
-                } else {
-                    info.setMessage("connected, no running model");
-                }
-            } else {
-                info.setMessage("connected");
-            }
         } catch (Exception e) {
             info.setReachable(false);
             info.setStatus("ERROR");
-            info.setMessage(e.getMessage());
+            info.setMessage(rootMessage(e));
             info.setRunningCount(0);
             info.setInstalledCount(0);
         }
@@ -67,11 +62,11 @@ public class OllamaModelDiscoveryService {
     }
 
     public List<OllamaModelInfo> getRunningModels() {
-        return fetchRunningModelsWithWarmup();
+        return fetchModels("/api/ps", "RUNNING");
     }
 
     public List<OllamaModelInfo> getInstalledModels() {
-        return fetchModelsStrict("/api/tags", "INSTALLED");
+        return fetchModels("/api/tags", "INSTALLED");
     }
 
     public List<OllamaModelInfo> getModels(OllamaModelSource source) {
@@ -92,7 +87,7 @@ public class OllamaModelDiscoveryService {
             if (existing == null) {
                 merged.put(key, model);
             } else {
-                existing.setState("RUNNING+INSTALLED");
+                existing.setState("RUNNING");
                 if (model.getSize() != null) {
                     existing.setSize(model.getSize());
                 }
@@ -107,64 +102,59 @@ public class OllamaModelDiscoveryService {
                 .toList();
     }
 
-    private List<OllamaModelInfo> fetchRunningModelsWithWarmup() {
-        List<OllamaModelInfo> running = fetchModelsStrict("/api/ps", "RUNNING");
-        if (!running.isEmpty()) {
-            return running;
-        }
-        if (!modelConfigService.isAutoWarmupWhenNoRunningModels()) {
-            return running;
-        }
-        if (modelConfigService.getResidentModelList().isEmpty()) {
-            return running;
-        }
+    private List<OllamaModelInfo> fetchModels(String uri, String state) {
+        String body = restClient().get()
+                .uri(uri)
+                .retrieve()
+                .body(String.class);
 
-        DebugOllamaWarmupResult warmup = keepAliveService.warmupConfiguredResidentModels();
-        if (!warmup.isApplied()) {
-            return running;
-        }
-        return fetchModelsStrict("/api/ps", "RUNNING");
-    }
-
-    private List<OllamaModelInfo> fetchModelsStrict(String uri, String state) {
+        JsonNode root;
         try {
-            String body = restClient().get()
-                    .uri(uri)
-                    .retrieve()
-                    .body(String.class);
-
-            JsonNode root = jsonMapper.readTree(body == null ? "{}" : body);
-            JsonNode models = root.path("models");
-            if (!models.isArray()) {
-                return List.of();
-            }
-
-            List<OllamaModelInfo> result = new ArrayList<>();
-            for (JsonNode node : models) {
-                String name = text(node, "name");
-                if (name == null || name.isBlank()) {
-                    continue;
-                }
-                OllamaModelInfo info = new OllamaModelInfo();
-                info.setName(name);
-                info.setModel(text(node, "model"));
-                info.setDisplayName(text(node, "display_name"));
-                info.setState(state);
-                info.setModifiedAt(text(node, "modified_at"));
-                info.setSize(node.path("size").isNumber() ? node.path("size").asLong() : null);
-                result.add(info);
-            }
-            result.sort(Comparator.comparing(OllamaModelInfo::getName, String.CASE_INSENSITIVE_ORDER));
-            return result;
+            root = jsonMapper.readTree(body == null ? "{}" : body);
         } catch (Exception e) {
-            throw new IllegalStateException("Ollama 연결 실패: " + e.getMessage(), e);
+            throw new IllegalStateException("Ollama response parse failed: " + rootMessage(e), e);
         }
+
+        JsonNode models = root.path("models");
+        if (!models.isArray()) {
+            return List.of();
+        }
+
+        List<OllamaModelInfo> result = new ArrayList<>();
+        for (JsonNode node : models) {
+            String name = text(node, "name");
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            OllamaModelInfo info = new OllamaModelInfo();
+            info.setName(name);
+            info.setModel(text(node, "model"));
+            info.setDisplayName(text(node, "display_name"));
+            info.setState(state);
+            info.setModifiedAt(text(node, "modified_at"));
+            info.setSize(node.path("size").isNumber() ? node.path("size").asLong() : null);
+            result.add(info);
+        }
+        result.sort(Comparator.comparing(OllamaModelInfo::getName, String.CASE_INSENSITIVE_ORDER));
+        return result;
     }
 
     private RestClient restClient() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeoutMs);
+        requestFactory.setReadTimeout(readTimeoutMs);
         return RestClient.builder()
                 .baseUrl(ollamaConnectionService.getBaseUrl())
+                .requestFactory(requestFactory)
                 .build();
+    }
+
+    private DebugOllamaConnectionInfo baseInfo() {
+        DebugOllamaConnectionInfo info = new DebugOllamaConnectionInfo();
+        info.setBaseUrl(ollamaConnectionService.getBaseUrl());
+        info.setDefaultBaseUrl(ollamaConnectionService.getDefaultBaseUrl());
+        info.setRuntimeOverride(!ollamaConnectionService.getDefaultBaseUrl().equals(ollamaConnectionService.getBaseUrl()));
+        return info;
     }
 
     private String keyOf(OllamaModelInfo model) {
@@ -174,5 +164,14 @@ public class OllamaModelDiscoveryService {
     private String text(JsonNode node, String fieldName) {
         JsonNode field = node.path(fieldName);
         return field.isMissingNode() || field.isNull() ? null : field.asText();
+    }
+
+    private String rootMessage(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+        String message = current.getMessage();
+        return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
     }
 }

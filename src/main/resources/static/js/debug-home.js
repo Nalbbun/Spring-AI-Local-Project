@@ -248,9 +248,9 @@ message=${info.message || '-'}`);
       setVal('generalModel', config.generalModel || '');
       setVal('devModel', config.devModel || '');
       setVal('miceModel', config.miceModel || '');
-      setVal('residentModels', config.residentModels || '');
-      setVal('residentKeepAlive', config.residentKeepAlive || '-1');
-      setVal('autoWarmupWhenNoRunningModels', String(config.autoWarmupWhenNoRunningModels ?? true));
+      setVal('residentModelList', config.residentModelList || '');
+      setVal('residentKeepAlive', config.residentKeepAlive || '24h');
+      setVal('registerKeepAlive', config.residentKeepAlive || '24h');
       setOllamaModelStatus(`모델 설정 조회 완료
 source=${config.modelSource}
 travelSearch=${config.travelSearchModel || '(none)'}
@@ -258,20 +258,19 @@ travelPlan=${config.travelPlanModel || '(none)'}
 general=${config.generalModel || '(none)'}
 dev=${config.devModel || '(none)'}
 mice=${config.miceModel || '(none)'}
-resident=${(config.residentModels || '').replaceAll('\n', ', ') || '(none)'}
-keepAlive=${config.residentKeepAlive || '-1'}
-autoWarmup=${config.autoWarmupWhenNoRunningModels}`);
+resident=${config.residentModelList || '(none)'}
+keepAlive=${config.residentKeepAlive || '24h'}`);
     } catch (e) {
       setOllamaModelStatus('모델 설정 조회 실패: ' + e.message);
     }
   }
   async function saveOllamaModelConfig() {
     try {
-      const payload = { modelSource: val('ollamaModelSource'), travelSearchModel: val('travelSearchModel'), travelPlanModel: val('travelPlanModel'), generalModel: val('generalModel'), devModel: val('devModel'), miceModel: val('miceModel'), residentModels: val('residentModels'), residentKeepAlive: val('residentKeepAlive') || '-1', autoWarmupWhenNoRunningModels: val('autoWarmupWhenNoRunningModels') === 'true' };
+      const payload = { modelSource: val('ollamaModelSource'), travelSearchModel: val('travelSearchModel'), travelPlanModel: val('travelPlanModel'), generalModel: val('generalModel'), devModel: val('devModel'), miceModel: val('miceModel'), residentModelList: val('residentModelList'), residentKeepAlive: val('residentKeepAlive') || '24h' };
       const config = await fetchJson('/debug/api/ollama/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      setVal('residentModels', config.residentModels || '');
-      setVal('residentKeepAlive', config.residentKeepAlive || '-1');
-      setVal('autoWarmupWhenNoRunningModels', String(config.autoWarmupWhenNoRunningModels ?? true));
+      setVal('residentModelList', config.residentModelList || '');
+      setVal('residentKeepAlive', config.residentKeepAlive || '24h');
+      setVal('registerKeepAlive', config.residentKeepAlive || '24h');
       setOllamaModelStatus(`모델 설정 저장 완료
 source=${config.modelSource}
 travelSearch=${config.travelSearchModel || '(none)'}
@@ -279,11 +278,8 @@ travelPlan=${config.travelPlanModel || '(none)'}
 general=${config.generalModel || '(none)'}
 dev=${config.devModel || '(none)'}
 mice=${config.miceModel || '(none)'}
-resident=${(config.residentModels || '').replaceAll('\n', ', ') || '(none)'}
-keepAlive=${config.residentKeepAlive || '-1'}
-autoWarmup=${config.autoWarmupWhenNoRunningModels}`);
-      await loadOllamaConnection();
-      await loadOllamaModels();
+resident=${config.residentModelList || '(none)'}
+keepAlive=${config.residentKeepAlive || '24h'}`);
     } catch (e) {
       setOllamaModelStatus('모델 설정 저장 실패: ' + e.message);
     }
@@ -293,14 +289,57 @@ autoWarmup=${config.autoWarmupWhenNoRunningModels}`);
     catch (e) { setOllamaModelStatus('모델 설정 초기화 실패: ' + e.message); }
   }
 
+
   async function applyResidentModels() {
     try {
-      const data = await fetchJson('/debug/api/ollama/resident-models/apply', { method: 'POST' });
-      setOllamaModelStatus(`상주 모델 즉시 로드 결과\nbaseUrl=${data.baseUrl || '-'}\nkeepAlive=${data.keepAlive || '-'}\nrequested=${(data.requestedModels || []).join(', ') || '(none)'}\nwarmed=${(data.warmedModels || []).join(', ') || '(none)'}\nfailed=${(data.failedModels || []).join(', ') || '(none)'}\nmessage=${data.message || '-'}`);
-      await loadOllamaConnection();
+      await fetchJson('/debug/api/ollama/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ residentModelList: val('residentModelList'), residentKeepAlive: val('residentKeepAlive') || '24h' })
+      });
+      const result = await fetchJson('/debug/api/ollama/resident-models/apply', { method: 'POST' });
+      setText('ollamaRegisterStatus', `상주 모델 로드 결과
+baseUrl=${result.baseUrl || '-'}
+requested=${(result.requestedModels || []).join(', ') || '(none)'}
+warmed=${(result.warmedModels || []).join(', ') || '(none)'}
+failed=${(result.failedModels || []).join(', ') || '(none)'}
+keepAlive=${result.keepAlive || '-'}
+message=${result.message || '-'}`);
       await loadOllamaModels();
+      await loadOllamaConnection();
     } catch (e) {
-      setOllamaModelStatus('상주 모델 즉시 로드 실패: ' + e.message);
+      setText('ollamaRegisterStatus', '상주 모델 로드 실패: ' + e.message);
+    }
+  }
+  async function registerOllamaModel() {
+    try {
+      const payload = {
+        model: ensure(val('registerModelName'), '등록할 모델명을 입력하세요.'),
+        pullPermanent: val('registerPullPermanent') === 'true',
+        loadToPs: val('registerLoadToPs') === 'true',
+        keepAlive: val('registerKeepAlive') || '-1'
+      };
+      const result = await fetchJson('/debug/api/ollama/models/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      setText('ollamaRegisterStatus', `모델 등록/로드 결과
+model=${result.model || '-'}
+baseUrl=${result.baseUrl || '-'}
+status=${result.status || '-'}
+pull=${result.requestedPull}
+pullSuccess=${result.installSuccess}
+loadToPs=${result.requestedWarmup}
+warmupSuccess=${result.warmupSuccess}
+keepAlive=${result.keepAlive || '-'}
+running=${result.runningCount ?? 0}
+installed=${result.installedCount ?? 0}
+message=${result.message || '-'}`);
+      await loadOllamaModels();
+      await loadOllamaConnection();
+    } catch (e) {
+      setText('ollamaRegisterStatus', '모델 등록/로드 실패: ' + e.message);
     }
   }
 
@@ -533,7 +572,7 @@ trace=${data.result.traceId || '-'}`, data.result.failCount > 0 ? 'running' : 's
     bindEvent('ingestFiles', 'change', updateActionButtons);
     bindEvent('ollamaModelSource', 'change', loadOllamaModels); bindEvent('ollamaSearchKeyword', 'input', applyOllamaFilters); bindEvent('ollamaStateFilter', 'change', applyOllamaFilters);
     bindEvent('btnLoadOllamaConnection', 'click', loadOllamaConnection); bindEvent('btnSaveOllamaConnection', 'click', saveOllamaConnection); bindEvent('btnResetOllamaConnection', 'click', resetOllamaConnection);
-    bindEvent('btnLoadOllamaConfig', 'click', loadOllamaModelConfig); bindEvent('btnSaveOllamaConfig', 'click', saveOllamaModelConfig); bindEvent('btnApplyResidentModels', 'click', applyResidentModels); bindEvent('btnResetOllamaConfig', 'click', resetOllamaModelConfig);
+    bindEvent('btnLoadOllamaConfig', 'click', loadOllamaModelConfig); bindEvent('btnSaveOllamaConfig', 'click', saveOllamaModelConfig); bindEvent('btnResetOllamaConfig', 'click', resetOllamaModelConfig); bindEvent('btnApplyResidentModels', 'click', applyResidentModels); bindEvent('btnRegisterOllamaModel', 'click', registerOllamaModel);
     bindEvent('btnLoadDebugConfig', 'click', loadDebugConfig); bindEvent('btnSaveDebugConfig', 'click', saveDebugConfig); bindEvent('btnResetDebugConfig', 'click', resetDebugConfig); bindEvent('btnLoadDbInfo', 'click', loadDbInfo);
     bindEvent('btnStream', 'click', startStream); bindEvent('btnPreviewSearch', 'click', previewRagSearch); bindEvent('btnLoadMemory', 'click', loadMemory); bindEvent('btnClearMemory', 'click', clearMemory);
     bindEvent('btnLoadSources', 'click', loadSources); bindEvent('btnLoadSourceFiles', 'click', loadSourceFiles); bindEvent('purgeVectorBtn', 'click', () => purgeSource(false)); bindEvent('purgeRegistryBtn', 'click', () => purgeSource(true)); bindEvent('reindexSameBtn', 'click', () => reindexSource(false)); bindEvent('reindexCopyBtn', 'click', () => reindexSource(true)); bindEvent('compareBtn', 'click', compareVersions);

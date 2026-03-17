@@ -66,18 +66,25 @@
             <div><label for="devModel">DEV Model</label><select id="devModel"></select></div>
             <div><label for="miceModel">MICE Model</label><select id="miceModel"></select></div>
             <div><label>모델 통계</label><div id="ollamaModelSummary" class="status-box">모델 목록 미조회</div></div>
-            <div class="span-2"><label for="residentModels">상주(Keep-Alive) 모델</label><textarea id="residentModels" rows="3" placeholder="예: qwen2.5-coder:14b&#10;nomic-embed-text"></textarea></div>
-            <div><label for="residentKeepAlive">Keep Alive</label><input id="residentKeepAlive" placeholder="-1, 24h, 10m"></div>
-            <div><label for="autoWarmupWhenNoRunningModels">RUNNING 비어있을 때 자동 로드</label><select id="autoWarmupWhenNoRunningModels"><option value="true">true</option><option value="false">false</option></select></div>
+            <div class="span-2"><label for="residentModelList">상주 모델 목록</label><textarea id="residentModelList" spellcheck="false" placeholder="예: qwen2.5-coder:14b, nomic-embed-text"></textarea></div>
+            <div><label for="residentKeepAlive">Resident Keep Alive</label><input id="residentKeepAlive" placeholder="예: -1, 24h, 10m"></div>
         </div>
         <div class="table-wrap"><table><thead><tr><th>표시명</th><th>Name</th><th>State</th><th>Size</th></tr></thead><tbody id="ollamaModelTable"><tr><td colspan="4">아직 조회하지 않음</td></tr></tbody></table></div>
+        <div class="grid-4 top-gap">
+            <div class="span-2"><label for="registerModelName">모델 등록 / 로드 대상</label><input id="registerModelName" placeholder="예: qwen2.5-coder:14b"></div>
+            <div><label for="registerPullPermanent">영구 등록(Pull)</label><select id="registerPullPermanent"><option value="true">true</option><option value="false">false</option></select></div>
+            <div><label for="registerLoadToPs">PS 로드</label><select id="registerLoadToPs"><option value="true">true</option><option value="false">false</option></select></div>
+            <div><label for="registerKeepAlive">PS 유지 시간</label><input id="registerKeepAlive" placeholder="예: -1, 24h, 10m"></div>
+        </div>
         <div class="buttons"> 
             <button id="btnLoadOllamaConfig" class="success" type="button">현재 모델 설정 조회</button>
             <button id="btnSaveOllamaConfig" class="primary" type="button">모델 설정 저장</button>
-            <button id="btnApplyResidentModels" class="success" type="button">상주 모델 즉시 로드</button>
             <button id="btnResetOllamaConfig" class="secondary" type="button">모델 설정 초기화</button>
+            <button id="btnApplyResidentModels" class="secondary" type="button">상주 모델 즉시 로드</button>
+            <button id="btnRegisterOllamaModel" class="primary" type="button">모델 등록 / PS 로드 실행</button>
         </div>
         <div id="ollamaModelStatus" class="status-box">Ollama 모델 설정 상태 대기 중</div>
+        <div id="ollamaRegisterStatus" class="status-box">모델 등록 상태 대기 중</div>
     </div>
 
     <div class="card">
