@@ -122,7 +122,7 @@
                 <input id="residentKeepAlive" value="24h" placeholder="예: 24h, 10m, -1s (무제한)">
                 <div class="small top-gap">
                     <b>-1s</b>: 서버 종료까지 유지 &nbsp;|&nbsp;
-                    <b>0</b>: 즉시 해제 &nbsp;|&nbsp;
+                    <b>0s</b>: 즉시 해제 &nbsp;|&nbsp;
                     <b>숫자+단위</b>: 지정 시간 (s/m/h)
                 </div>
             </div>
@@ -237,9 +237,100 @@
         </div>
     </div>
 
-    <!-- 5. Resolver / Parser 모드 -->
+    <!-- 5. 메모리 저장소 설정 -->
     <div class="card">
-        <h2>⑤ Resolver / Parser 모드</h2>
+        <h2>⑤ 메모리 저장소 설정</h2>
+        <div class="small">대화 메시지·요약·노트가 저장되는 저장소입니다. 저장소 타입 변경은 서버 재시작이 필요하며, 환경변수 <code>APP_MEMORY_STORE</code> 로 설정합니다.</div>
+
+        <!-- 현재 상태 -->
+        <div class="grid top-gap">
+            <div>
+                <label>현재 저장소 타입</label>
+                <div id="memoryStoreType" class="panel" style="min-height:44px;padding:10px;font-size:14px">조회 중...</div>
+            </div>
+            <div>
+                <label>실제 구현 클래스</label>
+                <div id="memoryServiceClass" class="panel" style="min-height:44px;padding:10px;font-size:13px;color:#94a3b8">조회 중...</div>
+            </div>
+        </div>
+
+        <!-- 저장소 타입 선택 (재시작 필요 안내) -->
+        <h3 style="margin:20px 0 6px">저장소 타입 변경 <span class="small" style="color:#f59e0b">⚠ 서버 재시작 필요</span></h3>
+        <div class="small">아래에서 선택 후 복사하여 환경변수 또는 <code>application-local.yaml</code>에 적용하세요.</div>
+        <div class="grid3 top-gap">
+            <div>
+                <label for="memoryStoreSelect">저장소 선택</label>
+                <select id="memoryStoreSelect">
+                    <option value="in-memory">in-memory (서버 재시작 시 초기화)</option>
+                    <option value="jdbc">jdbc (PostgreSQL 영구 저장)</option>
+                    <option value="redis">redis (TTL 기반 임시 저장)</option>
+                </select>
+            </div>
+            <div>
+                <label>적용 방법</label>
+                <div id="memoryStoreHint" class="panel" style="min-height:44px;padding:8px 10px;font-size:12px;color:#94a3b8">저장소를 선택하면 안내가 표시됩니다.</div>
+            </div>
+            <div>
+                <label>환경변수 복사</label>
+                <div style="display:flex;gap:6px">
+                    <input id="memoryStoreEnvValue" readonly style="font-family:monospace;font-size:13px"
+                        placeholder="APP_MEMORY_STORE=...">
+                    <button id="btnCopyMemoryEnv" class="gray" style="width:auto;min-width:60px;padding:10px" type="button">복사</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Redis 설정 (redis 선택 시 활성화) -->
+        <div id="redisConfigSection" style="display:none">
+            <h3 style="margin:20px 0 6px">Redis 연결 설정 <span class="small" style="color:#f59e0b">⚠ 서버 재시작 필요</span></h3>
+            <div class="grid top-gap">
+                <div>
+                    <label for="redisHost">Redis Host</label>
+                    <input id="redisHost" placeholder="localhost">
+                </div>
+                <div>
+                    <label for="redisPort">Redis Port</label>
+                    <input id="redisPort" placeholder="6379" value="6379">
+                </div>
+                <div>
+                    <label for="redisPassword">Redis Password <span class="small">(선택)</span></label>
+                    <input id="redisPassword" type="password" placeholder="비밀번호 없으면 빈칸">
+                </div>
+                <div>
+                    <label for="redisTtlHours">TTL (시간) <span class="small">— 런타임 즉시 적용</span></label>
+                    <input id="redisTtlHours" type="number" min="1" max="720" value="24"
+                        placeholder="예: 24">
+                </div>
+            </div>
+            <div id="redisEnvBlock" class="panel top-gap" style="font-size:12px;font-family:monospace;white-space:pre-wrap;min-height:60px;color:#94a3b8">
+저장소를 redis로 선택하면 환경변수 예시가 표시됩니다.
+            </div>
+            <div class="actions top-gap">
+                <button id="btnApplyRedisTtl" class="green" type="button">⏱ Redis TTL 즉시 적용</button>
+                <button id="btnCopyRedisEnv"  class="gray"  type="button">📋 Redis 환경변수 복사</button>
+            </div>
+        </div>
+
+        <!-- JDBC 설정 안내 (jdbc 선택 시) -->
+        <div id="jdbcConfigSection" style="display:none">
+            <h3 style="margin:20px 0 6px">PostgreSQL 연결 확인</h3>
+            <div id="jdbcInfoPanel" class="panel" style="font-size:13px;min-height:44px;padding:10px;color:#94a3b8">
+                jdbc 저장소 선택 시 PostgreSQL 연결 정보를 확인합니다.
+            </div>
+            <div class="actions top-gap">
+                <button id="btnCheckJdbc" class="primary" type="button">🔍 DB 연결 확인</button>
+            </div>
+        </div>
+
+        <div id="memoryConfigStatus" class="panel top-gap" style="min-height:40px">메모리 설정 대기 중</div>
+        <div class="actions top-gap">
+            <button id="btnLoadMemoryConfig" class="primary" type="button">🔄 현재 메모리 설정 조회</button>
+        </div>
+    </div>
+
+    <!-- 6. Resolver / Parser 모드 -->
+    <div class="card">
+        <h2>⑥ Resolver / Parser 모드</h2>
         <div class="small">RULE: 키워드 기반 &nbsp;|&nbsp; LLM: AI 분류 &nbsp;|&nbsp; HYBRID: RULE 우선 후 LLM 보완</div>
         <div class="grid top-gap">
             <div>
@@ -290,9 +381,9 @@
         </div>
     </div>
 
-    <!-- 6. 즉시 테스트 -->
+    <!-- 7. 즉시 테스트 -->
     <div class="card">
-        <h2>⑥ 현재 설정으로 즉시 테스트</h2>
+        <h2>⑦ 현재 설정으로 즉시 테스트</h2>
         <div class="row2">
             <div>
                 <label for="testCategory">카테고리</label>

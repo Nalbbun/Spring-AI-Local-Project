@@ -6,10 +6,10 @@ app:
     fallback-policy: ${APP_LLM_FALLBACK_POLICY:ALLOW_OPENAI}
 
   memory:
-    store: ${APP_MEMORY_STORE:in-memory}
+    store: ${APP_MEMORY_STORE:jdbc}
 
   search:
-    provider: ${APP_SEARCH_PROVIDER:dummy}
+    provider: ${APP_SEARCH_PROVIDER:tavily}
 
 spring:
   datasource:

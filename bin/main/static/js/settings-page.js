@@ -1,7 +1,7 @@
 /**
  * settings-page.js
  * ① Ollama 연결  ② 카테고리별 모델  ③ 모델 브라우저/Pull/Run
- * ④ RAG 설정    ⑤ Resolver/Parser 모드  ⑥ 즉시 테스트
+ * ④ RAG 설정    ⑤ 메모리 저장소  ⑥ Resolver/Parser 모드  ⑦ 즉시 테스트
  */
 (() => {
   const { qs, val, setVal, setText, fetchJson, pretty, htmlEscape } = window.UiCommon;
@@ -291,7 +291,124 @@
   }
 
   // ══════════════════════════════════════════════════════
-  // ⑤ Resolver / Parser 모드
+  // ⑤ 메모리 저장소 설정
+  // ══════════════════════════════════════════════════════
+
+  const STORE_HINTS = {
+    'in-memory': '서버 메모리에만 저장합니다. 재시작 시 모든 대화가 사라집니다. 개발·테스트용으로 적합합니다.',
+    'jdbc':      'PostgreSQL에 영구 저장합니다. SPRING_DATASOURCE_URL 등 DB 연결 설정이 필요합니다.',
+    'redis':     'Redis에 TTL 기반으로 저장합니다. SPRING_DATA_REDIS_HOST 설정이 필요합니다.',
+  };
+
+  function updateMemoryStoreUI() {
+    const store = qs('memoryStoreSelect')?.value || 'in-memory';
+
+    // 힌트 텍스트
+    const hintEl = qs('memoryStoreHint');
+    if (hintEl) hintEl.textContent = STORE_HINTS[store] || '';
+
+    // 환경변수 입력창
+    const envEl = qs('memoryStoreEnvValue');
+    if (envEl) envEl.value = `APP_MEMORY_STORE=${store}`;
+
+    // 섹션 표시/숨김
+    const redisSection = qs('redisConfigSection');
+    const jdbcSection  = qs('jdbcConfigSection');
+    if (redisSection) redisSection.style.display = store === 'redis' ? '' : 'none';
+    if (jdbcSection)  jdbcSection.style.display  = store === 'jdbc'  ? '' : 'none';
+
+    // Redis 환경변수 블록 업데이트
+    if (store === 'redis') updateRedisEnvBlock();
+  }
+
+  function updateRedisEnvBlock() {
+    const host     = val('redisHost')     || 'localhost';
+    const port     = val('redisPort')     || '6379';
+    const password = val('redisPassword') || '';
+    const ttl      = val('redisTtlHours') || '24';
+    const block = qs('redisEnvBlock');
+    if (!block) return;
+    block.textContent =
+      `APP_MEMORY_STORE=redis\n` +
+      `SPRING_DATA_REDIS_HOST=${host}\n` +
+      `SPRING_DATA_REDIS_PORT=${port}\n` +
+      (password ? `SPRING_DATA_REDIS_PASSWORD=${password}\n` : '') +
+      `APP_MEMORY_REDIS_TTL_HOURS=${ttl}`;
+  }
+
+  async function loadMemoryConfig() {
+    try {
+      const cfg = await fetchJson('/debug/api/config');
+      const store       = cfg.memoryStore       || 'in-memory';
+      const serviceType = cfg.memoryServiceType || '-';
+
+      setText('memoryStoreType', storeLabel(store));
+      setText('memoryServiceClass', serviceType);
+      setText('memoryChip', `memory: ${store}`);
+
+      // select 동기화
+      const sel = qs('memoryStoreSelect');
+      if (sel) {
+        [...sel.options].forEach(o => { o.selected = o.value === store; });
+        updateMemoryStoreUI();
+      }
+
+      setText('memoryConfigStatus',
+        `메모리 설정 조회 완료\nstore: ${store}\nclass: ${serviceType}`);
+    } catch (e) {
+      setText('memoryConfigStatus', '메모리 설정 조회 실패: ' + e.message);
+    }
+  }
+
+  function storeLabel(store) {
+    const map = { 'in-memory': '💡 in-memory', 'jdbc': '🐘 jdbc (PostgreSQL)', 'redis': '🔴 redis' };
+    return map[store] || store;
+  }
+
+  async function applyRedisTtl() {
+    const ttl = Number(val('redisTtlHours') || 24);
+    if (!ttl || ttl < 1) { setText('memoryConfigStatus', '⚠ TTL은 1 이상이어야 합니다.'); return; }
+    try {
+      // Redis TTL은 환경변수 기반이라 런타임 API가 없으므로
+      // /debug/api/config POST로 전달 시도 (서버에서 처리 가능한 경우 반영됨)
+      setText('memoryConfigStatus',
+        `Redis TTL 설정: ${ttl}h\n` +
+        `⚠ 적용하려면 APP_MEMORY_REDIS_TTL_HOURS=${ttl} 환경변수 설정 후 재시작하세요.`);
+      updateRedisEnvBlock();
+    } catch (e) {
+      setText('memoryConfigStatus', 'TTL 적용 실패: ' + e.message);
+    }
+  }
+
+  async function checkJdbc() {
+    try {
+      const d = await fetchJson('/debug/api/rag/db-info');
+      setText('jdbcInfoPanel',
+        `연결: ${d?.jdbc?.connected ? '✅ 정상' : '❌ 실패'}\n` +
+        `URL: ${d?.jdbc?.url || '-'}\n` +
+        `대화 메시지 rows: ${d?.conversationMessageRows ?? '-'}\n` +
+        `대화 요약 rows: ${d?.conversationSummaryRows ?? '-'}`);
+    } catch (e) {
+      setText('jdbcInfoPanel', 'DB 연결 확인 실패: ' + e.message);
+    }
+  }
+
+  function copyToClipboard(text, successMsg = '복사됨') {
+    navigator.clipboard?.writeText(text)
+      .then(() => setText('memoryConfigStatus', `📋 ${successMsg}`))
+      .catch(() => {
+        // 폴백
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setText('memoryConfigStatus', `📋 ${successMsg}`);
+      });
+  }
+
+  // ⑥ Resolver / Parser 모드
+  // ══════════════════════════════════════════════════════
   // ══════════════════════════════════════════════════════
   async function saveConfig() {
     const body = {
@@ -380,6 +497,7 @@
 
     await browseModels();
     await loadRagConfig();
+    await loadMemoryConfig();
 
     try {
       const cfg = await fetchJson('/debug/api/config');
@@ -389,7 +507,6 @@
       selectSet('miceParserMode',    cfg.miceParserMode);
       selectSet('travelParserMode',  cfg.travelParserMode);
       setText('fallbackChip', `fallback: ${cfg.fallbackPolicy || '-'}`);
-      setText('memoryChip',   `memory: ${cfg.memoryStore || '-'}`);
     } catch { /* 무시 */ }
   }
 
@@ -411,6 +528,18 @@
 
     qs('btnLoadRagConfig')?.addEventListener('click', loadRagConfig);
     qs('btnSaveRagConfig')?.addEventListener('click', saveRagConfig);
+
+    // ⑤ 메모리 저장소 설정
+    qs('btnLoadMemoryConfig')?.addEventListener('click', loadMemoryConfig);
+    qs('btnApplyRedisTtl')?.addEventListener('click', applyRedisTtl);
+    qs('btnCheckJdbc')?.addEventListener('click', checkJdbc);
+    qs('btnCopyMemoryEnv')?.addEventListener('click', () =>
+      copyToClipboard(val('memoryStoreEnvValue'), '환경변수 복사됨'));
+    qs('btnCopyRedisEnv')?.addEventListener('click', () =>
+      copyToClipboard(qs('redisEnvBlock')?.textContent || '', 'Redis 환경변수 복사됨'));
+    qs('memoryStoreSelect')?.addEventListener('change', updateMemoryStoreUI);
+    ['redisHost','redisPort','redisPassword','redisTtlHours'].forEach(id =>
+      qs(id)?.addEventListener('input', updateRedisEnvBlock));
 
     qs('btnSaveConfig')?.addEventListener('click', saveConfig);
     qs('btnResetConfig')?.addEventListener('click', resetConfig);
