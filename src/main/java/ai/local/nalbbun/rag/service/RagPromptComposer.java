@@ -8,12 +8,24 @@ import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.model.RagRetrievedDocument;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * RagPromptComposer는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: rag prompt composer 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 @RequiredArgsConstructor
 public class RagPromptComposer {
 
+    /** ragProperties 값을 보관한다. */
     private final RagProperties ragProperties;
 
+    /**
+     * compose 기능을 수행한다.
+     *
+     * @param documents documents 목록 정보
+     * @return 처리 결과 문자열
+     */
     public String compose(List<RagRetrievedDocument> documents) {
         if (documents == null || documents.isEmpty()) {
             return "";
@@ -45,10 +57,23 @@ public class RagPromptComposer {
         return builder.toString().trim();
     }
 
+    /**
+     * blankToDash 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return 처리 결과 문자열
+     */
     private String blankToDash(String value) {
         return value == null || value.isBlank() ? "-" : value;
     }
 
+    /**
+     * limit 기능을 수행한다.
+     *
+     * @param value value 값
+     * @param maxLength maxLength 값
+     * @return 처리 결과 문자열
+     */
     private String limit(String value, int maxLength) {
         if (value == null || value.isBlank()) {
             return "(본문 없음)";

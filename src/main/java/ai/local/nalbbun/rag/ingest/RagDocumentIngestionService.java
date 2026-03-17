@@ -20,14 +20,28 @@ import ai.local.nalbbun.rag.reader.RagDocumentReaderService;
 import ai.local.nalbbun.rag.service.RuntimeOllamaVectorStoreFactory;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * RagDocumentIngestionService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: rag document ingestion service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class RagDocumentIngestionService {
 
+    /** runtimeVectorStoreFactory 값을 보관한다. */
     private final RuntimeOllamaVectorStoreFactory runtimeVectorStoreFactory;
+    /** ragProperties 값을 보관한다. */
     private final RagProperties ragProperties;
+    /** ragDocumentReaderService 값을 보관한다. */
     private final RagDocumentReaderService ragDocumentReaderService;
 
+    /**
+     * ingestText 기능을 수행한다.
+     *
+     * @param command 실행 명령 정보
+     * @return RagIngestionResult 타입의 처리 결과
+     */
     public RagIngestionResult ingestText(RagIngestCommand command) {
         validateCategory(command.getCategory());
         if (command.getText() == null || command.getText().isBlank()) {
@@ -42,6 +56,13 @@ public class RagDocumentIngestionService {
         return storeDocuments(command.getCategory().name(), source, version, title, List.of(seed));
     }
 
+    /**
+     * ingestFile 기능을 수행한다.
+     *
+     * @param command 실행 명령 정보
+     * @param file 처리 대상 파일 정보
+     * @return RagIngestionResult 타입의 처리 결과
+     */
     public RagIngestionResult ingestFile(RagIngestCommand command, MultipartFile file) {
         validateCategory(command.getCategory());
         String version = resolveVersion(command.getVersion());
@@ -57,6 +78,13 @@ public class RagDocumentIngestionService {
         return storeDocuments(command.getCategory().name(), source, version, title, readResult.documents());
     }
 
+    /**
+     * ingestFiles 기능을 수행한다.
+     *
+     * @param command 실행 명령 정보
+     * @param files 처리 대상 파일 정보
+     * @return RagMultiFileIngestionResult 타입의 처리 결과
+     */
     public RagMultiFileIngestionResult ingestFiles(RagIngestCommand command, MultipartFile[] files) {
         validateCategory(command.getCategory());
         if (files == null || files.length == 0) {
@@ -140,6 +168,21 @@ public class RagDocumentIngestionService {
     }
 
 
+    /**
+     * ingestReconstructedFile 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param title title 값
+     * @param fileId fileId 식별자 값
+     * @param fileName fileName 값
+     * @param originalFileName originalFileName 값
+     * @param contentType contentType 값
+     * @param text 본문 또는 텍스트 내용
+     * @param metadata metadata 매핑 정보
+     * @return RagIngestionResult 타입의 처리 결과
+     */
     public RagIngestionResult ingestReconstructedFile(
             ChatCategory category,
             String source,
@@ -167,6 +210,12 @@ public class RagDocumentIngestionService {
         return storeDocuments(category.name(), resolvedSource, resolvedVersion, resolvedTitle, seedDocuments);
     }
 
+    /**
+     * ingestUrl 기능을 수행한다.
+     *
+     * @param command 실행 명령 정보
+     * @return RagIngestionResult 타입의 처리 결과
+     */
     public RagIngestionResult ingestUrl(RagUrlIngestCommand command) {
         validateCategory(command.getCategory());
         String version = resolveVersion(command.getVersion());
@@ -182,6 +231,16 @@ public class RagDocumentIngestionService {
         return storeDocuments(command.getCategory().name(), source, version, title, documents);
     }
 
+    /**
+     * storeDocuments 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param title title 값
+     * @param seedDocuments seedDocuments 목록 정보
+     * @return RagIngestionResult 타입의 처리 결과
+     */
     private RagIngestionResult storeDocuments(String category, String source, String version, String title, List<Document> seedDocuments) {
         VectorStore vectorStore = runtimeVectorStoreFactory.create();
 
@@ -218,6 +277,17 @@ public class RagDocumentIngestionService {
         );
     }
 
+    /**
+     * 새 항목 또는 결과를 생성한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param title title 값
+     * @param ingestType ingestType 값
+     * @param metadata metadata 매핑 정보
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     private Map<String, Object> createBaseMetadata(String category, String source, String version, String title, String ingestType, Map<String, Object> metadata) {
         Map<String, Object> base = new LinkedHashMap<>();
         if (metadata != null) {
@@ -232,21 +302,46 @@ public class RagDocumentIngestionService {
         return base;
     }
 
+    /**
+     * validateCategory 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     */
     private void validateCategory(Object category) {
         if (category == null) {
             throw new IllegalArgumentException("category는 필수입니다.");
         }
     }
 
+    /**
+     * 입력 정보를 해석하여 결과를 결정한다.
+     *
+     * @param version version 값
+     * @return 처리 결과 문자열
+     */
     private String resolveVersion(String version) {
         return blankToDefault(version, "v1");
     }
 
+    /**
+     * 입력 정보를 해석하여 결과를 결정한다.
+     *
+     * @param source source 값
+     * @param title title 값
+     * @param fallback fallback 값
+     * @return 처리 결과 문자열
+     */
     private String resolveSource(String source, String title, String fallback) {
         String candidate = firstNonBlank(source, title, fallback, "manual");
         return slugify(candidate);
     }
 
+    /**
+     * firstAvailableBaseName 기능을 수행한다.
+     *
+     * @param files 처리 대상 파일 정보
+     * @return 처리 결과 문자열
+     */
     private String firstAvailableBaseName(MultipartFile[] files) {
         for (MultipartFile file : files) {
             if (file != null && !file.isEmpty()) {
@@ -256,16 +351,34 @@ public class RagDocumentIngestionService {
         return "batch-upload";
     }
 
+    /**
+     * baseName 기능을 수행한다.
+     *
+     * @param originalFilename originalFilename 값
+     * @return 처리 결과 문자열
+     */
     private String baseName(String originalFilename) {
         String fileName = safeFileName(originalFilename);
         int idx = fileName.lastIndexOf('.');
         return idx > 0 ? fileName.substring(0, idx) : fileName;
     }
 
+    /**
+     * safeFileName 기능을 수행한다.
+     *
+     * @param originalFilename originalFilename 값
+     * @return 처리 결과 문자열
+     */
     private String safeFileName(String originalFilename) {
         return blankToDefault(originalFilename, "unknown-file");
     }
 
+    /**
+     * firstNonBlank 기능을 수행한다.
+     *
+     * @param values values 값
+     * @return 처리 결과 문자열
+     */
     private String firstNonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {
@@ -275,6 +388,12 @@ public class RagDocumentIngestionService {
         return "manual";
     }
 
+    /**
+     * slugify 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return 처리 결과 문자열
+     */
     private String slugify(String value) {
         String normalized = Normalizer.normalize(blankToDefault(value, "manual"), Normalizer.Form.NFKC)
                 .toLowerCase()
@@ -284,6 +403,13 @@ public class RagDocumentIngestionService {
         return normalized.isBlank() ? "manual" : normalized;
     }
 
+    /**
+     * 값이 비어 있을 때 기본값으로 대체한다.
+     *
+     * @param value value 값
+     * @param defaultValue defaultValue 값
+     * @return 처리 결과 문자열
+     */
     private String blankToDefault(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value.trim();
     }

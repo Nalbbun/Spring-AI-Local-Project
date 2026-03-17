@@ -8,12 +8,25 @@ import ai.local.nalbbun.category.travel.model.Plan;
 import ai.local.nalbbun.category.travel.model.ScheduleItem;
 import ai.local.nalbbun.category.travel.model.TravelContext;
 
+/**
+ * TravelBudgetAgent는 세부 업무를 분리하여 수행하는 에이전트이다.
+ * <p>주요 기능: travel budget agent 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 public class TravelBudgetAgent {
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     */
     public TravelBudgetAgent() {
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     *
+     * @param context 처리에 필요한 컨텍스트 정보
+     */
     public void execute(TravelContext context) {
         Integer maxBudget = context.getMaxBudget();
         Plan plan = context.getPlan();
@@ -49,6 +62,11 @@ public class TravelBudgetAgent {
         ));
     }
 
+    /**
+     * calculateAndUpdateCategoryCosts 기능을 수행한다.
+     *
+     * @param plan plan 값
+     */
     private void calculateAndUpdateCategoryCosts(Plan plan) {
         int mealsCost = 0;
         int accommodationCost = 0;
@@ -79,6 +97,10 @@ public class TravelBudgetAgent {
         plan.setTotalCost(mealsCost + accommodationCost + attractionsCost);
     }
 
+    /**
+     * describeModel 기능을 수행한다.
+     * @return 처리 결과 문자열
+     */
     public String describeModel() {
         return "INTERNAL:rule-based-budget-analysis";
     }

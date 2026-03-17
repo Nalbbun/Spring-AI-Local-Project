@@ -39,6 +39,11 @@ import ai.local.nalbbun.rag.service.RagSupportService;
 import ai.local.nalbbun.rag.trace.DebugRagTraceService;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * DebugRagController는 HTTP 요청과 응답을 처리하는 컨트롤러이다.
+ * <p>주요 기능: debug rag controller 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @RestController
 @Profile("local")
 @ConditionalOnProperty(prefix = "app.debug", name = "enabled", havingValue = "true")
@@ -46,14 +51,25 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/debug/api/rag")
 public class DebugRagController {
 
+    /** ragProperties 값을 보관한다. */
     private final RagProperties ragProperties;
+    /** ragSupportService 값을 보관한다. */
     private final RagSupportService ragSupportService;
+    /** ragDocumentIngestionService 값을 보관한다. */
     private final RagDocumentIngestionService ragDocumentIngestionService;
+    /** ragSourceCatalogService 값을 보관한다. */
     private final RagSourceCatalogService ragSourceCatalogService;
+    /** ragSourceAdminService 값을 보관한다. */
     private final RagSourceAdminService ragSourceAdminService;
+    /** debugDatabaseInfoService 값을 보관한다. */
     private final DebugDatabaseInfoService debugDatabaseInfoService;
+    /** debugRagTraceService 값을 보관한다. */
     private final DebugRagTraceService debugRagTraceService;
 
+    /**
+     * status 기능을 수행한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @GetMapping("/status")
     public Map<String, Object> status() {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -67,11 +83,24 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * dbInfo 기능을 수행한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @GetMapping("/db-info")
     public Map<String, Object> dbInfo() {
         return debugDatabaseInfoService.getInfo();
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param query 사용자 입력 또는 질의 내용
+     * @param source source 값
+     * @param version version 값
+     * @return RagContext 타입의 처리 결과
+     */
     @GetMapping("/search")
     public RagContext search(@RequestParam("category") ChatCategory category,
                              @RequestParam("query") String query,
@@ -80,6 +109,14 @@ public class DebugRagController {
         return ragSupportService.buildContext(category, query, source, version);
     }
 
+    /**
+     * sources 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @return 조회 또는 생성된 목록
+     */
     @GetMapping("/sources")
     public List<RagSourceManifest> sources(@RequestParam("category") ChatCategory category,
                                            @RequestParam(value = "source", required = false) String source,
@@ -87,6 +124,14 @@ public class DebugRagController {
         return ragSourceCatalogService.listSources(category, source, version);
     }
 
+    /**
+     * sourceFiles 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @return 조회 또는 생성된 목록
+     */
     @GetMapping("/source/files")
     public List<RagSourceFileEntry> sourceFiles(@RequestParam("category") ChatCategory category,
                                                 @RequestParam("source") String source,
@@ -94,6 +139,12 @@ public class DebugRagController {
         return ragSourceCatalogService.listFiles(category, source, version);
     }
 
+    /**
+     * 대상 데이터를 제거한다.
+     *
+     * @param command 실행 명령 정보
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @PostMapping("/source/purge")
     public Map<String, Object> purgeSource(@RequestBody RagSourcePurgeCommand command) {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -104,6 +155,12 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * 대상 데이터를 제거한다.
+     *
+     * @param command 실행 명령 정보
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @PostMapping("/source/file/purge")
     public Map<String, Object> purgeSourceFile(@RequestBody RagSourceFilePurgeCommand command) {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -114,6 +171,12 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * reindexSource 기능을 수행한다.
+     *
+     * @param command 실행 명령 정보
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @PostMapping("/source/reindex")
     public Map<String, Object> reindexSource(@RequestBody RagSourceReindexCommand command) {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -125,6 +188,16 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * compare 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param leftVersion leftVersion 값
+     * @param rightVersion rightVersion 값
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @GetMapping("/source/compare")
     public Map<String, Object> compare(@RequestParam("category") ChatCategory category,
                                        @RequestParam("source") String source,
@@ -137,28 +210,61 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * traces 기능을 수행한다.
+     *
+     * @param limit limit 값
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @GetMapping("/traces")
     public Map<String, Object> traces(@RequestParam(value = "limit", defaultValue = "150") int limit) {
         return debugRagTraceService.latest(limit);
     }
 
+    /**
+     * traceById 기능을 수행한다.
+     *
+     * @param traceId traceId 식별자 값
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @GetMapping("/traces/{traceId}")
     public Map<String, Object> traceById(@PathVariable("traceId") String traceId) {
         return debugRagTraceService.byTraceId(traceId);
     }
 
+    /**
+     * clearTraces 기능을 수행한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @PostMapping("/traces/clear")
     public Map<String, Object> clearTraces() {
         debugRagTraceService.clear();
         return Map.of("status", "cleared");
     }
 
+    /**
+     * ingestText 기능을 수행한다.
+     *
+     * @param command 실행 명령 정보
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @PostMapping("/ingest-text")
     public Map<String, Object> ingestText(@RequestBody RagIngestCommand command) {
         RagIngestionResult result = ragDocumentIngestionService.ingestText(command);
         return ingestResponse(command.getCategory(), result.source(), result.version(), result);
     }
 
+    /**
+     * ingestFile 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param file 처리 대상 파일 정보
+     * @param source source 값
+     * @param version version 값
+     * @param title title 값
+     * @param metadataJson metadataJson 값
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @PostMapping(value = "/ingest-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> ingestFile(@RequestParam("category") ChatCategory category,
                                           @RequestParam("file") MultipartFile file,
@@ -176,6 +282,17 @@ public class DebugRagController {
         return ingestResponse(category, result.source(), result.version(), result);
     }
 
+    /**
+     * ingestFiles 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param files 처리 대상 파일 정보
+     * @param source source 값
+     * @param version version 값
+     * @param title title 값
+     * @param metadataJson metadataJson 값
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @PostMapping(value = "/ingest-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> ingestFiles(@RequestParam("category") ChatCategory category,
                                            @RequestParam("files") MultipartFile[] files,
@@ -193,12 +310,24 @@ public class DebugRagController {
         return ingestResponse(category, result.source(), result.version(), result);
     }
 
+    /**
+     * ingestUrl 기능을 수행한다.
+     *
+     * @param command 실행 명령 정보
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @PostMapping("/ingest-url")
     public Map<String, Object> ingestUrl(@RequestBody RagUrlIngestCommand command) {
         RagIngestionResult result = ragDocumentIngestionService.ingestUrl(command);
         return ingestResponse(command.getCategory(), result.source(), result.version(), result);
     }
 
+    /**
+     * 요청 또는 상태를 처리한다.
+     *
+     * @param e e 값
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, Object> handleBadRequest(RuntimeException e) {
@@ -209,6 +338,15 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * ingestResponse 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param result 처리 결과 객체
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     private Map<String, Object> ingestResponse(ChatCategory category, String source, String version, Object result) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("result", result);
@@ -220,6 +358,14 @@ public class DebugRagController {
         return response;
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @return RagSourceManifest 타입의 처리 결과
+     */
     private RagSourceManifest findManifest(ChatCategory category, String source, String version) {
         return ragSourceCatalogService.listSources(category, source, version)
                 .stream()
@@ -227,6 +373,12 @@ public class DebugRagController {
                 .orElse(null);
     }
 
+    /**
+     * hintFor 기능을 수행한다.
+     *
+     * @param message 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     private String hintFor(String message) {
         if (message == null) {
             return "입력값과 설정을 다시 확인하세요.";

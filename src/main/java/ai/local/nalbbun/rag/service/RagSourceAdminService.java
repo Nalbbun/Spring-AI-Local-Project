@@ -30,16 +30,32 @@ import ai.local.nalbbun.rag.model.RagSourceReindexResult;
 import ai.local.nalbbun.rag.model.RagSourceVersionCompareResult;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * RagSourceAdminService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: rag source admin service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class RagSourceAdminService {
 
+    /** dataSourceProvider 값을 보관한다. */
     private final ObjectProvider<DataSource> dataSourceProvider;
+    /** ragSourceRegistryService 값을 보관한다. */
     private final RagSourceRegistryService ragSourceRegistryService;
+    /** ragSourceCatalogService 값을 보관한다. */
     private final RagSourceCatalogService ragSourceCatalogService;
+    /** ragDocumentIngestionService 값을 보관한다. */
     private final RagDocumentIngestionService ragDocumentIngestionService;
+    /** ragSupportService 값을 보관한다. */
     private final RagSupportService ragSupportService;
 
+    /**
+     * 대상 데이터를 제거한다.
+     *
+     * @param command 실행 명령 정보
+     * @return RagSourcePurgeResult 타입의 처리 결과
+     */
     public RagSourcePurgeResult purgeSource(RagSourcePurgeCommand command) {
         validate(command.getCategory(), command.getSource(), command.getVersion());
         int before = countVectorRows(command.getCategory(), command.getSource(), command.getVersion(), null, null);
@@ -59,6 +75,12 @@ public class RagSourceAdminService {
                 .build();
     }
 
+    /**
+     * 대상 데이터를 제거한다.
+     *
+     * @param command 실행 명령 정보
+     * @return RagSourceFilePurgeResult 타입의 처리 결과
+     */
     public RagSourceFilePurgeResult purgeSourceFile(RagSourceFilePurgeCommand command) {
         validate(command.getCategory(), command.getSource(), command.getVersion());
         if (command.getFileId() == null || command.getFileId().isBlank()) {
@@ -84,6 +106,12 @@ public class RagSourceAdminService {
                 .build();
     }
 
+    /**
+     * reindexSource 기능을 수행한다.
+     *
+     * @param command 실행 명령 정보
+     * @return RagSourceReindexResult 타입의 처리 결과
+     */
     public RagSourceReindexResult reindexSource(RagSourceReindexCommand command) {
         validate(command.getCategory(), command.getSource(), command.getVersion());
         String targetVersion = resolveTargetVersion(command);
@@ -175,6 +203,16 @@ public class RagSourceAdminService {
                 .build();
     }
 
+    /**
+     * compare 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param leftVersion leftVersion 값
+     * @param rightVersion rightVersion 값
+     * @param query 사용자 입력 또는 질의 내용
+     * @return RagSourceVersionCompareResult 타입의 처리 결과
+     */
     public RagSourceVersionCompareResult compare(ChatCategory category, String source, String leftVersion, String rightVersion, String query) {
         validate(category, source, leftVersion);
         if (rightVersion == null || rightVersion.isBlank()) {
@@ -214,6 +252,15 @@ public class RagSourceAdminService {
                 .build();
     }
 
+    /**
+     * reconstructFileText 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param file 처리 대상 파일 정보
+     * @return 처리 결과 문자열
+     */
     private String reconstructFileText(ChatCategory category, String source, String version, RagSourceFileEntry file) {
         List<VectorChunkRow> rows = selectChunkRows(category, source, version, file, file == null ? null : file.getFileId());
         if (rows.isEmpty()) {
@@ -232,6 +279,15 @@ public class RagSourceAdminService {
         return builder.toString();
     }
 
+    /**
+     * 입력 정보를 해석하여 결과를 결정한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param fileId fileId 식별자 값
+     * @return RagSourceFileEntry 타입의 처리 결과
+     */
     private RagSourceFileEntry resolveFile(ChatCategory category, String source, String version, String fileId) {
         RagSourceFileEntry registryFile = ragSourceRegistryService.findFile(category, source, version, fileId);
         if (registryFile != null) {
@@ -243,6 +299,16 @@ public class RagSourceAdminService {
                 .orElse(null);
     }
 
+    /**
+     * countVectorRows 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param file 처리 대상 파일 정보
+     * @param fileId fileId 식별자 값
+     * @return int 타입의 처리 결과
+     */
     private int countVectorRows(ChatCategory category, String source, String version, RagSourceFileEntry file, String fileId) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) {
@@ -268,6 +334,16 @@ public class RagSourceAdminService {
         }
     }
 
+    /**
+     * 대상 데이터를 제거한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param file 처리 대상 파일 정보
+     * @param fileId fileId 식별자 값
+     * @return int 타입의 처리 결과
+     */
     private int deleteVectorRows(ChatCategory category, String source, String version, RagSourceFileEntry file, String fileId) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) {
@@ -293,6 +369,16 @@ public class RagSourceAdminService {
         return countVectorRows(category, source, version, file, fileId);
     }
 
+    /**
+     * selectChunkRows 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @param file 처리 대상 파일 정보
+     * @param fileId fileId 식별자 값
+     * @return 조회 또는 생성된 목록
+     */
     private List<VectorChunkRow> selectChunkRows(ChatCategory category, String source, String version, RagSourceFileEntry file, String fileId) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) {
@@ -324,6 +410,15 @@ public class RagSourceAdminService {
         }
     }
 
+    /**
+     * appendSourceWhere 기능을 수행한다.
+     *
+     * @param sql sql 값
+     * @param params params 목록 정보
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     */
     private void appendSourceWhere(StringBuilder sql, List<Object> params, ChatCategory category, String source, String version) {
         sql.append(" AND COALESCE(metadata->>'category','GENERAL') = ?");
         params.add(category.name());
@@ -333,6 +428,14 @@ public class RagSourceAdminService {
         params.add(version);
     }
 
+    /**
+     * appendFileWhere 기능을 수행한다.
+     *
+     * @param sql sql 값
+     * @param params params 목록 정보
+     * @param file 처리 대상 파일 정보
+     * @param fileId fileId 식별자 값
+     */
     private void appendFileWhere(StringBuilder sql, List<Object> params, RagSourceFileEntry file, String fileId) {
         if ((fileId == null || fileId.isBlank()) && file == null) {
             return;
@@ -345,12 +448,24 @@ public class RagSourceAdminService {
         params.add(title);
     }
 
+    /**
+     * bind 기능을 수행한다.
+     *
+     * @param ps ps 값
+     * @param params params 목록 정보
+     */
     private void bind(PreparedStatement ps, List<Object> params) throws Exception {
         for (int i = 0; i < params.size(); i++) {
             ps.setObject(i + 1, params.get(i));
         }
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param connection connection 값
+     * @return 처리 결과 문자열
+     */
     private String findExistingTable(Connection connection) throws Exception {
         List<String> candidates = List.of("vector_store", "spring_ai_vector_store", "rag_vector_store");
         try (PreparedStatement ps = connection.prepareStatement(
@@ -364,6 +479,13 @@ public class RagSourceAdminService {
         }
     }
 
+    /**
+     * validate 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     */
     private void validate(ChatCategory category, String source, String version) {
         if (category == null) {
             throw new IllegalArgumentException("category는 필수입니다.");
@@ -376,6 +498,12 @@ public class RagSourceAdminService {
         }
     }
 
+    /**
+     * 입력 정보를 해석하여 결과를 결정한다.
+     *
+     * @param command 실행 명령 정보
+     * @return 처리 결과 문자열
+     */
     private String resolveTargetVersion(RagSourceReindexCommand command) {
         if (!command.isCopyToNewVersion()) {
             return command.getVersion();
@@ -386,6 +514,12 @@ public class RagSourceAdminService {
         return command.getVersion() + "-reindexed";
     }
 
+    /**
+     * nonBlank 기능을 수행한다.
+     *
+     * @param values values 값
+     * @return 처리 결과 문자열
+     */
     private String nonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {
@@ -395,6 +529,20 @@ public class RagSourceAdminService {
         return "";
     }
 
+    /**
+     * VectorChunkRow는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+     * <p>주요 기능: vector chunk row 관련 책임을 수행한다.</p>
+     * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+     * @param content 본문 또는 텍스트 내용
+     * @param chunkIndex chunkIndex 값
+     */
     private record VectorChunkRow(String content, int chunkIndex) { }
+    /**
+     * ReindexCandidate는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+     * <p>주요 기능: reindex candidate 관련 책임을 수행한다.</p>
+     * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+     * @param file 처리 대상 파일 정보
+     * @param text 본문 또는 텍스트 내용
+     */
     private record ReindexCandidate(RagSourceFileEntry file, String text) { }
 }

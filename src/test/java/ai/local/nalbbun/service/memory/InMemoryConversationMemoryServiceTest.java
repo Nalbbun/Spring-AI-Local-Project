@@ -9,10 +9,19 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * InMemoryConversationMemoryServiceTest는 대상 기능의 동작을 검증하는 테스트 클래스이다.
+ * <p>주요 기능: in memory conversation memory service test 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 class InMemoryConversationMemoryServiceTest {
 
+    /** memoryService 값을 보관한다. */
     private final InMemoryConversationMemoryService memoryService = new InMemoryConversationMemoryService();
 
+    /**
+     * 대상 기능의 동작을 검증한다.
+     */
     @Test
     void shouldKeepOnlyLatestMessagesAndNotesWithinConfiguredLimit() {
         String conversationId = "conv-in-memory-001";
@@ -34,6 +43,9 @@ class InMemoryConversationMemoryServiceTest {
         assertEquals("important-note-25", notes.get(notes.size() - 1));
     }
 
+    /**
+     * 대상 기능의 동작을 검증한다.
+     */
     @Test
     void shouldCreateSnapshotWithSummariesNotesAndMessages() {
         String conversationId = "conv-in-memory-002";

@@ -10,14 +10,31 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * TravelMemoryRule는 대화 메모리 규칙 또는 저장 처리를 담당하는 컴포넌트이다.
+ * <p>주요 기능: travel memory rule 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 public class TravelMemoryRule implements CategoryMemoryRule<TravelContext> {
 
+    /**
+     * category 기능을 수행한다.
+     * @return ChatCategory 타입의 처리 결과
+     */
     @Override
     public ChatCategory category() {
         return ChatCategory.TRAVEL;
     }
 
+    /**
+     * extract 기능을 수행한다.
+     *
+     * @param state 현재 처리 상태 정보
+     * @param context 처리에 필요한 컨텍스트 정보
+     * @param assistantResponse assistantResponse 값
+     * @return CategoryMemoryUpdate 타입의 처리 결과
+     */
     @Override
     public CategoryMemoryUpdate extract(ConversationState state, TravelContext context, String assistantResponse) {
         String summary = String.format(
@@ -53,6 +70,12 @@ public class TravelMemoryRule implements CategoryMemoryRule<TravelContext> {
                 .build();
     }
 
+    /**
+     * safe 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return 처리 결과 문자열
+     */
     private String safe(Object value) {
         return value == null ? "" : String.valueOf(value);
     }

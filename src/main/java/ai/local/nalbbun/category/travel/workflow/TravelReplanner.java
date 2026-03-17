@@ -14,14 +14,28 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * TravelReplanner는 순차 처리 흐름을 조합하고 실행하는 워크플로이다.
+ * <p>주요 기능: travel replanner 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 @RequiredArgsConstructor
 public class TravelReplanner {
 
+    /** travelPlanAgent 값을 보관한다. */
     private final TravelPlanAgent travelPlanAgent;
+    /** travelBudgetAgent 값을 보관한다. */
     private final TravelBudgetAgent travelBudgetAgent;
+    /** agentEventPublisher 값을 보관한다. */
     private final AgentEventPublisher agentEventPublisher;
 
+    /**
+     * replan 기능을 수행한다.
+     *
+     * @param context 처리에 필요한 컨텍스트 정보
+     * @param emitter SSE 이벤트 전송 객체
+     */
     public void replan(TravelContext context, SseEmitter emitter) {
         agentEventPublisher.send(emitter, "TravelReplanner", "warning", "예산 초과 - 저비용 기준으로 재계획합니다.");
 

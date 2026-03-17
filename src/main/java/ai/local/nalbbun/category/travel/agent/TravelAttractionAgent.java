@@ -15,9 +15,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * TravelAttractionAgent는 세부 업무를 분리하여 수행하는 에이전트이다.
+ * <p>주요 기능: travel attraction agent 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 public class TravelAttractionAgent {
 
+    /** DEFAULT_ENTRANCE_FEE 값을 보관한다. */
     private static final Map<String, Integer> DEFAULT_ENTRANCE_FEE = Map.of(
             "국립공원/자연명소", 0,
             "박물관/미술관", 5000,
@@ -27,6 +33,7 @@ public class TravelAttractionAgent {
             "기타 관광지", 8000
     );
 
+    /** SYSTEM_PROMPT 값을 보관한다. */
     private static final String SYSTEM_PROMPT = """
         당신은 관광지 추천 전문 에이전트입니다.
 
@@ -44,6 +51,7 @@ public class TravelAttractionAgent {
         4) 반드시 JSON 배열만 출력하세요.
         """;
 
+    /** USER_PROMPT_TEMPLATE 값을 보관한다. */
     private static final String USER_PROMPT_TEMPLATE = """
         사용자 요청: %s
         - 자연/문화/체험 등 다양한 유형을 섞어 관광지를 추천하세요.
@@ -51,9 +59,17 @@ public class TravelAttractionAgent {
         - 반드시 JSON 배열만 출력하세요.
         """;
 
+    /** runtimeModelChatService 값을 보관한다. */
     private final RuntimeModelChatService runtimeModelChatService;
+    /** webSearchPort 값을 보관한다. */
     private final WebSearchPort webSearchPort;
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param runtimeModelChatService runtimeModelChatService 값
+     * @param webSearchPort webSearchPort 값
+     */
     public TravelAttractionAgent(
             RuntimeModelChatService runtimeModelChatService,
             WebSearchPort webSearchPort
@@ -62,12 +78,23 @@ public class TravelAttractionAgent {
         this.webSearchPort = webSearchPort;
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     *
+     * @param userQuery 사용자 입력 또는 질의 내용
+     * @return 조회 또는 생성된 목록
+     */
     public List<Attraction> execute(String userQuery) {
         String userMessage = String.format(USER_PROMPT_TEMPLATE, userQuery);
         List<Attraction> result = callAsEntity(userMessage);
         return normalize(result);
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     *
+     * @param context 처리에 필요한 컨텍스트 정보
+     */
     public void execute(TravelContext context) {
         String query;
         if (context.isReplan()) {
@@ -78,6 +105,12 @@ public class TravelAttractionAgent {
         context.setAttractions(execute(query));
     }
 
+    /**
+     * callAsEntity 기능을 수행한다.
+     *
+     * @param userMessage userMessage 값
+     * @return 조회 또는 생성된 목록
+     */
     private List<Attraction> callAsEntity(String userMessage) {
         try {
             return runtimeModelChatService.callEntityWithTools(
@@ -104,6 +137,12 @@ public class TravelAttractionAgent {
         }
     }
 
+    /**
+     * normalize 기능을 수행한다.
+     *
+     * @param items items 목록 정보
+     * @return 조회 또는 생성된 목록
+     */
     private List<Attraction> normalize(List<Attraction> items) {
         if (items == null || items.isEmpty()) {
             return List.of();
@@ -135,6 +174,12 @@ public class TravelAttractionAgent {
         return normalized;
     }
 
+    /**
+     * inferDefaultFee 기능을 수행한다.
+     *
+     * @param a a 값
+     * @return int 타입의 처리 결과
+     */
     private int inferDefaultFee(Attraction a) {
         String name = a.getName() == null ? "" : a.getName();
         String desc = a.getDescription() == null ? "" : a.getDescription();
@@ -158,6 +203,13 @@ public class TravelAttractionAgent {
         return DEFAULT_ENTRANCE_FEE.get("기타 관광지");
     }
 
+    /**
+     * containsAny 기능을 수행한다.
+     *
+     * @param text 본문 또는 텍스트 내용
+     * @param keywords keywords 값
+     * @return 처리 가능 여부 또는 조건 충족 여부
+     */
     private boolean containsAny(String text, String... keywords) {
         if (text == null || text.isBlank()) {
             return false;
@@ -170,10 +222,20 @@ public class TravelAttractionAgent {
         return false;
     }
     
+    /**
+     * describeModel 기능을 수행한다.
+     * @return 처리 결과 문자열
+     */
     public String describeModel() {
         return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_SEARCH, true);
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     @Tool(description = "관광지 정보를 인터넷에서 검색합니다. 제목, 링크, 요약을 반환합니다.")
     public String searchAttractions(
             @ToolParam(description = "검색 쿼리 (예: '제주도 관광지', '서울 박물관')") String query
@@ -181,6 +243,12 @@ public class TravelAttractionAgent {
         return webSearchPort.search(query);
     }
 
+    /**
+     * fetchAttractionInfo 기능을 수행한다.
+     *
+     * @param url 대상 URL
+     * @return 처리 결과 문자열
+     */
     @Tool(description = "웹 페이지의 본문 텍스트를 가져와 관광지 상세 정보를 제공합니다.")
     public String fetchAttractionInfo(@ToolParam(description = "웹 페이지 URL") String url) {
         return webSearchPort.fetch(url);

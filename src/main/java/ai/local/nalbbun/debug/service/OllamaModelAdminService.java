@@ -12,15 +12,30 @@ import ai.local.nalbbun.debug.model.llm.DebugOllamaModelActionResult;
 import ai.local.nalbbun.debug.model.llm.OllamaModelInfo;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * OllamaModelAdminService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: ollama model admin service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Service
 public class OllamaModelAdminService {
 
+    /** log 값을 보관한다. */
     private static final Logger log = LoggerFactory.getLogger(OllamaModelAdminService.class);
 
+    /** ollamaConnectionService 값을 보관한다. */
     private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
+    /** ollamaModelDiscoveryService 값을 보관한다. */
     private final OllamaModelDiscoveryService ollamaModelDiscoveryService;
+    /** jsonMapper 값을 보관한다. */
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param ollamaConnectionService ollamaConnectionService 값
+     * @param ollamaModelDiscoveryService ollamaModelDiscoveryService 값
+     */
     public OllamaModelAdminService(
             DebugRuntimeOllamaConnectionService ollamaConnectionService,
             OllamaModelDiscoveryService ollamaModelDiscoveryService
@@ -29,6 +44,12 @@ public class OllamaModelAdminService {
         this.ollamaModelDiscoveryService = ollamaModelDiscoveryService;
     }
 
+    /**
+     * apply 기능을 수행한다.
+     *
+     * @param request HTTP 요청 객체
+     * @return DebugOllamaModelActionResult 타입의 처리 결과
+     */
     public DebugOllamaModelActionResult apply(DebugOllamaModelActionRequest request) {
         DebugOllamaModelActionResult result = new DebugOllamaModelActionResult();
         result.setBaseUrl(ollamaConnectionService.getBaseUrl());
@@ -68,6 +89,11 @@ public class OllamaModelAdminService {
         return result;
     }
 
+    /**
+     * pullModel 기능을 수행한다.
+     *
+     * @param model 대상 모델 이름
+     */
     private void pullModel(String model) throws Exception {
         RestClient client = restClient();
         String body = jsonMapper.writeValueAsString(new PullRequest(model));
@@ -79,6 +105,12 @@ public class OllamaModelAdminService {
                 .body(String.class);
     }
 
+    /**
+     * warmupModel 기능을 수행한다.
+     *
+     * @param model 대상 모델 이름
+     * @param keepAlive keepAlive 값
+     */
     private void warmupModel(String model, String keepAlive) throws Exception {
         RestClient client = restClient();
         String generateBody = jsonMapper.writeValueAsString(new GenerateRequest(model, keepAlive));
@@ -103,6 +135,11 @@ public class OllamaModelAdminService {
                 .body(String.class);
     }
 
+    /**
+     * fillCounts 기능을 수행한다.
+     *
+     * @param result 처리 결과 객체
+     */
     private void fillCounts(DebugOllamaModelActionResult result) {
         List<OllamaModelInfo> running = ollamaModelDiscoveryService.getRunningModels();
         List<OllamaModelInfo> installed = ollamaModelDiscoveryService.getInstalledModels();
@@ -111,6 +148,12 @@ public class OllamaModelAdminService {
         result.setRunningModels(running.stream().map(m -> m.getName() == null ? m.getModel() : m.getName()).toList());
     }
 
+    /**
+     * normalizeKeepAlive 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return 처리 결과 문자열
+     */
     private String normalizeKeepAlive(String value) {
         if (value == null || value.isBlank()) {
             return "24h";
@@ -118,10 +161,20 @@ public class OllamaModelAdminService {
         return value.trim();
     }
 
+    /**
+     * restClient 기능을 수행한다.
+     * @return RestClient 타입의 처리 결과
+     */
     private RestClient restClient() {
         return RestClient.builder().baseUrl(ollamaConnectionService.getBaseUrl()).build();
     }
 
+    /**
+     * rootMessage 기능을 수행한다.
+     *
+     * @param e e 값
+     * @return 처리 결과 문자열
+     */
     private String rootMessage(Throwable e) {
         Throwable current = e;
         while (current.getCause() != null) {
@@ -132,19 +185,60 @@ public class OllamaModelAdminService {
                 : current.getMessage();
     }
 
+    /**
+     * PullRequest는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+     * <p>주요 기능: pull request 관련 책임을 수행한다.</p>
+     * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+     * @param model 대상 모델 이름
+     * @param stream stream 값
+     */
     private record PullRequest(String model, boolean stream) {
+        /**
+         * 필수 의존성을 주입하여 객체를 생성한다.
+         *
+         * @param model 대상 모델 이름
+         */
         private PullRequest(String model) {
             this(model, false);
         }
     }
 
+    /**
+     * GenerateRequest는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+     * <p>주요 기능: generate request 관련 책임을 수행한다.</p>
+     * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+     * @param model 대상 모델 이름
+     * @param prompt 사용자 입력 또는 질의 내용
+     * @param stream stream 값
+     * @param keep_alive keep_alive 값
+     */
     private record GenerateRequest(String model, String prompt, boolean stream, String keep_alive) {
+        /**
+         * 필수 의존성을 주입하여 객체를 생성한다.
+         *
+         * @param model 대상 모델 이름
+         * @param keepAlive keepAlive 값
+         */
         private GenerateRequest(String model, String keepAlive) {
             this(model, "", false, keepAlive);
         }
     }
 
+    /**
+     * EmbedRequest는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+     * <p>주요 기능: embed request 관련 책임을 수행한다.</p>
+     * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+     * @param model 대상 모델 이름
+     * @param input 입력 데이터
+     * @param keep_alive keep_alive 값
+     */
     private record EmbedRequest(String model, String input, String keep_alive) {
+        /**
+         * 필수 의존성을 주입하여 객체를 생성한다.
+         *
+         * @param model 대상 모델 이름
+         * @param keepAlive keepAlive 값
+         */
         private EmbedRequest(String model, String keepAlive) {
             this(model, "ping", keepAlive);
         }

@@ -17,20 +17,35 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import ai.local.nalbbun.port.WebSearchPort;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * TavilyWebSearchService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: tavily web search service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Slf4j
 @Service
 @ConditionalOnProperty(prefix = "app.search", name = "provider", havingValue = "tavily")
 public class TavilyWebSearchService implements WebSearchPort {
 
+    /** objectMapper 값을 보관한다. */
     private final ObjectMapper objectMapper = new ObjectMapper();
+    /** httpClient 값을 보관한다. */
     private final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL)
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    /** apiKey 값을 보관한다. */
     private final String apiKey;
+    /** maxResults 값을 보관한다. */
     private final int maxResults;
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param apiKey apiKey 값
+     * @param maxResults maxResults 값
+     */
     public TavilyWebSearchService(
             @Value("${app.search.tavily.api-key:}") String apiKey,
             @Value("${app.search.tavily.max-results:5}") int maxResults
@@ -39,6 +54,12 @@ public class TavilyWebSearchService implements WebSearchPort {
         this.maxResults = Math.max(1, maxResults);
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     @Override
     public String search(String query) {
         ensureApiKey();
@@ -83,6 +104,12 @@ public class TavilyWebSearchService implements WebSearchPort {
         }
     }
 
+    /**
+     * fetch 기능을 수행한다.
+     *
+     * @param url 대상 URL
+     * @return 처리 결과 문자열
+     */
     @Override
     public String fetch(String url) {
         try {
@@ -102,17 +129,30 @@ public class TavilyWebSearchService implements WebSearchPort {
         }
     }
 
+    /**
+     * providerName 기능을 수행한다.
+     * @return 처리 결과 문자열
+     */
     @Override
     public String providerName() {
         return "tavily";
     }
 
+    /**
+     * ensureApiKey 기능을 수행한다.
+     */
     private void ensureApiKey() {
         if (apiKey.isBlank()) {
             throw new IllegalStateException("app.search.provider=tavily 인 경우 app.search.tavily.api-key 설정이 필요합니다.");
         }
     }
 
+    /**
+     * 현재 상태를 다른 표현 형태로 변환한다.
+     *
+     * @param html html 값
+     * @return 처리 결과 문자열
+     */
     private String toPlainText(String html) {
         if (html == null || html.isBlank()) {
             return "";

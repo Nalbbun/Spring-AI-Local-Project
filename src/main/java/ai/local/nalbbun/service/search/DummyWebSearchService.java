@@ -8,17 +8,32 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * DummyWebSearchService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: dummy web search service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Slf4j
 @Service
 @ConditionalOnProperty(prefix = "app.search", name = "provider", havingValue = "dummy", matchIfMissing = true)
 public class DummyWebSearchService implements WebSearchPort {
 
+    /**
+     * providerName 기능을 수행한다.
+     * @return 처리 결과 문자열
+     */
     @Override
     public String providerName() {
         return "dummy";
     }
 
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     @Override
     public String search(String query) {
         String q = normalize(query);
@@ -44,6 +59,12 @@ public class DummyWebSearchService implements WebSearchPort {
             """;
     }
 
+    /**
+     * fetch 기능을 수행한다.
+     *
+     * @param url 대상 URL
+     * @return 처리 결과 문자열
+     */
     @Override
     public String fetch(String url) {
         String u = normalize(url);
@@ -63,6 +84,12 @@ public class DummyWebSearchService implements WebSearchPort {
         return "페이지 내용을 가져왔습니다. 상세 설명이 포함되어 있습니다.";
     }
 
+    /**
+     * attractionResults 기능을 수행한다.
+     *
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     private String attractionResults(String query) {
         return formatResults("관광지", List.of(
                 "[1] 성산일출봉\n제주특별자치도 서귀포시 성산읍 일출로 284-12\n유네스코 세계자연유산. 입장료: 5,000원",
@@ -71,6 +98,12 @@ public class DummyWebSearchService implements WebSearchPort {
         ), query);
     }
 
+    /**
+     * restaurantResults 기능을 수행한다.
+     *
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     private String restaurantResults(String query) {
         return formatResults("맛집", List.of(
                 "[1] 올레국수\n제주특별자치도 제주시 귀아랑길 24\n고기국수 전문. 1인 평균 가격: 8,000원",
@@ -79,6 +112,12 @@ public class DummyWebSearchService implements WebSearchPort {
         ), query);
     }
 
+    /**
+     * accommodationResults 기능을 수행한다.
+     *
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     private String accommodationResults(String query) {
         return formatResults("숙소", List.of(
                 "[1] 메종글래드제주\n제주특별자치도 제주시 노연로 80\n도심형 호텔. 1박 요금: 120,000원",
@@ -87,6 +126,14 @@ public class DummyWebSearchService implements WebSearchPort {
         ), query);
     }
 
+    /**
+     * formatResults 기능을 수행한다.
+     *
+     * @param type type 값
+     * @param items items 목록 정보
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     private String formatResults(String type, List<String> items, String query) {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format(Locale.KOREAN, "[더미 %s 검색 결과] query=%s%n%n", type, query));
@@ -94,6 +141,13 @@ public class DummyWebSearchService implements WebSearchPort {
         return sb.toString().trim();
     }
 
+    /**
+     * containsAny 기능을 수행한다.
+     *
+     * @param text 본문 또는 텍스트 내용
+     * @param keywords keywords 값
+     * @return 처리 가능 여부 또는 조건 충족 여부
+     */
     private boolean containsAny(String text, String... keywords) {
         for (String keyword : keywords) {
             if (text.contains(keyword.toLowerCase(Locale.ROOT))) {
@@ -103,6 +157,12 @@ public class DummyWebSearchService implements WebSearchPort {
         return false;
     }
 
+    /**
+     * normalize 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return 처리 결과 문자열
+     */
     private String normalize(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).trim();
     }

@@ -20,13 +20,28 @@ import ai.local.nalbbun.rag.model.RagSourceFileEntry;
 import ai.local.nalbbun.rag.model.RagSourceManifest;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * RagSourceCatalogService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: rag source catalog service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class RagSourceCatalogService {
 
+    /** registryService 값을 보관한다. */
     private final RagSourceRegistryService registryService;
+    /** dataSourceProvider 값을 보관한다. */
     private final ObjectProvider<DataSource> dataSourceProvider;
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @return 조회 또는 생성된 목록
+     */
     public List<RagSourceManifest> listSources(ChatCategory category, String source, String version) {
         Map<String, RagSourceManifest> merged = new LinkedHashMap<>();
         for (RagSourceManifest manifest : discoverVectorSources(category, source, version)) {
@@ -42,6 +57,14 @@ public class RagSourceCatalogService {
         return items;
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @return 조회 또는 생성된 목록
+     */
     public List<RagSourceFileEntry> listFiles(ChatCategory category, String source, String version) {
         List<RagSourceFileEntry> files = registryService.listFiles(category, source, version);
         if (!files.isEmpty()) {
@@ -50,6 +73,14 @@ public class RagSourceCatalogService {
         return discoverVectorFiles(category, source, version);
     }
 
+    /**
+     * discoverVectorSources 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @return 조회 또는 생성된 목록
+     */
     private List<RagSourceManifest> discoverVectorSources(ChatCategory category, String source, String version) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) return List.of();
@@ -102,6 +133,14 @@ public class RagSourceCatalogService {
         }
     }
 
+    /**
+     * discoverVectorFiles 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @return 조회 또는 생성된 목록
+     */
     private List<RagSourceFileEntry> discoverVectorFiles(ChatCategory category, String source, String version) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
         if (dataSource == null) return List.of();
@@ -158,26 +197,61 @@ public class RagSourceCatalogService {
         }
     }
 
+    /**
+     * appendSourceFilters 기능을 수행한다.
+     *
+     * @param sql sql 값
+     * @param params params 목록 정보
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     */
     private void appendSourceFilters(StringBuilder sql, List<Object> params, ChatCategory category, String source, String version) {
         if (category != null) { sql.append(" AND COALESCE(metadata->>'category','GENERAL') = ?"); params.add(category.name()); }
         if (source != null && !source.isBlank()) { sql.append(" AND COALESCE(metadata->>'source','manual') = ?"); params.add(source); }
         if (version != null && !version.isBlank()) { sql.append(" AND COALESCE(metadata->>'version','v1') = ?"); params.add(version); }
     }
 
+    /**
+     * bind 기능을 수행한다.
+     *
+     * @param ps ps 값
+     * @param params params 목록 정보
+     */
     private void bind(PreparedStatement ps, List<Object> params) throws Exception {
         for (int i = 0; i < params.size(); i++) {
             ps.setObject(i + 1, params.get(i));
         }
     }
 
+    /**
+     * 입력 데이터를 파싱하여 구조화한다.
+     *
+     * @param raw raw 값
+     * @return ChatCategory 타입의 처리 결과
+     */
     private ChatCategory parseCategory(String raw) {
         try { return ChatCategory.valueOf(Objects.requireNonNullElse(raw, "GENERAL")); } catch (Exception e) { return ChatCategory.GENERAL; }
     }
 
+    /**
+     * keyOf 기능을 수행한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param source source 값
+     * @param version version 값
+     * @return 처리 결과 문자열
+     */
     private String keyOf(ChatCategory category, String source, String version) {
         return (category == null ? "GENERAL" : category.name()) + '|' + source + '|' + version;
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param connection connection 값
+     * @return 조회 또는 생성된 목록
+     */
     private List<String> listTables(Connection connection) throws Exception {
         try (PreparedStatement ps = connection.prepareStatement("""
                 SELECT table_name
@@ -193,6 +267,13 @@ public class RagSourceCatalogService {
         }
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param connection connection 값
+     * @param candidates candidates 목록 정보
+     * @return 처리 결과 문자열
+     */
     private String findExistingTable(Connection connection, List<String> candidates) throws Exception {
         List<String> tables = listTables(connection);
         return candidates.stream().filter(tables::contains).findFirst().orElse(null);

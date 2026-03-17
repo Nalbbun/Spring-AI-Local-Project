@@ -14,18 +14,41 @@ import ai.local.nalbbun.debug.model.DebugRuntimeConfig;
 import ai.local.nalbbun.model.category.ChatCategory;
 import ai.local.nalbbun.service.memory.ConversationMemoryService;
 
+/**
+ * DebugRuntimeConfigService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: debug runtime config service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Service
 public class DebugRuntimeConfigService {
 
+    /** resolverMode 값을 보관한다. */
     private final AtomicReference<CategoryResolverMode> resolverMode;
+    /** parserModes 값을 보관한다. */
     private final Map<ChatCategory, AtomicReference<CategoryParserMode>> parserModes =
             new EnumMap<>(ChatCategory.class);
+    /** configuredMemoryStore 값을 보관한다. */
     private final String configuredMemoryStore;
+    /** fallbackPolicy 값을 보관한다. */
     private final String fallbackPolicy;
+    /** conversationMemoryService 값을 보관한다. */
     private final ConversationMemoryService conversationMemoryService;
 
+    /** ollamaConnectionService 값을 보관한다. */
     private DebugRuntimeOllamaConnectionService ollamaConnectionService;
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param resolverMode resolverMode 값
+     * @param generalMode generalMode 값
+     * @param travelMode travelMode 값
+     * @param devMode devMode 값
+     * @param miceMode miceMode 값
+     * @param configuredMemoryStore configuredMemoryStore 값
+     * @param fallbackPolicy fallbackPolicy 값
+     * @param conversationMemoryService conversationMemoryService 값
+     */
     public DebugRuntimeConfigService(
             @Value("${app.category.resolver.mode:HYBRID}") String resolverMode,
             @Value("${app.parser.general.mode:HYBRID}") String generalMode,
@@ -47,26 +70,52 @@ public class DebugRuntimeConfigService {
         parserModes.put(ChatCategory.MICE, new AtomicReference<>(safeParserMode(miceMode)));
     }
 
+    /**
+     * 대상 값을 설정한다.
+     *
+     * @param ollamaConnectionService ollamaConnectionService 값
+     */
     @Autowired(required = false)
     public void setOllamaConnectionService(DebugRuntimeOllamaConnectionService ollamaConnectionService) {
         this.ollamaConnectionService = ollamaConnectionService;
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     * @return CategoryResolverMode 타입의 처리 결과
+     */
     public CategoryResolverMode getResolverMode() {
         return resolverMode.get();
     }
 
+    /**
+     * 대상 값을 설정한다.
+     *
+     * @param mode mode 값
+     */
     public void setResolverMode(CategoryResolverMode mode) {
         if (mode != null) {
             resolverMode.set(mode);
         }
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @return CategoryParserMode 타입의 처리 결과
+     */
     public CategoryParserMode getParserMode(ChatCategory category) {
         AtomicReference<CategoryParserMode> ref = parserModes.get(category);
         return ref == null ? CategoryParserMode.HYBRID : ref.get();
     }
 
+    /**
+     * 대상 값을 설정한다.
+     *
+     * @param category 대상 카테고리 정보
+     * @param mode mode 값
+     */
     public void setParserMode(ChatCategory category, CategoryParserMode mode) {
         if (category == null || mode == null) {
             return;
@@ -75,6 +124,10 @@ public class DebugRuntimeConfigService {
                    .set(mode);
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     * @return DebugRuntimeConfig 타입의 처리 결과
+     */
     public DebugRuntimeConfig getCurrentConfig() {
         DebugRuntimeConfig config = new DebugRuntimeConfig();
         config.setResolverMode(getResolverMode().name());
@@ -89,6 +142,12 @@ public class DebugRuntimeConfigService {
         return config;
     }
 
+    /**
+     * 대상 값을 갱신한다.
+     *
+     * @param request HTTP 요청 객체
+     * @return DebugRuntimeConfig 타입의 처리 결과
+     */
     public DebugRuntimeConfig update(DebugRuntimeConfig request) {
         if (request == null) {
             return getCurrentConfig();
@@ -113,6 +172,10 @@ public class DebugRuntimeConfigService {
         return getCurrentConfig();
     }
 
+    /**
+     * reset 기능을 수행한다.
+     * @return DebugRuntimeConfig 타입의 처리 결과
+     */
     public DebugRuntimeConfig reset() {
         setResolverMode(CategoryResolverMode.HYBRID);
         setParserMode(ChatCategory.GENERAL, CategoryParserMode.HYBRID);
@@ -122,18 +185,42 @@ public class DebugRuntimeConfigService {
         return getCurrentConfig();
     }
 
+    /**
+     * 조건 충족 여부를 확인한다.
+     *
+     * @param value value 값
+     * @return 처리 가능 여부 또는 조건 충족 여부
+     */
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 
+    /**
+     * normalizeMemoryStore 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return 처리 결과 문자열
+     */
     private String normalizeMemoryStore(String value) {
         return hasText(value) ? value.trim().toLowerCase() : "in-memory";
     }
 
+    /**
+     * normalizeFallbackPolicy 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return 처리 결과 문자열
+     */
     private String normalizeFallbackPolicy(String value) {
         return hasText(value) ? value.trim().toUpperCase() : "BLOCK_OPENAI";
     }
 
+    /**
+     * safeResolverMode 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return CategoryResolverMode 타입의 처리 결과
+     */
     private CategoryResolverMode safeResolverMode(String value) {
         try {
             return CategoryResolverMode.valueOf(value.trim().toUpperCase());
@@ -142,6 +229,12 @@ public class DebugRuntimeConfigService {
         }
     }
 
+    /**
+     * safeParserMode 기능을 수행한다.
+     *
+     * @param value value 값
+     * @return CategoryParserMode 타입의 처리 결과
+     */
     private CategoryParserMode safeParserMode(String value) {
         try {
             return CategoryParserMode.valueOf(value.trim().toUpperCase());

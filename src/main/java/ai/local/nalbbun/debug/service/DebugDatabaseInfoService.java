@@ -24,14 +24,26 @@ import org.springframework.stereotype.Service;
 import ai.local.nalbbun.rag.config.RagProperties;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * DebugDatabaseInfoService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: debug database info service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class DebugDatabaseInfoService {
 
+    /** dataSourceProvider 값을 보관한다. */
     private final ObjectProvider<DataSource> dataSourceProvider;
+    /** redisTemplateProvider 값을 보관한다. */
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    /** ragProperties 값을 보관한다. */
     private final RagProperties ragProperties;
 
+    /**
+     * 지정된 정보를 조회한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     public Map<String, Object> getInfo() {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("ragEnabled", ragProperties.isEnabled());
@@ -45,6 +57,10 @@ public class DebugDatabaseInfoService {
         return response;
     }
 
+    /**
+     * jdbcInfo 기능을 수행한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     private Map<String, Object> jdbcInfo() {
         Map<String, Object> result = new LinkedHashMap<>();
         DataSource dataSource = dataSourceProvider.getIfAvailable();
@@ -71,6 +87,10 @@ public class DebugDatabaseInfoService {
         return result;
     }
 
+    /**
+     * vectorDbInfo 기능을 수행한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     private Map<String, Object> vectorDbInfo() {
         Map<String, Object> result = new LinkedHashMap<>();
         DataSource dataSource = dataSourceProvider.getIfAvailable();
@@ -100,6 +120,10 @@ public class DebugDatabaseInfoService {
         return result;
     }
 
+    /**
+     * memoryDbInfo 기능을 수행한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     private Map<String, Object> memoryDbInfo() {
         Map<String, Object> result = new LinkedHashMap<>();
         DataSource dataSource = dataSourceProvider.getIfAvailable();
@@ -122,6 +146,10 @@ public class DebugDatabaseInfoService {
         return result;
     }
 
+    /**
+     * redisInfo 기능을 수행한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     private Map<String, Object> redisInfo() {
         Map<String, Object> result = new LinkedHashMap<>();
         StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
@@ -142,6 +170,10 @@ public class DebugDatabaseInfoService {
         return result;
     }
 
+    /**
+     * registryInfo 기능을 수행한다.
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     private Map<String, Object> registryInfo() {
         Map<String, Object> result = new LinkedHashMap<>();
         Path baseDir = Path.of(ragProperties.getRegistry().getBaseDir());
@@ -197,6 +229,12 @@ public class DebugDatabaseInfoService {
         return result;
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param connection connection 값
+     * @return 조회 또는 생성된 목록
+     */
     private List<String> listTables(Connection connection) {
         try (PreparedStatement ps = connection.prepareStatement("""
                 SELECT table_name
@@ -215,11 +253,25 @@ public class DebugDatabaseInfoService {
         }
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param connection connection 값
+     * @param candidates candidates 목록 정보
+     * @return 처리 결과 문자열
+     */
     private String findExistingTable(Connection connection, List<String> candidates) {
         List<String> tables = listTables(connection);
         return candidates.stream().filter(tables::contains).findFirst().orElse(null);
     }
 
+    /**
+     * tableCount 기능을 수행한다.
+     *
+     * @param connection connection 값
+     * @param tableName tableName 값
+     * @return long 타입의 처리 결과
+     */
     private long tableCount(Connection connection, String tableName) {
         if (!listTables(connection).contains(tableName)) {
             return 0L;
@@ -227,6 +279,12 @@ public class DebugDatabaseInfoService {
         return queryForLong(connection, "SELECT COUNT(*) FROM " + tableName);
     }
 
+    /**
+     * distinctConversationCount 기능을 수행한다.
+     *
+     * @param connection connection 값
+     * @return long 타입의 처리 결과
+     */
     private long distinctConversationCount(Connection connection) {
         if (!listTables(connection).contains("conversation_message")) {
             return 0L;
@@ -234,6 +292,13 @@ public class DebugDatabaseInfoService {
         return queryForLong(connection, "SELECT COUNT(DISTINCT conversation_id) FROM conversation_message");
     }
 
+    /**
+     * queryForLong 기능을 수행한다.
+     *
+     * @param connection connection 값
+     * @param sql sql 값
+     * @return long 타입의 처리 결과
+     */
     private long queryForLong(Connection connection, String sql) {
         try (PreparedStatement ps = connection.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -243,6 +308,14 @@ public class DebugDatabaseInfoService {
         }
     }
 
+    /**
+     * queryJsonDistinctCount 기능을 수행한다.
+     *
+     * @param connection connection 값
+     * @param tableName tableName 값
+     * @param key key 값
+     * @return long 타입의 처리 결과
+     */
     private long queryJsonDistinctCount(Connection connection, String tableName, String key) {
         try (PreparedStatement ps = connection.prepareStatement(
                 "SELECT COUNT(DISTINCT metadata->>?) FROM " + tableName + " WHERE metadata IS NOT NULL")) {
@@ -255,6 +328,12 @@ public class DebugDatabaseInfoService {
         }
     }
 
+    /**
+     * ping 기능을 수행한다.
+     *
+     * @param connection connection 값
+     * @return 처리 결과 문자열
+     */
     private String ping(RedisConnection connection) {
         return Optional.ofNullable(connection.ping()).orElse("PONG");
     }

@@ -17,26 +17,53 @@ import ai.local.nalbbun.debug.model.llm.OllamaModelSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * OllamaModelDiscoveryService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: ollama model discovery service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Service
 public class OllamaModelDiscoveryService {
 
+    /** log 값을 보관한다. */
     private static final Logger log = LoggerFactory.getLogger(OllamaModelDiscoveryService.class);
 
+    /** ollamaConnectionService 값을 보관한다. */
     private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
+    /** jsonMapper 값을 보관한다. */
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param ollamaConnectionService ollamaConnectionService 값
+     */
     public OllamaModelDiscoveryService(DebugRuntimeOllamaConnectionService ollamaConnectionService) {
         this.ollamaConnectionService = ollamaConnectionService;
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     * @return 조회 또는 생성된 목록
+     */
     public List<OllamaModelInfo> getRunningModels() {
         return fetchModelsSafely("/api/ps", "RUNNING");
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     * @return 조회 또는 생성된 목록
+     */
     public List<OllamaModelInfo> getInstalledModels() {
         return fetchModelsSafely("/api/tags", "INSTALLED");
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     *
+     * @param source source 값
+     * @return 조회 또는 생성된 목록
+     */
     public List<OllamaModelInfo> getModels(OllamaModelSource source) {
         if (source == OllamaModelSource.RUNNING) {
             return getRunningModels();
@@ -67,6 +94,10 @@ public class OllamaModelDiscoveryService {
                 .toList();
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     * @return DebugOllamaConnectionInfo 타입의 처리 결과
+     */
     public DebugOllamaConnectionInfo getConnectionInfo() {
         DebugOllamaConnectionInfo info = new DebugOllamaConnectionInfo();
         info.setBaseUrl(ollamaConnectionService.getBaseUrl());
@@ -103,6 +134,13 @@ public class OllamaModelDiscoveryService {
         return info;
     }
 
+    /**
+     * fetchModelsSafely 기능을 수행한다.
+     *
+     * @param uri uri 값
+     * @param state 현재 처리 상태 정보
+     * @return 조회 또는 생성된 목록
+     */
     private List<OllamaModelInfo> fetchModelsSafely(String uri, String state) {
         try {
             return fetchModels(uri, state);
@@ -112,6 +150,13 @@ public class OllamaModelDiscoveryService {
         }
     }
 
+    /**
+     * fetchModels 기능을 수행한다.
+     *
+     * @param uri uri 값
+     * @param state 현재 처리 상태 정보
+     * @return 조회 또는 생성된 목록
+     */
     private List<OllamaModelInfo> fetchModels(String uri, String state) throws Exception {
         String body = restClient().get()
                 .uri(uri)
@@ -144,16 +189,32 @@ public class OllamaModelDiscoveryService {
         return result;
     }
 
+    /**
+     * restClient 기능을 수행한다.
+     * @return RestClient 타입의 처리 결과
+     */
     private RestClient restClient() {
         return RestClient.builder()
                 .baseUrl(ollamaConnectionService.getBaseUrl())
                 .build();
     }
 
+    /**
+     * keyOf 기능을 수행한다.
+     *
+     * @param model 대상 모델 이름
+     * @return 처리 결과 문자열
+     */
     private String keyOf(OllamaModelInfo model) {
         return nonBlank(model.getName(), model.getModel(), "unknown");
     }
 
+    /**
+     * nonBlank 기능을 수행한다.
+     *
+     * @param values values 값
+     * @return 처리 결과 문자열
+     */
     private String nonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {
@@ -163,6 +224,12 @@ public class OllamaModelDiscoveryService {
         return "";
     }
 
+    /**
+     * rootMessage 기능을 수행한다.
+     *
+     * @param e e 값
+     * @return 처리 결과 문자열
+     */
     private String rootMessage(Throwable e) {
         Throwable current = e;
         while (current.getCause() != null) {

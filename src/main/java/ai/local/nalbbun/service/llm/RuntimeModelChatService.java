@@ -26,21 +26,50 @@ import ai.local.nalbbun.debug.model.RuntimeModelTarget;
 import ai.local.nalbbun.debug.service.DebugRuntimeOllamaConnectionService;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * RuntimeModelChatService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: runtime model chat service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Slf4j
 @Service
 public class RuntimeModelChatService {
 
+    /** openaiBuilder 값을 보관한다. */
     private final ChatClient.Builder openaiBuilder;
+    /** runtimeModelResolver 값을 보관한다. */
     private final RuntimeModelResolver runtimeModelResolver;
+    /** llmTaskExecutor 값을 보관한다. */
     private final Executor llmTaskExecutor;
+    /** timeoutMs 값을 보관한다. */
     private final long timeoutMs;
+    /** retryAttempts 값을 보관한다. */
     private final int retryAttempts;
+    /** retryBackoffMs 값을 보관한다. */
     private final long retryBackoffMs;
+    /** ollamaConnectTimeoutMs 값을 보관한다. */
     private final long ollamaConnectTimeoutMs;
+    /** ollamaRequestTimeoutMs 값을 보관한다. */
     private final long ollamaRequestTimeoutMs;
+    /** ollamaChatKeepAlive 값을 보관한다. */
     private final String ollamaChatKeepAlive;
+    /** ollamaConnectionService 값을 보관한다. */
     private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param openaiBuilder openaiBuilder 값
+     * @param runtimeModelResolver runtimeModelResolver 값
+     * @param llmTaskExecutor llmTaskExecutor 값
+     * @param ollamaConnectionService ollamaConnectionService 값
+     * @param timeoutMs timeoutMs 값
+     * @param retryAttempts retryAttempts 값
+     * @param retryBackoffMs retryBackoffMs 값
+     * @param ollamaConnectTimeoutMs ollamaConnectTimeoutMs 값
+     * @param ollamaRequestTimeoutMs ollamaRequestTimeoutMs 값
+     * @param ollamaChatKeepAlive ollamaChatKeepAlive 값
+     */
     public RuntimeModelChatService(
             @Qualifier("openaiBuilder") ChatClient.Builder openaiBuilder,
             RuntimeModelResolver runtimeModelResolver,
@@ -65,6 +94,14 @@ public class RuntimeModelChatService {
         this.ollamaChatKeepAlive = (ollamaChatKeepAlive == null || ollamaChatKeepAlive.isBlank()) ? "300s" : ollamaChatKeepAlive.trim();
     }
 
+    /**
+     * callText 기능을 수행한다.
+     *
+     * @param target target 값
+     * @param systemPrompt systemPrompt 값
+     * @param userPrompt userPrompt 값
+     * @return 처리 결과 문자열
+     */
     public String callText(RuntimeModelTarget target, String systemPrompt, String userPrompt) {
         RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, false);
         return executeWithPolicy(target, resolved, () -> {
@@ -84,6 +121,15 @@ public class RuntimeModelChatService {
         });
     }
 
+    /**
+     * callEntity 기능을 수행한다.
+     *
+     * @param target target 값
+     * @param systemPrompt systemPrompt 값
+     * @param userPrompt userPrompt 값
+     * @param responseType responseType 값
+     * @return T 타입의 처리 결과
+     */
     public <T> T callEntity(RuntimeModelTarget target,
                             String systemPrompt,
                             String userPrompt,
@@ -106,6 +152,15 @@ public class RuntimeModelChatService {
         });
     }
 
+    /**
+     * callEntity 기능을 수행한다.
+     *
+     * @param target target 값
+     * @param systemPrompt systemPrompt 값
+     * @param userPrompt userPrompt 값
+     * @param responseType responseType 값
+     * @return T 타입의 처리 결과
+     */
     public <T> T callEntity(RuntimeModelTarget target,
                             String systemPrompt,
                             String userPrompt,
@@ -128,6 +183,16 @@ public class RuntimeModelChatService {
         });
     }
 
+    /**
+     * callEntityWithTools 기능을 수행한다.
+     *
+     * @param target target 값
+     * @param systemPrompt systemPrompt 값
+     * @param userPrompt userPrompt 값
+     * @param toolObject toolObject 값
+     * @param responseType responseType 값
+     * @return T 타입의 처리 결과
+     */
     public <T> T callEntityWithTools(RuntimeModelTarget target,
                                      String systemPrompt,
                                      String userPrompt,
@@ -153,10 +218,24 @@ public class RuntimeModelChatService {
         });
     }
 
+    /**
+     * describeResolvedModel 기능을 수행한다.
+     *
+     * @param target target 값
+     * @param requiresTools requiresTools 값
+     * @return 처리 결과 문자열
+     */
     public String describeResolvedModel(RuntimeModelTarget target, boolean requiresTools) {
         return runtimeModelResolver.resolve(target, requiresTools).describe();
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     *
+     * @param systemPrompt systemPrompt 값
+     * @param modelName modelName 값
+     * @return ChatClient 타입의 처리 결과
+     */
     private ChatClient runtimeOllamaClient(String systemPrompt, String modelName) {
         String baseUrl = ollamaConnectionService.getBaseUrl();
         OllamaApi ollamaApi = OllamaApi.builder()
@@ -178,6 +257,10 @@ public class RuntimeModelChatService {
                 .build();
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     * @return RestClient.Builder 타입의 처리 결과
+     */
     private RestClient.Builder runtimeRestClientBuilder() {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout((int) ollamaConnectTimeoutMs);
@@ -185,6 +268,10 @@ public class RuntimeModelChatService {
         return RestClient.builder().requestFactory(requestFactory);
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     * @return WebClient.Builder 타입의 처리 결과
+     */
     private WebClient.Builder runtimeWebClientBuilder() {
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, (int) ollamaConnectTimeoutMs)
@@ -192,6 +279,14 @@ public class RuntimeModelChatService {
         return WebClient.builder().clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     *
+     * @param target target 값
+     * @param resolved resolved 값
+     * @param supplier supplier 값
+     * @return T 타입의 처리 결과
+     */
     private <T> T executeWithPolicy(RuntimeModelTarget target,
                                     RuntimeModelSelection resolved,
                                     Supplier<T> supplier) {
@@ -226,6 +321,12 @@ public class RuntimeModelChatService {
         );
     }
 
+    /**
+     * unwrap 기능을 수행한다.
+     *
+     * @param exception exception 값
+     * @return Exception 타입의 처리 결과
+     */
     private Exception unwrap(Exception exception) {
         Throwable current = exception;
         while (current.getCause() != null && current instanceof RuntimeException) {
@@ -234,6 +335,11 @@ public class RuntimeModelChatService {
         return current instanceof Exception e ? e : new RuntimeException(current);
     }
 
+    /**
+     * sleepBackoff 기능을 수행한다.
+     *
+     * @param attempt attempt 값
+     */
     private void sleepBackoff(int attempt) {
         if (attempt >= retryAttempts || retryBackoffMs <= 0) {
             return;

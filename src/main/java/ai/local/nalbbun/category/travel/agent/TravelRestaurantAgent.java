@@ -16,9 +16,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * TravelRestaurantAgent는 세부 업무를 분리하여 수행하는 에이전트이다.
+ * <p>주요 기능: travel restaurant agent 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 public class TravelRestaurantAgent {
 
+    /** DEFAULT_PRICE 값을 보관한다. */
     private static final Map<String, Integer> DEFAULT_PRICE = Map.of(
             "한식", 12000,
             "일식/초밥", 18000,
@@ -30,12 +36,14 @@ public class TravelRestaurantAgent {
             "기타", 15000
     );
 
+    /** SYSTEM_PROMPT 값을 보관한다. */
     private static final String SYSTEM_PROMPT = """
         당신은 맛집 추천 전문 에이전트입니다.
         도구를 활용해 사용자 요청에 맞는 맛집 후보를 추천하세요.
         반드시 JSON 배열만 출력하세요.
         """;
 
+    /** USER_PROMPT_TEMPLATE 값을 보관한다. */
     private static final String USER_PROMPT_TEMPLATE = """
         사용자 요청: %s
         - 지역과 음식 종류를 고려해 다양한 맛집을 추천하세요.
@@ -43,9 +51,17 @@ public class TravelRestaurantAgent {
         - 반드시 JSON 배열만 출력하세요.
         """;
 
+    /** runtimeModelChatService 값을 보관한다. */
     private final RuntimeModelChatService runtimeModelChatService;
+    /** webSearchPort 값을 보관한다. */
     private final WebSearchPort webSearchPort;
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param runtimeModelChatService runtimeModelChatService 값
+     * @param webSearchPort webSearchPort 값
+     */
     public TravelRestaurantAgent(
             RuntimeModelChatService runtimeModelChatService,
             WebSearchPort webSearchPort
@@ -54,12 +70,23 @@ public class TravelRestaurantAgent {
         this.webSearchPort = webSearchPort;
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     *
+     * @param userQuery 사용자 입력 또는 질의 내용
+     * @return 조회 또는 생성된 목록
+     */
     public List<Restaurant> execute(String userQuery) {
         String userMessage = String.format(USER_PROMPT_TEMPLATE, userQuery);
         List<Restaurant> result = callAsEntity(userMessage);
         return normalize(deduplicateByName(result));
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     *
+     * @param context 처리에 필요한 컨텍스트 정보
+     */
     public void execute(TravelContext context) {
         String query;
         if (context.isReplan()) {
@@ -70,6 +97,12 @@ public class TravelRestaurantAgent {
         context.setRestaurants(execute(query));
     }
 
+    /**
+     * callAsEntity 기능을 수행한다.
+     *
+     * @param userMessage userMessage 값
+     * @return 조회 또는 생성된 목록
+     */
     private List<Restaurant> callAsEntity(String userMessage) {
         try {
             return runtimeModelChatService.callEntityWithTools(
@@ -96,6 +129,12 @@ public class TravelRestaurantAgent {
         }
     }
 
+    /**
+     * deduplicateByName 기능을 수행한다.
+     *
+     * @param items items 목록 정보
+     * @return 조회 또는 생성된 목록
+     */
     private List<Restaurant> deduplicateByName(List<Restaurant> items) {
         if (items == null || items.isEmpty()) {
             return List.of();
@@ -111,6 +150,12 @@ public class TravelRestaurantAgent {
         return new ArrayList<>(byName.values());
     }
 
+    /**
+     * normalize 기능을 수행한다.
+     *
+     * @param items items 목록 정보
+     * @return 조회 또는 생성된 목록
+     */
     private List<Restaurant> normalize(List<Restaurant> items) {
         if (items == null || items.isEmpty()) {
             return List.of();
@@ -142,6 +187,12 @@ public class TravelRestaurantAgent {
         return normalized;
     }
 
+    /**
+     * inferDefaultPrice 기능을 수행한다.
+     *
+     * @param r r 값
+     * @return int 타입의 처리 결과
+     */
     private int inferDefaultPrice(Restaurant r) {
         String name = r.getName() == null ? "" : r.getName();
         String desc = r.getDescription() == null ? "" : r.getDescription();
@@ -171,6 +222,13 @@ public class TravelRestaurantAgent {
         return DEFAULT_PRICE.get("기타");
     }
 
+    /**
+     * containsAny 기능을 수행한다.
+     *
+     * @param text 본문 또는 텍스트 내용
+     * @param keywords keywords 값
+     * @return 처리 가능 여부 또는 조건 충족 여부
+     */
     private boolean containsAny(String text, String... keywords) {
         if (text == null || text.isBlank()) {
             return false;
@@ -182,15 +240,31 @@ public class TravelRestaurantAgent {
         }
         return false;
     }
+    /**
+     * describeModel 기능을 수행한다.
+     * @return 처리 결과 문자열
+     */
     public String describeModel() {
         return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_SEARCH, true);
     }
     
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param query 사용자 입력 또는 질의 내용
+     * @return 처리 결과 문자열
+     */
     @Tool(description = "맛집 정보를 인터넷에서 검색합니다. 제목, 링크, 요약을 반환합니다.")
     public String searchRestaurants(@ToolParam(description = "검색 쿼리") String query) {
         return webSearchPort.search(query);
     }
 
+    /**
+     * fetchRestaurantInfo 기능을 수행한다.
+     *
+     * @param url 대상 URL
+     * @return 처리 결과 문자열
+     */
     @Tool(description = "웹 페이지의 본문 텍스트를 가져와 맛집 상세 정보를 제공합니다.")
     public String fetchRestaurantInfo(@ToolParam(description = "웹 페이지 URL") String url) {
         return webSearchPort.fetch(url);

@@ -4,9 +4,20 @@ import ai.local.nalbbun.model.category.CategoryResolution;
 import ai.local.nalbbun.model.category.ChatCategory;
 import org.springframework.stereotype.Component;
 
+/**
+ * RuleBasedCategoryResolver는 조건에 따라 적절한 대상이나 값을 해석하는 리졸버이다.
+ * <p>주요 기능: rule based category resolver 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 public class RuleBasedCategoryResolver   {
  
+    /**
+     * 입력 정보를 해석하여 결과를 결정한다.
+     *
+     * @param userQuery 사용자 입력 또는 질의 내용
+     * @return CategoryResolution 타입의 처리 결과
+     */
     public CategoryResolution resolve(String userQuery) {
         String q = userQuery == null ? "" : userQuery.toLowerCase();
 
@@ -27,10 +38,21 @@ public class RuleBasedCategoryResolver   {
         return new CategoryResolution(ChatCategory.GENERAL, 60, mode(), "no strong keyword, fallback general");
     }
  
+    /**
+     * mode 기능을 수행한다.
+     * @return 처리 결과 문자열
+     */
     public String mode() {
         return "RULE";
     }
 
+    /**
+     * containsAny 기능을 수행한다.
+     *
+     * @param text 본문 또는 텍스트 내용
+     * @param keywords keywords 값
+     * @return 처리 가능 여부 또는 조건 충족 여부
+     */
     private boolean containsAny(String text, String... keywords) {
         for (String keyword : keywords) {
             if (text.contains(keyword.toLowerCase())) {

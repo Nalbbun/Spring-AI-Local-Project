@@ -26,21 +26,37 @@ import ai.local.nalbbun.model.common.MemoryMessage;
 import ai.local.nalbbun.model.common.MemorySummary;
 import jakarta.annotation.PostConstruct;
 
+/**
+ * JdbcConversationMemoryService는 도메인 로직과 운영 지원 기능을 수행하는 서비스이다.
+ * <p>주요 기능: jdbc conversation memory service 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Service
 @Primary
 @ConditionalOnBean(DataSource.class)
 @ConditionalOnProperty(prefix = "app.memory", name = "store", havingValue = "jdbc")
 public class JdbcConversationMemoryService implements ConversationMemoryService {
 
+    /** MAX_MESSAGES_PER_CONVERSATION 값을 보관한다. */
     private static final int MAX_MESSAGES_PER_CONVERSATION = 50;
+    /** MAX_NOTES_PER_CONVERSATION 값을 보관한다. */
     private static final int MAX_NOTES_PER_CONVERSATION = 20;
 
+    /** dataSource 값을 보관한다. */
     private final DataSource dataSource;
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param dataSource dataSource 값
+     */
     public JdbcConversationMemoryService(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
+    /**
+     * initializeSchema 기능을 수행한다.
+     */
     @PostConstruct
     void initializeSchema() {
         try (Connection connection = dataSource.getConnection();
@@ -80,21 +96,49 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         }
     }
 
+    /**
+     * addUserMessage 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param category 대상 카테고리 정보
+     * @param content 본문 또는 텍스트 내용
+     */
     @Override
     public void addUserMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("user", content, category, LocalDateTime.now()));
     }
 
+    /**
+     * addAssistantMessage 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param category 대상 카테고리 정보
+     * @param content 본문 또는 텍스트 내용
+     */
     @Override
     public void addAssistantMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("assistant", content, category, LocalDateTime.now()));
     }
 
+    /**
+     * addSystemMessage 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param category 대상 카테고리 정보
+     * @param content 본문 또는 텍스트 내용
+     */
     @Override
     public void addSystemMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("system", content, category, LocalDateTime.now()));
     }
 
+    /**
+     * recentMessages 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param limit limit 값
+     * @return 조회 또는 생성된 목록
+     */
     @Override
     public List<MemoryMessage> recentMessages(String conversationId, int limit) {
         String sql = """
@@ -127,6 +171,13 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return result.subList(result.size() - limit, result.size());
     }
 
+    /**
+     * formatRecentConversation 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param limit limit 값
+     * @return 처리 결과 문자열
+     */
     @Override
     public String formatRecentConversation(String conversationId, int limit) {
         List<MemoryMessage> messages = recentMessages(conversationId, limit);
@@ -147,6 +198,13 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return sb.toString().trim();
     }
 
+    /**
+     * 대상 값을 갱신한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param category 대상 카테고리 정보
+     * @param summary summary 값
+     */
     @Override
     public void updateCategorySummary(String conversationId, ChatCategory category, String summary) {
         String updateSql = """
@@ -180,6 +238,13 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         }
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param category 대상 카테고리 정보
+     * @return 처리 결과 문자열
+     */
     @Override
     public String getCategorySummary(String conversationId, ChatCategory category) {
         String sql = "SELECT summary FROM conversation_summary WHERE conversation_id = ? AND category = ?";
@@ -198,6 +263,13 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return "";
     }
 
+    /**
+     * addImportantNote 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param category 대상 카테고리 정보
+     * @param note note 값
+     */
     @Override
     public void addImportantNote(String conversationId, ChatCategory category, String note) {
         String insertSql = """
@@ -217,6 +289,13 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         trimNotes(conversationId);
     }
 
+    /**
+     * 지정된 정보를 조회한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param category 대상 카테고리 정보
+     * @return 조회 또는 생성된 목록
+     */
     @Override
     public List<String> getImportantNotes(String conversationId, ChatCategory category) {
         String sql = """
@@ -241,6 +320,12 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return notes;
     }
 
+    /**
+     * snapshot 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     * @return ConversationMemorySnapshot 타입의 처리 결과
+     */
     @Override
     public ConversationMemorySnapshot snapshot(String conversationId) {
         return new ConversationMemorySnapshot(
@@ -251,6 +336,11 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         );
     }
 
+    /**
+     * clear 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     */
     @Override
     public void clear(String conversationId) {
         deleteByConversation("DELETE FROM conversation_message WHERE conversation_id = ?", conversationId);
@@ -258,6 +348,12 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         deleteByConversation("DELETE FROM conversation_note WHERE conversation_id = ?", conversationId);
     }
 
+    /**
+     * appendMessage 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     * @param message 사용자 입력 또는 질의 내용
+     */
     private void appendMessage(String conversationId, MemoryMessage message) {
         String sql = """
                 INSERT INTO conversation_message(conversation_id, role, content, category, created_at)
@@ -277,6 +373,12 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         trimMessages(conversationId);
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param conversationId 대화 식별자
+     * @return 키와 값으로 구성된 결과 매핑
+     */
     private Map<String, MemorySummary> loadSummaries(String conversationId) {
         String sql = "SELECT category, summary, updated_at FROM conversation_summary WHERE conversation_id = ?";
         Map<String, MemorySummary> summaries = new LinkedHashMap<>();
@@ -299,6 +401,12 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return summaries;
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param conversationId 대화 식별자
+     * @return 조회 또는 생성된 목록
+     */
     private List<ImportantNote> loadNotes(String conversationId) {
         String sql = """
                 SELECT category, note, created_at
@@ -325,6 +433,11 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return notes;
     }
 
+    /**
+     * trimMessages 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     */
     private void trimMessages(String conversationId) {
         int deleteCount = Math.max(0, count("conversation_message", conversationId) - MAX_MESSAGES_PER_CONVERSATION);
         if (deleteCount <= 0) {
@@ -333,6 +446,11 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         deleteOldestIds(findOldestIds("conversation_message", conversationId, deleteCount), "conversation_message");
     }
 
+    /**
+     * trimNotes 기능을 수행한다.
+     *
+     * @param conversationId 대화 식별자
+     */
     private void trimNotes(String conversationId) {
         int deleteCount = Math.max(0, count("conversation_note", conversationId) - MAX_NOTES_PER_CONVERSATION);
         if (deleteCount <= 0) {
@@ -341,6 +459,13 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         deleteOldestIds(findOldestIds("conversation_note", conversationId, deleteCount), "conversation_note");
     }
 
+    /**
+     * count 기능을 수행한다.
+     *
+     * @param tableName tableName 값
+     * @param conversationId 대화 식별자
+     * @return int 타입의 처리 결과
+     */
     private int count(String tableName, String conversationId) {
         String sql = "SELECT COUNT(*) FROM " + tableName + " WHERE conversation_id = ?";
         try (Connection connection = dataSource.getConnection();
@@ -357,6 +482,14 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return 0;
     }
 
+    /**
+     * 대상 정보를 조회한다.
+     *
+     * @param tableName tableName 값
+     * @param conversationId 대화 식별자
+     * @param limit limit 값
+     * @return 조회 또는 생성된 목록
+     */
     private List<Long> findOldestIds(String tableName, String conversationId, int limit) {
         String sql = "SELECT id FROM " + tableName + " WHERE conversation_id = ? ORDER BY created_at ASC";
         List<Long> ids = new ArrayList<>();
@@ -374,6 +507,12 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return ids;
     }
 
+    /**
+     * 대상 데이터를 제거한다.
+     *
+     * @param ids ids 목록 정보
+     * @param tableName tableName 값
+     */
     private void deleteOldestIds(List<Long> ids, String tableName) {
         if (ids.isEmpty()) {
             return;
@@ -392,6 +531,12 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         }
     }
 
+    /**
+     * 대상 데이터를 제거한다.
+     *
+     * @param sql sql 값
+     * @param conversationId 대화 식별자
+     */
     private void deleteByConversation(String sql, String conversationId) {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {

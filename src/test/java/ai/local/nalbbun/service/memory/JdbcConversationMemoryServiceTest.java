@@ -11,16 +11,28 @@ import javax.sql.DataSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * JdbcConversationMemoryServiceTest는 대상 기능의 동작을 검증하는 테스트 클래스이다.
+ * <p>주요 기능: jdbc conversation memory service test 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 class JdbcConversationMemoryServiceTest {
 
+    /** memoryService 값을 보관한다. */
     private JdbcConversationMemoryService memoryService;
 
+    /**
+     * 대상 기능의 동작을 검증한다.
+     */
     @BeforeEach
     void setUp() {
         memoryService = new JdbcConversationMemoryService(createDataSource());
         memoryService.initializeSchema();
     }
 
+    /**
+     * 대상 기능의 동작을 검증한다.
+     */
     @Test
     void shouldPersistAndReadSnapshotUsingJdbcStore() {
         String conversationId = "conv-jdbc-001";
@@ -40,6 +52,9 @@ class JdbcConversationMemoryServiceTest {
         assertTrue(memoryService.formatRecentConversation(conversationId, 5).contains("배경/목표/방향"));
     }
 
+    /**
+     * 대상 기능의 동작을 검증한다.
+     */
     @Test
     void shouldClearConversationData() {
         String conversationId = "conv-jdbc-002";
@@ -56,6 +71,10 @@ class JdbcConversationMemoryServiceTest {
         assertEquals(0, snapshot.getImportantNotes().size());
     }
 
+    /**
+     * 대상 기능의 동작을 검증한다.
+     * @return DataSource 타입의 처리 결과
+     */
     private DataSource createDataSource() {
         JdbcDataSource dataSource = new JdbcDataSource();
         dataSource.setURL("jdbc:h2:mem:nalbbun-memory;MODE=PostgreSQL;DB_CLOSE_DELAY=-1");

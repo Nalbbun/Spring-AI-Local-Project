@@ -6,13 +6,28 @@ import ai.local.nalbbun.model.category.ChatCategory;
 
 import org.springframework.stereotype.Component;
 
+/**
+ * CategoryResolver는 조건에 따라 적절한 대상이나 값을 해석하는 리졸버이다.
+ * <p>주요 기능: category resolver 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 public class CategoryResolver {
 
+    /** ruleBasedResolver 값을 보관한다. */
     private final RuleBasedCategoryResolver ruleBasedResolver;
+    /** llmCategoryResolver 값을 보관한다. */
     private final LlmCategoryResolver llmCategoryResolver;
+    /** debugRuntimeConfigService 값을 보관한다. */
     private final DebugRuntimeConfigService debugRuntimeConfigService;
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param ruleBasedResolver ruleBasedResolver 값
+     * @param llmCategoryResolver llmCategoryResolver 값
+     * @param debugRuntimeConfigService debugRuntimeConfigService 값
+     */
     public CategoryResolver(
             RuleBasedCategoryResolver ruleBasedResolver,
             LlmCategoryResolver llmCategoryResolver,
@@ -23,6 +38,13 @@ public class CategoryResolver {
         this.debugRuntimeConfigService = debugRuntimeConfigService;
     }
 
+    /**
+     * 입력 정보를 해석하여 결과를 결정한다.
+     *
+     * @param userQuery 사용자 입력 또는 질의 내용
+     * @param requestedCategory requestedCategory 값
+     * @return CategoryResolution 타입의 처리 결과
+     */
     public CategoryResolution resolve(String userQuery, ChatCategory requestedCategory) {
         if (requestedCategory != null) {
             return new CategoryResolution(requestedCategory, 100, "REQUEST_PARAM", "requested explicitly");
@@ -35,6 +57,12 @@ public class CategoryResolver {
         };
     }
 
+    /**
+     * 입력 정보를 해석하여 결과를 결정한다.
+     *
+     * @param userQuery 사용자 입력 또는 질의 내용
+     * @return CategoryResolution 타입의 처리 결과
+     */
     private CategoryResolution resolveHybrid(String userQuery) {
         CategoryResolution ruleResult = ruleBasedResolver.resolve(userQuery);
 
@@ -52,6 +80,12 @@ public class CategoryResolver {
         return llmResult;
     }
 
+    /**
+     * 조건 충족 여부를 확인한다.
+     *
+     * @param userQuery 사용자 입력 또는 질의 내용
+     * @return 처리 가능 여부 또는 조건 충족 여부
+     */
     private boolean isMixedIntent(String userQuery) {
         if (userQuery == null || userQuery.isBlank()) {
             return true;
@@ -70,6 +104,13 @@ public class CategoryResolver {
         return count >= 2;
     }
 
+    /**
+     * containsAny 기능을 수행한다.
+     *
+     * @param source source 값
+     * @param keywords keywords 값
+     * @return 처리 가능 여부 또는 조건 충족 여부
+     */
     private boolean containsAny(String source, String... keywords) {
         for (String keyword : keywords) {
             if (source.contains(keyword.toLowerCase())) {

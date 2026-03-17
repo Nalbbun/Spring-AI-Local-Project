@@ -14,21 +14,42 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+/**
+ * GeneralCategoryHandler는 애플리케이션 기능을 구성하는 타입이다.
+ * <p>주요 기능: general category handler 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 @RequiredArgsConstructor
 public class GeneralCategoryHandler implements CategoryHandler {
 
+    /** parser 값을 보관한다. */
     private final GeneralCategoryParser parser;
+    /** responseGenerator 값을 보관한다. */
     private final CategoryResponseGenerator responseGenerator;
+    /** memoryService 값을 보관한다. */
     private final ConversationMemoryService memoryService;
+    /** categoryMemoryUpdater 값을 보관한다. */
     private final CategoryMemoryUpdater categoryMemoryUpdater;
+    /** agentEventPublisher 값을 보관한다. */
     private final AgentEventPublisher agentEventPublisher;
 
+    /**
+     * category 기능을 수행한다.
+     * @return ChatCategory 타입의 처리 결과
+     */
     @Override
     public ChatCategory category() {
         return ChatCategory.GENERAL;
     }
 
+    /**
+     * 요청 또는 상태를 처리한다.
+     *
+     * @param state 현재 처리 상태 정보
+     * @param emitter SSE 이벤트 전송 객체
+     * @return CategoryResult 타입의 처리 결과
+     */
     @Override
     public CategoryResult handle(ConversationState state, SseEmitter emitter) {
         agentEventPublisher.send(emitter, "GeneralCategoryHandler", "running", "GENERAL 질문 해석 중...");

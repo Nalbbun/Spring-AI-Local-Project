@@ -5,15 +5,22 @@ import ai.local.nalbbun.debug.model.RuntimeModelTarget;
 import ai.local.nalbbun.service.llm.RuntimeModelChatService;
 import org.springframework.stereotype.Component;
 
+/**
+ * TravelPlanAgent는 세부 업무를 분리하여 수행하는 에이전트이다.
+ * <p>주요 기능: travel plan agent 관련 책임을 수행한다.</p>
+ * <p>입력/출력: 호출부에서 전달된 값이나 상태를 받아 처리 결과, 조회 결과 또는 부수효과를 제공한다.</p>
+ */
 @Component
 public class TravelPlanAgent {
 
+    /** SYSTEM_PROMPT 값을 보관한다. */
     private static final String SYSTEM_PROMPT = """
         당신은 여행 일정을 계획하는 전문 에이전트입니다.
         주어진 여행 정보와 장소 목록을 바탕으로 실용적이고 균형잡힌 여행 일정을 작성합니다.
         예산을 고려하면서도 여행자가 충분히 즐길 수 있도록 다양한 장소를 선택합니다.
         """;
 
+    /** USER_PROMPT_TEMPLATE 값을 보관한다. */
     private static final String USER_PROMPT_TEMPLATE = """
         {destination} {days}일 여행 일정을 작성해주세요.
 
@@ -53,12 +60,23 @@ public class TravelPlanAgent {
            - 식사는 '점심 - 식당이름' 또는 '저녁 - 식당이름'
         """;
 
+    /** runtimeModelChatService 값을 보관한다. */
     private final RuntimeModelChatService runtimeModelChatService;
 
+    /**
+     * 필수 의존성을 주입하여 객체를 생성한다.
+     *
+     * @param runtimeModelChatService runtimeModelChatService 값
+     */
     public TravelPlanAgent(RuntimeModelChatService runtimeModelChatService) {
         this.runtimeModelChatService = runtimeModelChatService;
     }
 
+    /**
+     * 핵심 처리 로직을 실행한다.
+     *
+     * @param context 처리에 필요한 컨텍스트 정보
+     */
     public void execute(TravelContext context) {
         String prompt = buildTravelPlanPrompt(context);
 
@@ -76,6 +94,12 @@ public class TravelPlanAgent {
         context.setPlan(plan);
     }
 
+    /**
+     * 필요한 결과 객체를 구성한다.
+     *
+     * @param context 처리에 필요한 컨텍스트 정보
+     * @return 처리 결과 문자열
+     */
     private String buildTravelPlanPrompt(TravelContext context) {
         StringBuilder attractions = new StringBuilder();
         if (context.getAttractions() != null) {
@@ -136,10 +160,20 @@ public class TravelPlanAgent {
         return prompt;
     }
 
+    /**
+     * safe 기능을 수행한다.
+     *
+     * @param s s 값
+     * @return 처리 결과 문자열
+     */
     private String safe(String s) {
         return s == null ? "" : s;
     }
     
+    /**
+     * describeModel 기능을 수행한다.
+     * @return 처리 결과 문자열
+     */
     public String describeModel() {
         return runtimeModelChatService.describeResolvedModel(RuntimeModelTarget.TRAVEL_PLAN, false);
     }
