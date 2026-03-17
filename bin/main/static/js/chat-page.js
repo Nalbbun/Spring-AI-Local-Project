@@ -86,6 +86,8 @@
     qs('message')?.addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send();
     });
+    // 메모리 인라인 패널
+    window.ChatMemoryPanel?.init();
     loadStatus();
   });
 })();

@@ -66,6 +66,21 @@
         </div>
     </div>
 
+    <!-- 현재 대화 메모리 패널 -->
+    <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <h2 style="margin:0">💾 현재 대화 메모리</h2>
+            <div class="actions" style="flex-wrap:nowrap">
+                <button id="btnShowMemory"  class="primary" style="width:auto;min-width:100px" type="button">🔍 조회</button>
+                <button id="btnClearMemory" class="red"     style="width:auto;min-width:100px" type="button">🗑 초기화</button>
+                <a href="/memory" style="display:inline-block;padding:10px 14px;background:#334155;border-radius:10px;color:#93c5fd;font-size:13px;text-decoration:none">📋 전체 관리</a>
+            </div>
+        </div>
+        <div id="memoryPanel" class="top-gap">
+            <div class="mem-inline-empty">조회 버튼을 눌러 현재 대화 메모리를 확인하세요.</div>
+        </div>
+    </div>
+
 </div>
 
 <style>
@@ -83,6 +98,7 @@
 
 <script src="/js/rag-common.js"></script>
 <script src="/js/chat-common.js"></script>
+<script src="/js/chat-memory-panel.js"></script>
 <script src="/js/chat-agent-page.js"></script>
 </body>
 </html>

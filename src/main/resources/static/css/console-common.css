@@ -75,3 +75,39 @@ h1,h2,h3{margin:0 0 10px}
 /* ── misc ────────────────────────────────── */
 .hero-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .top-gap{margin-top:12px}
+
+/* ── memory panel (inline, 채팅 페이지용) ─── */
+.mem-inline-empty{color:var(--muted);font-size:13px;padding:8px 0}
+.mem-inline-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;background:#0b1220;border-radius:10px;margin-bottom:10px;font-size:13px}
+.mem-inline-stat{color:#94a3b8}
+.mem-inline-section{margin-bottom:14px}
+.mem-inline-section-title{font-size:12px;color:#64748b;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.mem-inline-msgs{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto}
+.mem-inline-msg{padding:8px 12px;border-radius:8px;font-size:13px;border:1px solid var(--line-soft)}
+.mem-inline-msg.user      {background:#0f1e3a;border-color:#2563eb}
+.mem-inline-msg.assistant {background:#0a2018;border-color:#047857}
+.mem-inline-msg.system    {background:#1a1a0a;border-color:#b45309}
+.mem-inline-msg-meta{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px}
+.mem-inline-msg-body{white-space:pre-wrap;word-break:break-word;color:#cbd5e1}
+.mem-inline-summary{padding:6px 10px;border-radius:8px;background:#0b1220;border:1px solid var(--line-soft);font-size:13px;color:#cbd5e1;margin-bottom:4px}
+.mem-inline-cat-badge{display:inline-block;padding:1px 8px;border-radius:999px;background:#1e3a5f;color:#93c5fd;font-size:11px;font-weight:700;margin-right:8px}
+
+/* ── memory (memory.html 전용) ─────────────── */
+.mem-message-list{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow-y:auto}
+.mem-empty{color:#64748b;font-size:13px;padding:12px 0}
+.mem-msg{padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6;border:1px solid var(--line-soft)}
+.mem-msg.user      {background:#0f1e3a;border-color:#2563eb}
+.mem-msg.assistant {background:#0a2018;border-color:#047857}
+.mem-msg.system    {background:#1a1a0a;border-color:#b45309}
+.mem-msg-header{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:11px;color:#94a3b8}
+.mem-role-badge{padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700}
+.mem-role-badge.user      {background:#1e3a5f;color:#93c5fd}
+.mem-role-badge.assistant {background:#0a2018;color:#6ee7b7}
+.mem-role-badge.system    {background:#2a1a00;color:#fcd34d}
+.mem-msg-body{white-space:pre-wrap;word-break:break-word}
+.mem-note{padding:8px 12px;border-radius:8px;font-size:13px;line-height:1.5;background:#1a0a2a;border:1px solid #7c3aed;color:#d8b4fe}
+.mem-note-header{font-size:11px;color:#9d72ff;margin-bottom:4px}
+.mem-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.mem-tab{width:auto;min-width:90px;padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:#0b1220;color:#94a3b8;font-size:13px;font-weight:400;cursor:pointer}
+.mem-tab.active{background:#1e3a5f;color:#93c5fd;border-color:#2563eb;font-weight:700}
+.mem-tab:hover:not(.active){background:#1e293b;color:#e2e8f0}

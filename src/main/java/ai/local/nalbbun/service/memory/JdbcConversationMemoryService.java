@@ -26,13 +26,6 @@ import ai.local.nalbbun.model.common.MemoryMessage;
 import ai.local.nalbbun.model.common.MemorySummary;
 import jakarta.annotation.PostConstruct;
 
-/**
- * Jdbc Conversation Memory Service 타입이다.
- *
- * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
- * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
- * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
- */
 @Service
 @Primary
 @ConditionalOnBean(DataSource.class)
@@ -44,22 +37,10 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
 
     private final DataSource dataSource;
 
-    /**
-     * Jdbc Conversation Memory Service 인스턴스를 초기화한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     public JdbcConversationMemoryService(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
-    /**
-     * initialize Schema 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @PostConstruct
     void initializeSchema() {
         try (Connection connection = dataSource.getConnection();
@@ -99,45 +80,21 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         }
     }
 
-    /**
-     * add User Message 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @Override
     public void addUserMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("user", content, category, LocalDateTime.now()));
     }
 
-    /**
-     * add Assistant Message 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @Override
     public void addAssistantMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("assistant", content, category, LocalDateTime.now()));
     }
 
-    /**
-     * add System Message 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @Override
     public void addSystemMessage(String conversationId, ChatCategory category, String content) {
         appendMessage(conversationId, new MemoryMessage("system", content, category, LocalDateTime.now()));
     }
 
-    /**
-     * recent Messages 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     @Override
     public List<MemoryMessage> recentMessages(String conversationId, int limit) {
         String sql = """
@@ -170,12 +127,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return result.subList(result.size() - limit, result.size());
     }
 
-    /**
-     * format Recent Conversation 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     @Override
     public String formatRecentConversation(String conversationId, int limit) {
         List<MemoryMessage> messages = recentMessages(conversationId, limit);
@@ -196,12 +147,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return sb.toString().trim();
     }
 
-    /**
-     * update Category Summary 작업을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @Override
     public void updateCategorySummary(String conversationId, ChatCategory category, String summary) {
         String updateSql = """
@@ -235,12 +180,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         }
     }
 
-    /**
-     * Category Summary 값을 반환한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     @Override
     public String getCategorySummary(String conversationId, ChatCategory category) {
         String sql = "SELECT summary FROM conversation_summary WHERE conversation_id = ? AND category = ?";
@@ -259,12 +198,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return "";
     }
 
-    /**
-     * add Important Note 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @Override
     public void addImportantNote(String conversationId, ChatCategory category, String note) {
         String insertSql = """
@@ -284,12 +217,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         trimNotes(conversationId);
     }
 
-    /**
-     * Important Notes 값을 반환한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     @Override
     public List<String> getImportantNotes(String conversationId, ChatCategory category) {
         String sql = """
@@ -314,12 +241,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return notes;
     }
 
-    /**
-     * snapshot 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     @Override
     public ConversationMemorySnapshot snapshot(String conversationId) {
         return new ConversationMemorySnapshot(
@@ -330,12 +251,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         );
     }
 
-    /**
-     * clear 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @Override
     public void clear(String conversationId) {
         deleteByConversation("DELETE FROM conversation_message WHERE conversation_id = ?", conversationId);
@@ -343,12 +258,27 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         deleteByConversation("DELETE FROM conversation_note WHERE conversation_id = ?", conversationId);
     }
 
-    /**
-     * append Message 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
+    @Override
+    public List<String> listConversationIds() {
+        String sql = """
+                SELECT DISTINCT conversation_id, MAX(created_at) AS last_active
+                FROM conversation_message
+                GROUP BY conversation_id
+                ORDER BY last_active DESC
+                """;
+        List<String> ids = new ArrayList<>();
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                ids.add(rs.getString("conversation_id"));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("대화 목록 조회에 실패했습니다.", e);
+        }
+        return ids;
+    }
+
     private void appendMessage(String conversationId, MemoryMessage message) {
         String sql = """
                 INSERT INTO conversation_message(conversation_id, role, content, category, created_at)
@@ -368,12 +298,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         trimMessages(conversationId);
     }
 
-    /**
-     * load Summaries 데이터를 로드한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     private Map<String, MemorySummary> loadSummaries(String conversationId) {
         String sql = "SELECT category, summary, updated_at FROM conversation_summary WHERE conversation_id = ?";
         Map<String, MemorySummary> summaries = new LinkedHashMap<>();
@@ -396,12 +320,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return summaries;
     }
 
-    /**
-     * load Notes 데이터를 로드한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     private List<ImportantNote> loadNotes(String conversationId) {
         String sql = """
                 SELECT category, note, created_at
@@ -428,12 +346,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return notes;
     }
 
-    /**
-     * trim Messages 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     private void trimMessages(String conversationId) {
         int deleteCount = Math.max(0, count("conversation_message", conversationId) - MAX_MESSAGES_PER_CONVERSATION);
         if (deleteCount <= 0) {
@@ -442,12 +354,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         deleteOldestIds(findOldestIds("conversation_message", conversationId, deleteCount), "conversation_message");
     }
 
-    /**
-     * trim Notes 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     private void trimNotes(String conversationId) {
         int deleteCount = Math.max(0, count("conversation_note", conversationId) - MAX_NOTES_PER_CONVERSATION);
         if (deleteCount <= 0) {
@@ -456,12 +362,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         deleteOldestIds(findOldestIds("conversation_note", conversationId, deleteCount), "conversation_note");
     }
 
-    /**
-     * count 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     private int count(String tableName, String conversationId) {
         String sql = "SELECT COUNT(*) FROM " + tableName + " WHERE conversation_id = ?";
         try (Connection connection = dataSource.getConnection();
@@ -478,12 +378,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return 0;
     }
 
-    /**
-     * find Oldest Ids 대상을 조회한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     private List<Long> findOldestIds(String tableName, String conversationId, int limit) {
         String sql = "SELECT id FROM " + tableName + " WHERE conversation_id = ? ORDER BY created_at ASC";
         List<Long> ids = new ArrayList<>();
@@ -501,12 +395,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         return ids;
     }
 
-    /**
-     * delete Oldest Ids 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     private void deleteOldestIds(List<Long> ids, String tableName) {
         if (ids.isEmpty()) {
             return;
@@ -525,12 +413,6 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
         }
     }
 
-    /**
-     * delete By Conversation 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     private void deleteByConversation(String sql, String conversationId) {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {

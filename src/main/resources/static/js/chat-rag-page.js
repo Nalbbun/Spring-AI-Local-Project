@@ -89,6 +89,9 @@
     try {
       await fetchJson('/debug/api/memory/clear', { method: 'POST' });
       logLine(logEl(), '[memory] 대화 초기화 완료');
+      // 패널 갱신
+      const panel = qs('memoryPanel');
+      if (panel) panel.innerHTML = '<div class="mem-inline-empty">대화 메모리가 초기화되었습니다.</div>';
     } catch (e) {
       logLine(logEl(), '[memory] 초기화 실패: ' + e.message);
     }
@@ -113,6 +116,8 @@
     qs('message')?.addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send();
     });
+    // 메모리 인라인 패널
+    window.ChatMemoryPanel?.init();
     loadStatus();
   });
 })();
