@@ -2,10 +2,10 @@ package ai.local.nalbbun.category.common;
 
 import java.time.Duration;
 
-import ai.local.nalbbun.debug.service.DebugRuntimeOllamaConnectionService;
-import ai.local.nalbbun.model.category.CategoryResolution;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.service.llm.LlmJsonSupport;
+import ai.local.nalbbun.internal.service.DebugRuntimeOllamaConnectionService;
+import ai.local.nalbbun.category.model.CategoryResolution;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.llm.service.LlmJsonSupport;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;

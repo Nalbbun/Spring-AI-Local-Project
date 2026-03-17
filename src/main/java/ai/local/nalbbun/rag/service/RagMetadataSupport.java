@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Component;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 
 /**
  * Rag Metadata Support 타입이다.

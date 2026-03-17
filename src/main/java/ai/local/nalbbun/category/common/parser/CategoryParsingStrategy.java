@@ -1,7 +1,7 @@
 package ai.local.nalbbun.category.common.parser;
 
-import ai.local.nalbbun.model.common.CategoryContext;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.category.model.CategoryContext;
+import ai.local.nalbbun.category.model.ConversationState;
 
 /**
  * Category Parsing Strategy 인터페이스이다.

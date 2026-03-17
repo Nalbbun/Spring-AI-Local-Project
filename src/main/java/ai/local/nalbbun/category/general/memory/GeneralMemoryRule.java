@@ -3,8 +3,8 @@ package ai.local.nalbbun.category.general.memory;
 import ai.local.nalbbun.category.common.memory.CategoryMemoryRule;
 import ai.local.nalbbun.category.common.memory.CategoryMemoryUpdate;
 import ai.local.nalbbun.category.general.model.GeneralContext;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.category.model.ConversationState;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

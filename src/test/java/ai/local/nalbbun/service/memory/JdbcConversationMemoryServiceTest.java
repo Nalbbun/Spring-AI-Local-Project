@@ -1,15 +1,17 @@
 package ai.local.nalbbun.service.memory;
 
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.ConversationMemorySnapshot;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import javax.sql.DataSource;
+
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.sql.DataSource;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.memory.model.ConversationMemorySnapshot;
+import ai.local.nalbbun.memory.service.JdbcConversationMemoryService;
 
 /**
  * Jdbc Conversation Memory Service Test 타입이다.

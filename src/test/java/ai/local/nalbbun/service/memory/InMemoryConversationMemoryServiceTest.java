@@ -1,13 +1,15 @@
 package ai.local.nalbbun.service.memory;
 
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.ConversationMemorySnapshot;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.memory.model.ConversationMemorySnapshot;
+import ai.local.nalbbun.memory.service.InMemoryConversationMemoryService;
 
 /**
  * In Memory Conversation Memory Service Test 타입이다.

@@ -1,6 +1,6 @@
 package ai.local.nalbbun.category.common.memory;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

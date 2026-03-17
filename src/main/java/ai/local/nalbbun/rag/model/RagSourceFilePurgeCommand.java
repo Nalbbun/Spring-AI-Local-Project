@@ -1,6 +1,6 @@
 package ai.local.nalbbun.rag.model;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import lombok.Data;
 
 /**

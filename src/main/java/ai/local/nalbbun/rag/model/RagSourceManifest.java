@@ -3,7 +3,7 @@ package ai.local.nalbbun.rag.model;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import lombok.Data;
 
 /**

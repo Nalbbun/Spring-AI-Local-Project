@@ -1,8 +1,8 @@
 package ai.local.nalbbun.category.common;
 
-import ai.local.nalbbun.debug.service.DebugRuntimeConfigService;
-import ai.local.nalbbun.model.category.CategoryResolution;
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.internal.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.category.model.CategoryResolution;
+import ai.local.nalbbun.category.model.ChatCategory;
 
 import org.springframework.stereotype.Component;
 

@@ -2,7 +2,7 @@ package ai.local.nalbbun.category.travel.parser;
 
 import ai.local.nalbbun.category.common.parser.CategoryParsingStrategy;
 import ai.local.nalbbun.category.travel.model.TravelContext;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.category.model.ConversationState;
 import org.springframework.stereotype.Component;
 
 import java.util.regex.Matcher;

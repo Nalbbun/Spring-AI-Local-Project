@@ -2,8 +2,8 @@ package ai.local.nalbbun.category.general.parser;
 
 import ai.local.nalbbun.category.common.parser.CategoryParsingStrategy;
 import ai.local.nalbbun.category.general.model.GeneralContext;
-import ai.local.nalbbun.model.common.ConversationState;
-import ai.local.nalbbun.service.llm.LlmJsonSupport;
+import ai.local.nalbbun.category.model.ConversationState;
+import ai.local.nalbbun.llm.service.LlmJsonSupport;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;

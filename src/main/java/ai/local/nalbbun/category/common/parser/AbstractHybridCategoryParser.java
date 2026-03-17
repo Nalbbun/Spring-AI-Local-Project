@@ -1,10 +1,10 @@
 package ai.local.nalbbun.category.common.parser;
 
 import ai.local.nalbbun.category.common.CategoryParserMode;
-import ai.local.nalbbun.debug.service.DebugRuntimeConfigService;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.CategoryContext;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.internal.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.category.model.CategoryContext;
+import ai.local.nalbbun.category.model.ConversationState;
 
 /**
  * Abstract Hybrid Category Parser 타입이다.

@@ -7,9 +7,9 @@ import ai.local.nalbbun.category.common.parser.CategoryParser;
 import ai.local.nalbbun.category.travel.model.TravelContext;
 import ai.local.nalbbun.category.travel.parser.LlmTravelParser;
 import ai.local.nalbbun.category.travel.parser.RuleBasedTravelParser;
-import ai.local.nalbbun.debug.service.DebugRuntimeConfigService;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.internal.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.category.model.ConversationState;
 
 /**
  * Travel Category Parser 타입이다.

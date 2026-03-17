@@ -1,8 +1,8 @@
 package ai.local.nalbbun.category.common.memory;
 
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.CategoryContext;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.category.model.CategoryContext;
+import ai.local.nalbbun.category.model.ConversationState;
 
 /**
  * Category Memory Rule 인터페이스이다.

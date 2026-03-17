@@ -2,12 +2,12 @@ package ai.local.nalbbun.category.common;
 
 import java.util.function.Consumer;
 
-import ai.local.nalbbun.debug.model.RuntimeModelTarget;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.ConversationState;
-import ai.local.nalbbun.model.prompt.PromptMemoryContext;
-import ai.local.nalbbun.service.llm.RuntimeModelChatService;
-import ai.local.nalbbun.service.prompt.PromptMemoryContextBuilder;
+import ai.local.nalbbun.internal.model.RuntimeModelTarget;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.category.model.ConversationState;
+import ai.local.nalbbun.prompt.PromptMemoryContext;
+import ai.local.nalbbun.llm.service.RuntimeModelChatService;
+import ai.local.nalbbun.prompt.PromptMemoryContextBuilder;
 import org.springframework.stereotype.Component;
 
 /**

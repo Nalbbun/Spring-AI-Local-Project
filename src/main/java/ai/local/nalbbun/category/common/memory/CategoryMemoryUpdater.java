@@ -1,8 +1,8 @@
 package ai.local.nalbbun.category.common.memory;
 
-import ai.local.nalbbun.model.common.CategoryContext;
-import ai.local.nalbbun.model.common.ConversationState;
-import ai.local.nalbbun.service.memory.ConversationMemoryService;
+import ai.local.nalbbun.category.model.CategoryContext;
+import ai.local.nalbbun.category.model.ConversationState;
+import ai.local.nalbbun.memory.service.ConversationMemoryService;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

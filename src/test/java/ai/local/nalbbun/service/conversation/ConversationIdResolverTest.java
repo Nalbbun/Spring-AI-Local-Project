@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 
+import ai.local.nalbbun.conversation.ConversationIdResolver;
+
 /**
  * Conversation Id Resolver Test 타입이다.
  *

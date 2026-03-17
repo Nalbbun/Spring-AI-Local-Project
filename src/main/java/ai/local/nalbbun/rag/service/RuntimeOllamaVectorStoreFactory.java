@@ -18,7 +18,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import io.netty.channel.ChannelOption;
 import reactor.netty.http.client.HttpClient;
 
-import ai.local.nalbbun.debug.service.DebugRuntimeOllamaConnectionService;
+import ai.local.nalbbun.internal.service.DebugRuntimeOllamaConnectionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

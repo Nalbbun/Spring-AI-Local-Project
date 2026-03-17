@@ -1,8 +1,8 @@
 package ai.local.nalbbun.category.travel.agent;
 
 import ai.local.nalbbun.category.travel.model.*;
-import ai.local.nalbbun.debug.model.RuntimeModelTarget;
-import ai.local.nalbbun.service.llm.RuntimeModelChatService;
+import ai.local.nalbbun.internal.model.RuntimeModelTarget;
+import ai.local.nalbbun.llm.service.RuntimeModelChatService;
 import org.springframework.stereotype.Component;
 
 /**

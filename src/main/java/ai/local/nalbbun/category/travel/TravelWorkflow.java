@@ -5,7 +5,7 @@ import ai.local.nalbbun.category.travel.agent.TravelPlanAgent;
 import ai.local.nalbbun.category.travel.model.TravelContext;
 import ai.local.nalbbun.category.travel.workflow.TravelInfoCollector;
 import ai.local.nalbbun.category.travel.workflow.TravelReplanner;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.category.model.ConversationState;
 import ai.local.nalbbun.support.sse.AgentEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

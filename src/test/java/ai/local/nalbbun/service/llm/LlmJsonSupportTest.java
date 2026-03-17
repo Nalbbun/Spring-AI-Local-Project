@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import ai.local.nalbbun.llm.service.LlmJsonSupport;
+
 /**
  * Llm Json Support Test 타입이다.
  *

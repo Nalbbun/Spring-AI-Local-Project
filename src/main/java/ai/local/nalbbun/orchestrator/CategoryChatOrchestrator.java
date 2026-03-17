@@ -1,16 +1,16 @@
 package ai.local.nalbbun.orchestrator;
 
-import ai.local.nalbbun.category.common.CategoryResolver;
-import ai.local.nalbbun.model.category.CategoryResolution;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.CategoryResult;
-import ai.local.nalbbun.model.common.ConversationState;
-import ai.local.nalbbun.registry.CategoryHandlerRegistry;
-import ai.local.nalbbun.service.memory.ConversationMemoryService;
-import ai.local.nalbbun.support.sse.AgentEventPublisher;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import ai.local.nalbbun.category.common.CategoryResolver;
+import ai.local.nalbbun.category.model.CategoryResolution;
+import ai.local.nalbbun.category.model.CategoryResult;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.category.model.ConversationState;
+import ai.local.nalbbun.memory.service.ConversationMemoryService;
+import ai.local.nalbbun.support.sse.AgentEventPublisher;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Category Chat Orchestrator 타입이다.

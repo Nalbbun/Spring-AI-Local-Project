@@ -1,12 +1,14 @@
 package ai.local.nalbbun.debug.service;
 
-import ai.local.nalbbun.category.common.CategoryParserMode;
-import ai.local.nalbbun.debug.model.DebugRuntimeConfig;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.service.memory.InMemoryConversationMemoryService;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import ai.local.nalbbun.category.common.CategoryParserMode;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.internal.model.DebugRuntimeConfig;
+import ai.local.nalbbun.internal.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.memory.service.InMemoryConversationMemoryService;
 
 /**
  * Debug Runtime Config Service Test 타입이다.

@@ -7,9 +7,9 @@ import ai.local.nalbbun.category.common.parser.CategoryParser;
 import ai.local.nalbbun.category.general.model.GeneralContext;
 import ai.local.nalbbun.category.general.parser.LlmGeneralParser;
 import ai.local.nalbbun.category.general.parser.RuleBasedGeneralParser;
-import ai.local.nalbbun.debug.service.DebugRuntimeConfigService;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.internal.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.category.model.ConversationState;
 
 /**
  * General Category Parser 타입이다.

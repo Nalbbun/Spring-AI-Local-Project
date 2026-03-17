@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.model.RagRetrievedDocument;
 

@@ -1,6 +1,6 @@
 package ai.local.nalbbun.category.dev.model;
 
-import ai.local.nalbbun.model.common.CategoryContext;
+import ai.local.nalbbun.category.model.CategoryContext;
 import lombok.Data;
 
 import java.util.ArrayList;

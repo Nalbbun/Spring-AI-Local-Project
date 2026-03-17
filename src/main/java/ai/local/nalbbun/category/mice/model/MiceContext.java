@@ -1,6 +1,6 @@
 package ai.local.nalbbun.category.mice.model;
 
-import ai.local.nalbbun.model.common.CategoryContext;
+import ai.local.nalbbun.category.model.CategoryContext;
 import lombok.Data;
 
 /**

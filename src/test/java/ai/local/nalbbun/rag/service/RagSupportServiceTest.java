@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.ObjectProvider;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.model.RagContext;
 import ai.local.nalbbun.rag.model.RagRetrievedDocument;

@@ -13,7 +13,7 @@ import org.springframework.core.io.DefaultResourceLoader;
 
 import tools.jackson.databind.json.JsonMapper;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.eval.model.RagEvaluationCase;
 import ai.local.nalbbun.rag.eval.model.RagEvaluationReport;

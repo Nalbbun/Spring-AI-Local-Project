@@ -7,9 +7,9 @@ import ai.local.nalbbun.category.common.parser.CategoryParser;
 import ai.local.nalbbun.category.mice.model.MiceContext;
 import ai.local.nalbbun.category.mice.parser.LlmMiceParser;
 import ai.local.nalbbun.category.mice.parser.RuleBasedMiceParser;
-import ai.local.nalbbun.debug.service.DebugRuntimeConfigService;
-import ai.local.nalbbun.model.category.ChatCategory;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.internal.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.category.model.ChatCategory;
+import ai.local.nalbbun.category.model.ConversationState;
 
 /**
  * Mice Category Parser 타입이다.

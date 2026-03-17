@@ -3,7 +3,7 @@ package ai.local.nalbbun.rag.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import lombok.Data;
 
 /**

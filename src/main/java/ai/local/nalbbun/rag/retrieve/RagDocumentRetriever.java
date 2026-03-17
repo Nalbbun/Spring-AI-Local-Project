@@ -8,7 +8,7 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import ai.local.nalbbun.rag.config.RagProperties;
 import ai.local.nalbbun.rag.model.RagRetrievedDocument;
 import ai.local.nalbbun.rag.service.RagMetadataSupport;

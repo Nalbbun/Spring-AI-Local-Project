@@ -6,8 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import ai.local.nalbbun.debug.model.RuntimeModelTarget;
-import ai.local.nalbbun.debug.service.DebugRuntimeModelConfigService;
+import ai.local.nalbbun.internal.model.RuntimeModelTarget;
+import ai.local.nalbbun.internal.service.DebugRuntimeModelConfigService;
+import ai.local.nalbbun.llm.service.RuntimeModelResolutionException;
+import ai.local.nalbbun.llm.service.RuntimeModelResolver;
+import ai.local.nalbbun.llm.service.RuntimeModelSelection;
 
 /**
  * Runtime Model Resolver Test 타입이다.

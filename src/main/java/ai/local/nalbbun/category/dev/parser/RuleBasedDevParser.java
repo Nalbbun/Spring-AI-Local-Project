@@ -2,7 +2,7 @@ package ai.local.nalbbun.category.dev.parser;
 
 import ai.local.nalbbun.category.common.parser.CategoryParsingStrategy;
 import ai.local.nalbbun.category.dev.model.DevContext;
-import ai.local.nalbbun.model.common.ConversationState;
+import ai.local.nalbbun.category.model.ConversationState;
 import org.springframework.stereotype.Component;
 
 /**

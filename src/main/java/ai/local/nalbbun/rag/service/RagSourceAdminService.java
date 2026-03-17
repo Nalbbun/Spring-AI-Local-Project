@@ -14,7 +14,7 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
-import ai.local.nalbbun.model.category.ChatCategory;
+import ai.local.nalbbun.category.model.ChatCategory;
 import ai.local.nalbbun.rag.ingest.RagDocumentIngestionService;
 import ai.local.nalbbun.rag.ingest.RagIngestionResult;
 import ai.local.nalbbun.rag.model.RagRetrievedDocument;
