@@ -18,7 +18,7 @@ public class RuntimeInfoController {
 
     @GetMapping("/ollama")
     public OllamaConnectionInfo ollamaConnectionInfo() {
-        DebugOllamaConnectionInfo debugInfo = ollamaModelDiscoveryService.getDebugConnectionInfo();
+        DebugOllamaConnectionInfo debugInfo = ollamaModelDiscoveryService.getConnectionInfo();
         OllamaConnectionInfo info = new OllamaConnectionInfo();
         info.setBaseUrl(debugInfo.getBaseUrl());
         info.setReachable(debugInfo.isReachable());

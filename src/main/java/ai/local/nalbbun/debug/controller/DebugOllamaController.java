@@ -13,11 +13,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import ai.local.nalbbun.debug.model.llm.DebugOllamaConnectionInfo;
+import ai.local.nalbbun.debug.model.llm.DebugOllamaModelActionRequest;
+import ai.local.nalbbun.debug.model.llm.DebugOllamaModelActionResult;
 import ai.local.nalbbun.debug.model.llm.DebugOllamaModelConfig;
 import ai.local.nalbbun.debug.model.llm.OllamaModelInfo;
 import ai.local.nalbbun.debug.model.llm.OllamaModelSource;
 import ai.local.nalbbun.debug.service.DebugRuntimeModelConfigService;
 import ai.local.nalbbun.debug.service.DebugRuntimeOllamaConnectionService;
+import ai.local.nalbbun.debug.service.OllamaModelAdminService;
 import ai.local.nalbbun.debug.service.OllamaModelDiscoveryService;
 import lombok.RequiredArgsConstructor;
 
@@ -31,12 +34,42 @@ public class DebugOllamaController {
     private final OllamaModelDiscoveryService ollamaModelDiscoveryService;
     private final DebugRuntimeModelConfigService debugRuntimeModelConfigService;
     private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
+    private final OllamaModelAdminService ollamaModelAdminService;
+
+    @GetMapping("/connection")
+    public DebugOllamaConnectionInfo getConnection() {
+        return ollamaModelDiscoveryService.getConnectionInfo();
+    }
+
+    @PostMapping("/connection")
+    public DebugOllamaConnectionInfo updateConnection(@RequestBody(required = false) Map<String, Object> request) {
+        String baseUrl = null;
+        if (request != null) {
+            Object direct = request.get("baseUrl");
+            Object legacy = request.get("ollamaBaseUrl");
+            Object chosen = direct != null ? direct : legacy;
+            baseUrl = chosen == null ? null : String.valueOf(chosen);
+        }
+        ollamaConnectionService.update(baseUrl);
+        return ollamaModelDiscoveryService.getConnectionInfo();
+    }
+
+    @PostMapping("/connection/reset")
+    public DebugOllamaConnectionInfo resetConnection() {
+        ollamaConnectionService.reset();
+        return ollamaModelDiscoveryService.getConnectionInfo();
+    }
 
     @GetMapping("/models")
     public List<OllamaModelInfo> models(
             @RequestParam(name = "source", defaultValue = "RUNNING") OllamaModelSource source
     ) {
         return ollamaModelDiscoveryService.getModels(source);
+    }
+
+    @PostMapping("/models/action")
+    public DebugOllamaModelActionResult modelAction(@RequestBody(required = false) DebugOllamaModelActionRequest request) {
+        return ollamaModelAdminService.apply(request);
     }
 
     @GetMapping("/config")
@@ -52,29 +85,5 @@ public class DebugOllamaController {
     @PostMapping("/config/reset")
     public DebugOllamaModelConfig resetConfig() {
         return debugRuntimeModelConfigService.reset();
-    }
-
-    @GetMapping("/connection")
-    public DebugOllamaConnectionInfo getConnection() {
-        return ollamaModelDiscoveryService.getDebugConnectionInfo();
-    }
-
-    @PostMapping("/connection")
-    public DebugOllamaConnectionInfo updateConnection(@RequestBody(required = false) Map<String, Object> request) {
-        String baseUrl = null;
-        if (request != null) {
-            Object direct = request.get("baseUrl");
-            Object legacy = request.get("ollamaBaseUrl");
-            Object chosen = direct != null ? direct : legacy;
-            baseUrl = chosen == null ? null : String.valueOf(chosen);
-        }
-        ollamaConnectionService.update(baseUrl);
-        return ollamaModelDiscoveryService.getDebugConnectionInfo();
-    }
-
-    @PostMapping("/connection/reset")
-    public DebugOllamaConnectionInfo resetConnection() {
-        ollamaConnectionService.reset();
-        return ollamaModelDiscoveryService.getDebugConnectionInfo();
     }
 }
