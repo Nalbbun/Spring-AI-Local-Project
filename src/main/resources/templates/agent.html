@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>에이전트 관리 — Nalbbun AI</title>
+    <link rel="stylesheet" href="/css/console-common.css">
+</head>
+<body>
+
+<div th:replace="~{fragments/nav :: nav}" th:with="currentPage='agent'"></div>
+
+<div class="page-wrap">
+
+    <!-- 헤더 -->
+    <div class="card hero-title">
+        <div>
+            <h1>🚀 에이전트 관리</h1>
+            <div class="small">에이전트 설정 확인, 웹 검색 테스트, 에이전트 실행 테스트를 수행합니다.</div>
+        </div>
+        <div class="status">
+            <span class="chip" id="searchModelChip">search: -</span>
+            <span class="chip" id="planModelChip">plan: -</span>
+            <span class="chip" id="searchProviderChip">provider: -</span>
+        </div>
+    </div>
+
+    <!-- 에이전트 현황 -->
+    <div class="card">
+        <h2>에이전트 현황</h2>
+        <div class="grid">
+            <div>
+                <label>Travel 에이전트 모델</label>
+                <div class="panel" id="agentModelInfo" style="min-height:80px;padding:10px">로딩 중...</div>
+            </div>
+            <div>
+                <label>Tool Calling 지원 모델</label>
+                <div class="panel" id="toolSupportInfo" style="min-height:80px;padding:10px">
+                    <span style="color:#94a3b8;font-size:13px">✅ qwen2.5-coder:14b<br>✅ qwen3-coder:latest<br>❌ blossom 계열 (명시 차단)</span>
+                </div>
+            </div>
+        </div>
+        <div class="actions top-gap">
+            <button id="btnRefreshAgentInfo" class="primary" type="button">🔄 현황 새로고침</button>
+        </div>
+    </div>
+
+    <!-- 모델 설정 변경 -->
+    <div class="card">
+        <h2>에이전트 모델 변경</h2>
+        <div class="small">변경 후 즉시 적용됩니다. 모델 목록은 Ollama 실행 중인 모델 기준입니다.</div>
+        <div class="actions top-gap">
+            <button id="btnLoadAgentModels" class="gray" type="button">🔄 모델 목록 불러오기</button>
+        </div>
+        <div class="row2 top-gap">
+            <div>
+                <label for="travelSearchModel">TRAVEL Search 모델 <span class="small">(tool calling 필요)</span></label>
+                <select id="travelSearchModel"><option value="">-- 선택 --</option></select>
+            </div>
+            <div>
+                <label for="travelPlanModel">TRAVEL Plan 모델</label>
+                <select id="travelPlanModel"><option value="">-- 선택 --</option></select>
+            </div>
+        </div>
+        <div id="agentModelSaveStatus" class="panel top-gap" style="min-height:40px">대기 중</div>
+        <div class="actions top-gap">
+            <button id="btnSaveAgentModels" class="green" type="button">💾 저장</button>
+            <button id="btnResetAgentModels" class="gray" type="button">↩ 초기화</button>
+        </div>
+    </div>
+
+    <!-- 웹 검색 테스트 -->
+    <div class="card">
+        <h2>🌐 웹 검색 테스트 (Tavily)</h2>
+        <div class="small">에이전트가 실제로 사용하는 웹 검색 API를 직접 테스트합니다.</div>
+        <div class="top-gap">
+            <label for="searchQuery">검색 쿼리</label>
+            <input id="searchQuery" placeholder="예: 부산 맛집 추천">
+        </div>
+        <div class="actions top-gap">
+            <button id="btnWebSearch" class="primary" type="button">🔍 검색</button>
+        </div>
+        <div id="webSearchResult" class="panel top-gap" style="min-height:120px">검색 결과가 여기에 표시됩니다.</div>
+    </div>
+
+    <!-- 에이전트 실행 테스트 -->
+    <div class="card">
+        <h2>🤖 에이전트 실행 테스트</h2>
+        <div class="row2">
+            <div>
+                <label for="agentCategory">카테고리</label>
+                <select id="agentCategory">
+                    <option value="TRAVEL">TRAVEL (여행 계획)</option>
+                </select>
+            </div>
+            <div>
+                <label for="agentMessage">질문</label>
+                <textarea id="agentMessage" spellcheck="false" placeholder="예: 제주도 3박4일 100만원 여행 일정 짜줘"></textarea>
+            </div>
+        </div>
+        <div class="actions top-gap">
+            <button id="btnRunAgent" class="primary" type="button">▶ 에이전트 실행</button>
+            <button id="btnClearAgent" class="gray" type="button">화면 지우기</button>
+            <button id="btnMemoryClear" class="red" type="button">🗑 대화 초기화</button>
+        </div>
+
+        <!-- 단계 시각화 -->
+        <div class="top-gap">
+            <label>에이전트 진행 단계</label>
+            <div id="agentSteps" class="agent-steps top-gap">
+                <div class="step-idle">에이전트를 실행하면 단계별 진행 상황이 표시됩니다.</div>
+            </div>
+            <div class="small top-gap">소요 시간: <span id="elapsedTime">-</span></div>
+        </div>
+
+        <div class="grid top-gap">
+            <div>
+                <label>최종 응답</label>
+                <div id="agentResult" class="panel" style="min-height:220px"></div>
+            </div>
+            <div>
+                <label>이벤트 로그</label>
+                <div id="agentLog" class="panel" style="min-height:220px"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.agent-steps { display: flex; flex-direction: column; gap: 8px; }
+.step-idle { color: var(--muted); font-size: 13px; }
+.agent-step { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-soft); background: #0b1220; font-size: 13px; }
+.agent-step.running  { border-color: #2563eb; background: #0f1e3a; }
+.agent-step.complete { border-color: #047857; background: #0a2018; }
+.agent-step.error    { border-color: #b91c1c; background: #2a0a0a; }
+.step-icon { font-size: 16px; min-width: 22px; }
+.step-body { flex: 1; }
+.step-name { font-weight: 700; color: #e2e8f0; }
+.step-msg  { color: #94a3b8; margin-top: 2px; }
+</style>
+
+<script src="/js/rag-common.js"></script>
+<script src="/js/chat-common.js"></script>
+<script src="/js/agent-page.js"></script>
+</body>
+</html>

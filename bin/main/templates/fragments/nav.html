@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="nav" class="site-nav">
+    <div class="nav-inner">
+        <a class="nav-brand" href="/">🤖 Nalbbun AI</a>
+        <div class="nav-links">
+            <a href="/" th:classappend="${currentPage == 'chat'} ? 'active'">💬 일반채팅</a>
+            <a href="/chat/rag" th:classappend="${currentPage == 'chat-rag'} ? 'active'">📚 RAG채팅</a>
+            <a href="/chat/agent" th:classappend="${currentPage == 'chat-agent'} ? 'active'">🤖 에이전트채팅</a>
+            <span class="nav-divider">|</span>
+            <a href="/settings" th:classappend="${currentPage == 'settings'} ? 'active'">⚙️ 설정</a>
+            <a href="/rag" th:classappend="${currentPage == 'rag'} ? 'active'">🗄 RAG관리</a>
+            <a href="/agent" th:classappend="${currentPage == 'agent'} ? 'active'">🚀 에이전트관리</a>
+            <span class="nav-divider">|</span>
+            <a href="/debug" class="nav-debug">🔧 Debug</a>
+        </div>
+    </div>
+</nav>
+</body>
+</html>
