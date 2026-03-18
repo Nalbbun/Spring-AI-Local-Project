@@ -37,12 +37,14 @@ public class CategoryChatOrchestrator {
     public CategoryResult execute(String userQuery,
                                   String conversationId,
                                   ChatCategory requestedCategory,
+                                  String promptId,
                                   SseEmitter emitter) {
 
         ConversationState state = new ConversationState();
         state.setConversationId(conversationId);
         state.setUserQuery(userQuery);
         state.setRequestedCategory(requestedCategory);
+        state.setPromptId(promptId);
 
         CategoryResolution resolution = categoryResolver.resolve(userQuery, requestedCategory);
         state.setResolvedCategory(resolution.getCategory());

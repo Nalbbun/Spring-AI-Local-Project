@@ -51,6 +51,7 @@
   function send() {
     const message  = val('message');
     const category = val('category');
+    const promptId = window.PromptSelector?.selected('promptSelect') || '';
     if (!message) { logLine(logEl(), '[error] 메시지를 입력하세요.'); return; }
     if (es) { es.close(); es = null; }
 
@@ -61,9 +62,10 @@
     Object.keys(steps).forEach(k => delete steps[k]);
     startTime = Date.now();
 
-    const url = `/api/chat/stream?message=${encodeURIComponent(message)}&category=${encodeURIComponent(category)}`;
+    let url = `/api/chat/stream?message=${encodeURIComponent(message)}&category=${encodeURIComponent(category)}`;
+    if (promptId) url += `&promptId=${encodeURIComponent(promptId)}`;
     logLine(logEl(), `[request] ${message}`);
-    logLine(logEl(), `[category] ${category}`);
+    logLine(logEl(), `[category] ${category} | prompt: ${promptId || '기본'}`);
 
     es = startStream({
       url,
@@ -109,6 +111,8 @@
     });
     // 메모리 인라인 패널
     window.ChatMemoryPanel?.init();
+    // 프롬프트 초기 로드 (TRAVEL 카테고리)
+    window.PromptSelector?.init('promptSelect', 'TRAVEL');
     loadModelInfo();
   });
 })();

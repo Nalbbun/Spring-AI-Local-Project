@@ -41,6 +41,13 @@
                     <option value="MICE">MICE</option>
                     <option value="TRAVEL">TRAVEL</option>
                 </select>
+                <label for="promptSelect" class="top-gap">📝 프롬프트 선택</label>
+                <select id="promptSelect">
+                    <option value="">🔧 기본 프롬프트</option>
+                </select>
+                <div class="small top-gap" style="color:#64748b">
+                    <a href="/prompts" style="color:#93c5fd">프롬프트 관리 →</a>
+                </div>
             </div>
             <div>
                 <label for="message">질문 내용</label>
@@ -85,6 +92,7 @@
 <script src="/js/rag-common.js"></script>
 <script src="/js/chat-common.js"></script>
 <script src="/js/chat-memory-panel.js"></script>
+<script src="/js/prompt-selector.js"></script>
 <script src="/js/chat-page.js"></script>
 </body>
 </html>

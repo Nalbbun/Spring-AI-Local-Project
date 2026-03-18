@@ -445,6 +445,7 @@
   function runTest() {
     const message  = val('testMessage');
     const category = val('testCategory');
+    const promptId = window.PromptSelector?.selected('testPromptSelect') || '';
     if (!message) { logLine(qs('testLog'), '[error] 질문을 입력하세요.'); return; }
     if (testEs) { testEs.close(); testEs = null; }
     testTokenState.text = '';
@@ -453,7 +454,8 @@
 
     let url = `/api/chat/stream?message=${encodeURIComponent(message)}`;
     if (category) url += `&category=${encodeURIComponent(category)}`;
-    logLine(qs('testLog'), `[request] ${message}`);
+    if (promptId) url += `&promptId=${encodeURIComponent(promptId)}`;
+    logLine(qs('testLog'), `[request] ${message} | prompt: ${promptId || '기본'}`);
 
     testEs = startStream({
       url,
@@ -554,6 +556,12 @@
     qs('testMessage')?.addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runTest();
     });
+    // 테스트 카테고리 변경 시 프롬프트 목록 갱신
+    qs('testCategory')?.addEventListener('change', () => {
+      window.PromptSelector?.init('testPromptSelect', val('testCategory') || null);
+    });
+    // 프롬프트 초기 로드
+    window.PromptSelector?.init('testPromptSelect', null);
 
     loadAll();
   });

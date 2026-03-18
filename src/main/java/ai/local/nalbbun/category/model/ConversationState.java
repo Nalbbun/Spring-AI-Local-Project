@@ -19,6 +19,9 @@ public class ConversationState {
     private String conversationId;
     private String userQuery;
 
+    /** 채팅 요청 시 전달된 프롬프트 ID (null이면 기본 프롬프트 사용) */
+    private String promptId;
+
     private ChatCategory requestedCategory;
     private ChatCategory resolvedCategory;
 

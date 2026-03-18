@@ -17,6 +17,7 @@ import ai.local.nalbbun.memory.service.ConversationMemoryService;
 import ai.local.nalbbun.support.sse.AgentEventPublisher;
 import ai.local.nalbbun.support.sse.SseEmitterHelper;
 import ai.local.nalbbun.support.sse.SseEventNames;
+import ai.local.nalbbun.prompt.service.PromptService;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -37,6 +38,14 @@ public class DevCategoryHandler implements CategoryHandler {
     private final AgentEventPublisher agentEventPublisher;
     private final RagSupportService ragSupportService;
     private final SseEmitterHelper sseEmitterHelper;
+    private final PromptService promptService;
+
+    private static final String DEFAULT_SYSTEM_PROMPT = """
+            당신은 실무 중심의 개발/인프라/리팩토링 기술 어시스턴트입니다.
+            응답은 우선순위와 단계 순서가 보이도록 작성하세요.
+            최근 대화의 연속성과 이전 구조 결정을 반영하세요.
+            필요하면 선택지보다 권장안을 먼저 제시하세요.
+            """;
 
     /**
      * category 기능을 수행한다.
@@ -85,14 +94,20 @@ public class DevCategoryHandler implements CategoryHandler {
                 ragContext.getTraceMessage()
         );
 
+        // 프롬프트 적용 정보 로그
+        String resolvedPromptId = state.getPromptId();
+        String systemPrompt = promptService.resolveSystemPrompt(resolvedPromptId, ChatCategory.DEV)
+                .orElse(DEFAULT_SYSTEM_PROMPT);
+        String promptLabel = resolvedPromptId != null && !resolvedPromptId.isBlank()
+                ? "선택 프롬프트(id=" + resolvedPromptId + ")"
+                : (promptService.resolveSystemPrompt(null, ChatCategory.DEV).isPresent()
+                        ? "DB 기본 프롬프트" : "내장 기본 프롬프트");
+        agentEventPublisher.send(emitter, "PromptTrace-DEV", "info",
+                "prompt=" + promptLabel + " | preview=" + systemPrompt.trim().replace("\n", " ").substring(0, Math.min(60, systemPrompt.trim().length())) + "...");
+
         String response = responseGenerator.generateStreaming(
                 ChatCategory.DEV,
-                """
-                당신은 실무 중심의 개발/인프라/리팩토링 기술 어시스턴트입니다.
-                응답은 우선순위와 단계 순서가 보이도록 작성하세요.
-                최근 대화의 연속성과 이전 구조 결정을 반영하세요.
-                필요하면 선택지보다 권장안을 먼저 제시하세요.
-                """,
+                systemPrompt,
                 parsedSummary,
                 state,
                 ragContext.getPromptBlock(),

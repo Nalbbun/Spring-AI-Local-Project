@@ -62,6 +62,7 @@ public class ChatController {
     public SseEmitter stream(
             @RequestParam(name = "message") String message,
             @RequestParam(name = "category", required = false) ChatCategory category,
+            @RequestParam(name = "promptId", required = false) String promptId,
             HttpServletRequest request,
             HttpSession session
     ) {
@@ -74,6 +75,7 @@ public class ChatController {
                         message,
                         conversationId,
                         category,
+                        promptId,
                         emitter
                 );
 

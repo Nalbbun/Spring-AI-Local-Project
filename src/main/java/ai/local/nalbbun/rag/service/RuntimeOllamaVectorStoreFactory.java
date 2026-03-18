@@ -49,6 +49,31 @@ public class RuntimeOllamaVectorStoreFactory {
     @Value("${spring.ai.ollama.embedding.options.keep-alive:300s}")
     private String embeddingKeepAlive;
 
+    // ── 런타임 변경 메서드 ─────────────────────────────────
+    /** EmbeddingConfigService에서 호출 — 임베딩 모델 런타임 변경 */
+    public void setEmbeddingModel(String model) {
+        if (model != null && !model.isBlank()) {
+            this.embeddingModelName = model.trim();
+            log.info("Embedding model changed to: {}", this.embeddingModelName);
+        }
+    }
+
+    public void setEmbeddingKeepAlive(String keepAlive) {
+        if (keepAlive != null && !keepAlive.isBlank()) {
+            this.embeddingKeepAlive = keepAlive.trim();
+        }
+    }
+
+    public void setDimensions(int dimensions) {
+        if (dimensions > 0) {
+            this.dimensions = dimensions;
+        }
+    }
+
+    public String getEmbeddingModelName() { return embeddingModelName; }
+    public String getEmbeddingKeepAlive() { return embeddingKeepAlive; }
+    public int    getDimensions()         { return dimensions; }
+
     @Value("${app.ollama.connect-timeout-ms:5000}")
     private long ollamaConnectTimeoutMs;
 

@@ -224,6 +224,98 @@
     }
   }
 
+  // ── 임베딩 모델 설정 ────────────────────────────────────
+
+  async function loadEmbeddingConfig() {
+    try {
+      const d = await fetchJson('/debug/api/rag/embedding/config');
+      setText('embCurrentModel',      d.model      || '-');
+      setText('embCurrentKeepAlive',  d.keepAlive  || '-');
+      setText('embCurrentDimensions', String(d.dimensions || '-'));
+      // 직접 입력 필드에도 반영
+      if (qs('embModelInput'))      qs('embModelInput').value      = d.model     || '';
+      if (qs('embKeepAliveInput'))  qs('embKeepAliveInput').value  = d.keepAlive || '300s';
+      if (qs('embDimensionsInput')) qs('embDimensionsInput').value = d.dimensions || 768;
+      setText('embStatus',
+          `현재 설정 — model: ${d.model} | keepAlive: ${d.keepAlive} | dimensions: ${d.dimensions}\n` +
+          `기본값 — model: ${d.defaultModel} | dimensions: ${d.defaultDimensions}`);
+      log(`[임베딩] 현재: ${d.model} (${d.dimensions}dim)`);
+    } catch (e) {
+      setText('embStatus', '임베딩 설정 조회 실패: ' + e.message);
+      log('[임베딩] 조회 실패: ' + e.message);
+    }
+  }
+
+  async function loadEmbeddingModels() {
+    try {
+      const d    = await fetchJson('/debug/api/rag/embedding/models');
+      const sel  = qs('embModelSelect');
+      const list = d.models || [];
+      if (!sel) return;
+      sel.innerHTML =
+          '<option value="">-- 모델을 선택하세요 --</option>' +
+          list.map(m => `<option value="${htmlEscape(m)}"${m === d.currentModel ? ' selected' : ''}>${htmlEscape(m)}</option>`).join('');
+      log(`[임베딩] 모델 목록 ${list.length}개 조회: ${list.join(', ') || '(없음)'}`);
+      if (!list.length) setText('embStatus', '⚠ Ollama에 설치된 모델이 없습니다. 모델을 먼저 Pull하세요.');
+    } catch (e) {
+      log('[임베딩] 모델 목록 조회 실패: ' + e.message);
+    }
+  }
+
+  async function saveEmbeddingConfig() {
+    const model     = qs('embModelInput')?.value?.trim()      || '';
+    const keepAlive = qs('embKeepAliveInput')?.value?.trim()  || '300s';
+    const dimensions = parseInt(qs('embDimensionsInput')?.value || '768', 10);
+
+    if (!model) { setText('embStatus', '⚠ 임베딩 모델명을 입력하세요.'); return; }
+    if (!dimensions || dimensions < 64) { setText('embStatus', '⚠ Dimensions는 64 이상이어야 합니다.'); return; }
+
+    setText('embStatus', '저장 중...');
+    try {
+      const d = await fetchJson('/debug/api/rag/embedding/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, keepAlive, dimensions }),
+      });
+      setText('embCurrentModel',      d.model);
+      setText('embCurrentKeepAlive',  d.keepAlive);
+      setText('embCurrentDimensions', String(d.dimensions));
+      setText('embStatus',
+          `✅ 적용 완료 — model: ${d.model} | keepAlive: ${d.keepAlive} | dimensions: ${d.dimensions}\n` +
+          `⚠ 기존 인덱스된 문서와 dimensions가 다르다면 소스 재인덱스가 필요합니다.`);
+      log(`[임베딩] 설정 적용: ${d.model} (${d.dimensions}dim, keepAlive=${d.keepAlive})`);
+    } catch (e) {
+      setText('embStatus', '설정 저장 실패: ' + e.message);
+      log('[임베딩] 저장 실패: ' + e.message);
+    }
+  }
+
+  async function resetEmbeddingConfig() {
+    if (!confirm('임베딩 설정을 기본값으로 초기화할까요?')) return;
+    try {
+      const d = await fetchJson('/debug/api/rag/embedding/config/reset', { method: 'POST' });
+      setText('embCurrentModel',      d.model);
+      setText('embCurrentKeepAlive',  d.keepAlive);
+      setText('embCurrentDimensions', String(d.dimensions));
+      if (qs('embModelInput'))      qs('embModelInput').value      = d.model;
+      if (qs('embKeepAliveInput'))  qs('embKeepAliveInput').value  = d.keepAlive;
+      if (qs('embDimensionsInput')) qs('embDimensionsInput').value = d.dimensions;
+      setText('embStatus', `↩ 기본값으로 초기화 완료 — model: ${d.model} | dimensions: ${d.dimensions}`);
+      log(`[임베딩] 초기화: ${d.model} (${d.dimensions}dim)`);
+    } catch (e) {
+      setText('embStatus', '초기화 실패: ' + e.message);
+    }
+  }
+
+  // 프리셋 클릭 → 입력 필드 채우기
+  window._applyPreset = (model, keepAlive, dimensions) => {
+    if (qs('embModelInput'))      qs('embModelInput').value      = model;
+    if (qs('embKeepAliveInput'))  qs('embKeepAliveInput').value  = keepAlive;
+    if (qs('embDimensionsInput')) qs('embDimensionsInput').value = dimensions;
+    setText('embStatus', `프리셋 선택: ${model} (${dimensions}dim) — 저장 버튼을 눌러 적용하세요.`);
+    log(`[임베딩] 프리셋 선택: ${model} (${dimensions}dim)`);
+  };
+
   // ── 초기화 ─────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     qs('btnRefreshStatus')?.addEventListener('click', loadStatus);
@@ -236,7 +328,21 @@
     qs('btnSearchClear')?.addEventListener('click', () => {
       if (qs('searchResultPanel')) qs('searchResultPanel').textContent = '검색 결과가 여기에 표시됩니다.';
     });
+
+    // 임베딩 모델 설정
+    qs('btnLoadEmbConfig')?.addEventListener('click',  loadEmbeddingConfig);
+    qs('btnSaveEmbConfig')?.addEventListener('click',  saveEmbeddingConfig);
+    qs('btnResetEmbConfig')?.addEventListener('click', resetEmbeddingConfig);
+    qs('btnLoadEmbModels')?.addEventListener('click',  loadEmbeddingModels);
+    qs('btnApplySelectedModel')?.addEventListener('click', () => {
+      const sel = qs('embModelSelect')?.value;
+      if (!sel) { log('[임베딩] 모델을 선택해 주세요.'); return; }
+      if (qs('embModelInput')) qs('embModelInput').value = sel;
+      setText('embStatus', `선택된 모델: ${sel} — 저장 버튼을 눌러 적용하세요.`);
+    });
+
     loadStatus();
     listSources();
+    loadEmbeddingConfig();  // 페이지 진입 시 임베딩 설정 자동 조회
   });
 })();

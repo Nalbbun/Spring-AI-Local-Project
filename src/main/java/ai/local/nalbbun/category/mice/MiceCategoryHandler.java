@@ -17,6 +17,7 @@ import ai.local.nalbbun.memory.service.ConversationMemoryService;
 import ai.local.nalbbun.support.sse.AgentEventPublisher;
 import ai.local.nalbbun.support.sse.SseEmitterHelper;
 import ai.local.nalbbun.support.sse.SseEventNames;
+import ai.local.nalbbun.prompt.service.PromptService;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -37,6 +38,14 @@ public class MiceCategoryHandler implements CategoryHandler {
     private final AgentEventPublisher agentEventPublisher;
     private final RagSupportService ragSupportService;
     private final SseEmitterHelper sseEmitterHelper;
+    private final PromptService promptService;
+
+    private static final String DEFAULT_SYSTEM_PROMPT = """
+            당신은 MICE/행사기획 전문 어시스턴트입니다.
+            답변은 배경-목표-방향-구성 순으로 정리하고,
+            이전 대화에서 정리된 메시지, 구조, 방향성을 이어받아 일관성 있게 작성하세요.
+            필요시 슬로건, 기획 의도, 운영 포인트를 구조적으로 제시하세요.
+            """;
 
     /**
      * category 기능을 수행한다.
@@ -85,14 +94,20 @@ public class MiceCategoryHandler implements CategoryHandler {
                 ragContext.getTraceMessage()
         );
 
+        // 프롬프트 적용 정보 로그
+        String resolvedPromptId = state.getPromptId();
+        String systemPrompt = promptService.resolveSystemPrompt(resolvedPromptId, ChatCategory.MICE)
+                .orElse(DEFAULT_SYSTEM_PROMPT);
+        String promptLabel = resolvedPromptId != null && !resolvedPromptId.isBlank()
+                ? "선택 프롬프트(id=" + resolvedPromptId + ")"
+                : (promptService.resolveSystemPrompt(null, ChatCategory.MICE).isPresent()
+                        ? "DB 기본 프롬프트" : "내장 기본 프롬프트");
+        agentEventPublisher.send(emitter, "PromptTrace-MICE", "info",
+                "prompt=" + promptLabel + " | preview=" + systemPrompt.trim().replace("\n", " ").substring(0, Math.min(60, systemPrompt.trim().length())) + "...");
+
         String response = responseGenerator.generateStreaming(
                 ChatCategory.MICE,
-                """
-                당신은 MICE/행사기획 전문 어시스턴트입니다.
-                답변은 배경-목표-방향-구성 순으로 정리하고,
-                이전 대화에서 정리된 메시지, 구조, 방향성을 이어받아 일관성 있게 작성하세요.
-                필요시 슬로건, 기획 의도, 운영 포인트를 구조적으로 제시하세요.
-                """,
+                systemPrompt,
                 parsedSummary,
                 state,
                 ragContext.getPromptBlock(),

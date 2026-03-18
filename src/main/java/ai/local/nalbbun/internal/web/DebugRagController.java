@@ -39,12 +39,10 @@ import ai.local.nalbbun.rag.service.RagSupportService;
 import ai.local.nalbbun.rag.trace.DebugRagTraceService;
 import lombok.RequiredArgsConstructor;
 
+import ai.local.nalbbun.rag.service.EmbeddingConfigService;
+
 /**
  * Debug Rag Controller 타입이다.
- *
- * <p>기능 설명: HTTP 요청을 받아 서비스 또는 오케스트레이터로 전달하고 응답을 구성한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
- * <p>입력: HTTP 요청 파라미터, 요청 본문, 세션 또는 헤더 정보</p>
- * <p>출력: HTTP 응답, SSE 이벤트, 뷰 이름 또는 직렬화 가능한 결과</p>
  */
 @RestController
 @Profile("local")
@@ -60,6 +58,7 @@ public class DebugRagController {
     private final RagSourceAdminService ragSourceAdminService;
     private final DebugDatabaseInfoService debugDatabaseInfoService;
     private final DebugRagTraceService debugRagTraceService;
+    private final EmbeddingConfigService embeddingConfigService;
 
     /**
      * status 요청을 처리한다.
@@ -383,6 +382,39 @@ public class DebugRagController {
      * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
      * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
      */
+    // ── 임베딩 모델 설정 ──────────────────────────────────────────────────────
+
+    /** 현재 임베딩 설정 조회 */
+    @GetMapping("/embedding/config")
+    public Map<String, Object> getEmbeddingConfig() {
+        return embeddingConfigService.getCurrentConfig();
+    }
+
+    /** 임베딩 설정 변경 (model, keepAlive, dimensions) */
+    @PostMapping("/embedding/config")
+    public Map<String, Object> updateEmbeddingConfig(@RequestBody Map<String, Object> body) {
+        String model     = body.containsKey("model")     ? String.valueOf(body.get("model"))     : null;
+        String keepAlive = body.containsKey("keepAlive") ? String.valueOf(body.get("keepAlive")) : null;
+        Integer dims     = body.containsKey("dimensions")
+                ? Integer.parseInt(String.valueOf(body.get("dimensions"))) : null;
+        return embeddingConfigService.applyConfig(model, keepAlive, dims);
+    }
+
+    /** 임베딩 설정 기본값으로 초기화 */
+    @PostMapping("/embedding/config/reset")
+    public Map<String, Object> resetEmbeddingConfig() {
+        return embeddingConfigService.resetConfig();
+    }
+
+    /** Ollama 설치된 모델 목록 (임베딩 모델 선택용) */
+    @GetMapping("/embedding/models")
+    public Map<String, Object> listEmbeddingModels() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("currentModel", embeddingConfigService.getModel());
+        result.put("models", embeddingConfigService.listAvailableModels());
+        return result;
+    }
+
     private RagSourceManifest findManifest(ChatCategory category, String source, String version) {
         return ragSourceCatalogService.listSources(category, source, version)
                 .stream()

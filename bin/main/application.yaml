@@ -91,6 +91,9 @@ app:
     redis:
       ttl-hours: ${APP_MEMORY_REDIS_TTL_HOURS:24}
 
+  prompt:
+    store: ${APP_PROMPT_STORE:jdbc}
+
   search:
     provider: ${APP_SEARCH_PROVIDER:tavily}
     tavily:
