@@ -513,6 +513,96 @@
   }
 
   // ══════════════════════════════════════════════════════
+  // ⑦ 카테고리별 모델 우선순위
+  // ══════════════════════════════════════════════════════
+  const PRIORITY_OPTIONS = [
+    { value: 'OLLAMA_FIRST',  label: '🟢 OLLAMA_FIRST',  desc: 'Ollama 우선, 실패 시 OpenAI' },
+    { value: 'OPENAI_FIRST',  label: '🔵 OPENAI_FIRST',  desc: 'OpenAI 우선 (유료)' },
+    { value: 'OLLAMA_ONLY',   label: '⚫ OLLAMA_ONLY',   desc: 'Ollama 전용, OpenAI 차단' },
+    { value: 'OPENAI_ONLY',   label: '🟣 OPENAI_ONLY',   desc: 'OpenAI 전용 (유료)' },
+  ];
+
+  const PRIORITY_TARGETS = [
+    { key: 'GENERAL',       label: '💬 GENERAL' },
+    { key: 'DEV',           label: '💻 DEV' },
+    { key: 'MICE',          label: '🎪 MICE' },
+    { key: 'TRAVEL_SEARCH', label: '✈️ TRAVEL Search' },
+    { key: 'TRAVEL_PLAN',   label: '🗺 TRAVEL Plan' },
+  ];
+
+  function renderPriorityGrid(data) {
+    const grid = qs('priorityGrid');
+    if (!grid) return;
+    grid.innerHTML = PRIORITY_TARGETS.map(t => {
+      const current = (data[t.key] && data[t.key].priority) || 'OLLAMA_FIRST';
+      const opts = PRIORITY_OPTIONS.map(o =>
+        `<option value="${o.value}" ${o.value === current ? 'selected' : ''}>${o.label}</option>`
+      ).join('');
+      return `<div style="background:#0b1220;border:1px solid #1e293b;border-radius:10px;padding:12px">
+        <div style="font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:8px">${t.label}</div>
+        <select id="priority_${t.key}" style="font-size:12px">${opts}</select>
+        <div style="font-size:11px;color:#64748b;margin-top:4px" id="priorityDesc_${t.key}">
+          ${PRIORITY_OPTIONS.find(o => o.value === current)?.desc || ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    // select 변경 시 설명 업데이트
+    PRIORITY_TARGETS.forEach(t => {
+      const sel = qs('priority_' + t.key);
+      const desc = qs('priorityDesc_' + t.key);
+      if (sel && desc) {
+        sel.addEventListener('change', () => {
+          desc.textContent = PRIORITY_OPTIONS.find(o => o.value === sel.value)?.desc || '';
+        });
+      }
+    });
+  }
+
+  async function loadPriority() {
+    try {
+      const data = await fetchJson('/api/model-priority');
+      renderPriorityGrid(data);
+      const summary = PRIORITY_TARGETS.map(t => {
+        const p = (data[t.key] && data[t.key].priority) || '?';
+        return `${t.label}: ${p}`;
+      }).join('  |  ');
+      setText('priorityStatus', '현재 설정 — ' + summary);
+    } catch (e) { setText('priorityStatus', '조회 실패: ' + e.message); }
+  }
+
+  async function savePriority() {
+    const body = {};
+    PRIORITY_TARGETS.forEach(t => {
+      const sel = qs('priority_' + t.key);
+      if (sel) body[t.key] = sel.value;
+    });
+    setText('priorityStatus', '저장 중...');
+    try {
+      const data = await fetchJson('/api/model-priority', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      renderPriorityGrid(data);
+      const summary = PRIORITY_TARGETS.map(t => {
+        const p = (data[t.key] && data[t.key].priority) || '?';
+        return `${t.label}: ${p}`;
+      }).join('  |  ');
+      setText('priorityStatus', '✅ 저장 완료 — ' + summary);
+    } catch (e) { setText('priorityStatus', '저장 실패: ' + e.message); }
+  }
+
+  async function resetPriority() {
+    if (!confirm('모든 카테고리를 OLLAMA_FIRST로 초기화할까요?')) return;
+    try {
+      const data = await fetchJson('/api/model-priority/reset', { method: 'POST' });
+      renderPriorityGrid(data);
+      setText('priorityStatus', '↩ 초기화 완료 — 모든 카테고리 OLLAMA_FIRST');
+    } catch (e) { setText('priorityStatus', '초기화 실패: ' + e.message); }
+  }
+
+  // ══════════════════════════════════════════════════════
   // 이벤트 바인딩
   // ══════════════════════════════════════════════════════
   document.addEventListener('DOMContentLoaded', () => {
@@ -546,6 +636,11 @@
     qs('btnSaveConfig')?.addEventListener('click', saveConfig);
     qs('btnResetConfig')?.addEventListener('click', resetConfig);
 
+    // ⑦ 우선순위
+    qs('btnSavePriority')?.addEventListener('click',  savePriority);
+    qs('btnResetPriority')?.addEventListener('click', resetPriority);
+    qs('btnLoadPriority')?.addEventListener('click',  loadPriority);
+
     qs('btnTest')?.addEventListener('click', runTest);
     qs('btnTestClear')?.addEventListener('click', () => {
       testTokenState.text = '';
@@ -564,5 +659,6 @@
     window.PromptSelector?.init('testPromptSelect', null);
 
     loadAll();
+    loadPriority();  // 우선순위 초기 로드
   });
 })();

@@ -1,6 +1,6 @@
 (() => {
   const { qs, val, setText, fetchJson } = window.UiCommon;
-  const { startStream, logLine, appendToken } = window.ChatCommon;
+  const { startStream, logLine, appendToken, showResultSkeleton, hideResultSkeleton } = window.ChatCommon;
   let es = null;
 
   const resultEl   = () => qs('result');
@@ -9,9 +9,18 @@
   const loadingTxt = () => qs('loadingText');
   const tokenState = { text: '' };
 
-  function setLoading(active, text = '처리 중...') {
+  // 오버레이 + 버튼 제어
+  function setLoading(active, text = '응답 생성 중...') {
     if (loadingTxt()) loadingTxt().textContent = text;
     overlayEl()?.classList.toggle('active', active);
+    const btn = qs('btnSend');
+    if (btn) btn.classList.toggle('btn-loading', active);
+  }
+
+  // 첫 토큰 수신 → 오버레이 숨기고 스켈레톤 제거
+  function onFirstToken() {
+    setLoading(false);
+    hideResultSkeleton(resultEl());
   }
 
   function clearView() {
@@ -19,12 +28,13 @@
     if (resultEl()) resultEl().textContent = '';
     if (logEl())    logEl().textContent    = '';
     if (es) { es.close(); es = null; }
+    setLoading(false);
   }
 
   function send() {
-    const message   = val('message');
-    const category  = val('category');
-    const promptId  = window.PromptSelector?.selected('promptSelect') || '';
+    const message  = val('message');
+    const category = val('category');
+    const promptId = window.PromptSelector?.selected('promptSelect') || '';
     if (!message) { logLine(logEl(), '[error] 메시지를 입력하세요.'); return; }
     if (es) { es.close(); es = null; }
 
@@ -38,15 +48,27 @@
 
     logLine(logEl(), `[request] ${message}`);
     logLine(logEl(), `[category] ${category || 'AUTO'} | prompt: ${promptId || '기본'}`);
+
+    // 로딩 표시 + 스켈레톤 삽입
     setLoading(true, '응답 생성 중...');
+    showResultSkeleton(resultEl());
 
     es = startStream({
       url,
-      onToken: token => appendToken(resultEl(), token, tokenState),
-      onAgent: ({ agent, status, message: msg }) =>
-        logLine(logEl(), `[agent:${agent}] ${status} — ${msg}`),
-      onComplete: () => { logLine(logEl(), '[complete] 스트림 종료'); setLoading(false); },
-      onError:    () => { logLine(logEl(), '[error] 스트림 오류');    setLoading(false); },
+      onFirstToken,  // 첫 토큰 → 오버레이 & 스켈레톤 숨김
+      onToken:    token => appendToken(resultEl(), token, tokenState),
+      onAgent:    ({ agent, status, message: msg }) =>
+                    logLine(logEl(), `[agent:${agent}] ${status} — ${msg}`),
+      onComplete: () => {
+        logLine(logEl(), '[complete] 스트림 종료');
+        setLoading(false);
+        hideResultSkeleton(resultEl());
+      },
+      onError: () => {
+        logLine(logEl(), '[error] 스트림 오류');
+        setLoading(false);
+        hideResultSkeleton(resultEl());
+      },
     });
   }
 
@@ -69,10 +91,8 @@
     } catch { /* local profile 외에서는 무시 */ }
   }
 
-  // 카테고리 변경 시 프롬프트 목록 갱신
   function onCategoryChange() {
-    const cat = val('category');
-    window.PromptSelector?.init('promptSelect', cat || null);
+    window.PromptSelector?.init('promptSelect', val('category') || null);
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -83,9 +103,7 @@
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send();
     });
     qs('category')?.addEventListener('change', onCategoryChange);
-    // 메모리 인라인 패널
     window.ChatMemoryPanel?.init();
-    // 프롬프트 목록 초기 로드
     window.PromptSelector?.init('promptSelect', null);
     loadStatus();
   });

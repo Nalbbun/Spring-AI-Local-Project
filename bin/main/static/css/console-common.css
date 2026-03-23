@@ -111,3 +111,20 @@ h1,h2,h3{margin:0 0 10px}
 .mem-tab{width:auto;min-width:90px;padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:#0b1220;color:#94a3b8;font-size:13px;font-weight:400;cursor:pointer}
 .mem-tab.active{background:#1e3a5f;color:#93c5fd;border-color:#2563eb;font-weight:700}
 .mem-tab:hover:not(.active){background:#1e293b;color:#e2e8f0}
+
+/* ── 답변 패널 스켈레톤 로딩 ──────────────────────── */
+.result-skeleton{padding:8px 0}
+@keyframes sk-shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+.sk-bar{
+  height:14px;border-radius:7px;margin-bottom:10px;
+  background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%);
+  background-size:1200px 100%;
+  animation:sk-shimmer 1.6s infinite linear;
+}
+/* 버튼 로딩 상태 */
+.btn-loading{opacity:.6;pointer-events:none;position:relative}
+.btn-loading::after{
+  content:'';display:inline-block;width:12px;height:12px;margin-left:8px;
+  border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+  border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;
+}

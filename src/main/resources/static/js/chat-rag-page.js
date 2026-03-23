@@ -1,6 +1,6 @@
 (() => {
   const { qs, val, setText, fetchJson, pretty, htmlEscape } = window.UiCommon;
-  const { startStream, logLine, appendToken } = window.ChatCommon;
+  const { startStream, logLine, appendToken, showResultSkeleton, hideResultSkeleton } = window.ChatCommon;
   let es = null;
 
   const resultEl = () => qs('result');
@@ -15,6 +15,20 @@
     if (logEl())    logEl().textContent    = '';
     setText('ragHitInfo', '');
     if (es) { es.close(); es = null; }
+  }
+
+  function setLoading(active, text = 'RAG 검색 및 응답 생성 중...') {
+    const ov = qs('loadingOverlay');
+    const tx = qs('loadingText');
+    if (tx) tx.textContent = text;
+    ov?.classList.toggle('active', active);
+    const btn = qs('btnSend');
+    if (btn) btn.classList.toggle('btn-loading', active);
+  }
+
+  function onFirstToken() {
+    setLoading(false);
+    hideResultSkeleton(resultEl());
   }
 
   function send() {
@@ -39,8 +53,12 @@
     logLine(logEl(), `[request] ${message}`);
     logLine(logEl(), `[category] ${category} | source=${src||'all'} | version=${ver||'all'} | prompt:${promptId||'기본'}`);
 
+    setLoading(true);
+    showResultSkeleton(resultEl());
+
     es = startStream({
       url,
+      onFirstToken,
       onToken: token => appendToken(resultEl(), token, tokenState),
       onAgent: ({ agent, status, message: msg }) => {
         logLine(logEl(), `[agent:${agent}] ${status} — ${msg}`);
@@ -48,8 +66,16 @@
           setText('ragHitInfo', `[${agent}] ${msg}`);
         }
       },
-      onComplete: () => logLine(logEl(), '[complete] 스트림 종료'),
-      onError:    () => logLine(logEl(), '[error] 스트림 오류'),
+      onComplete: () => {
+        logLine(logEl(), '[complete] 스트림 종료');
+        setLoading(false);
+        hideResultSkeleton(resultEl());
+      },
+      onError: () => {
+        logLine(logEl(), '[error] 스트림 오류');
+        setLoading(false);
+        hideResultSkeleton(resultEl());
+      },
     });
   }
 

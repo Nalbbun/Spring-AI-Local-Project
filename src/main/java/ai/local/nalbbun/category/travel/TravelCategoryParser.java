@@ -1,7 +1,5 @@
 package ai.local.nalbbun.category.travel;
 
-import org.springframework.stereotype.Component;
-
 import ai.local.nalbbun.category.common.parser.AbstractHybridCategoryParser;
 import ai.local.nalbbun.category.common.parser.CategoryParser;
 import ai.local.nalbbun.category.travel.model.TravelContext;
@@ -10,25 +8,22 @@ import ai.local.nalbbun.category.travel.parser.RuleBasedTravelParser;
 import ai.local.nalbbun.internal.service.DebugRuntimeConfigService;
 import ai.local.nalbbun.category.model.ChatCategory;
 import ai.local.nalbbun.category.model.ConversationState;
+import org.springframework.stereotype.Component;
 
 /**
- * Travel Category Parser 타입이다.
+ * 여행 카테고리 파서.
  *
- * <p>기능 설명: 원시 입력을 구조화된 데이터로 변환한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
- * <p>입력: 호출 계층에서 전달되는 입력값과 주입된 의존성</p>
- * <p>출력: 처리 결과 객체, 상태 변경 또는 후속 처리에 필요한 데이터</p>
+ * 수정 이력:
+ * - applyDefaults 에서 destination 기본값 "제주도" 하드코딩 제거
+ *   → 목적지가 불명확하면 userQuery 원문을 그대로 사용
+ * - needsLlmAssist 조건 강화
+ *   → destination null 또는 RULE 파서 미매칭 시 LLM 보조 트리거
  */
 @Component
 public class TravelCategoryParser
         extends AbstractHybridCategoryParser<TravelContext>
         implements CategoryParser<TravelContext> {
 
-    /**
-     * Travel Category Parser 인스턴스를 초기화한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     public TravelCategoryParser(
             RuleBasedTravelParser ruleBasedTravelParser,
             LlmTravelParser llmTravelParser,
@@ -37,86 +32,66 @@ public class TravelCategoryParser
         super(ruleBasedTravelParser, llmTravelParser, debugRuntimeConfigService);
     }
 
-    /**
-     * category 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     @Override
-    public ChatCategory category() {
-        return ChatCategory.TRAVEL;
-    }
+    public ChatCategory category() { return ChatCategory.TRAVEL; }
+
+    @Override
+    public TravelContext parse(ConversationState state) { return super.parse(state); }
+
+    @Override
+    protected TravelContext newContext() { return new TravelContext(); }
 
     /**
-     * parse 처리를 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
-    @Override
-    public TravelContext parse(ConversationState state) {
-        return super.parse(state);
-    }
-
-    /**
-     * new Context 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
-    @Override
-    protected TravelContext newContext() {
-        return new TravelContext();
-    }
-
-    /**
-     * needs Llm Assist 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
+     * LLM 보조가 필요한 경우:
+     * 1. 목적지가 null (RULE 파서 미매칭)
+     * 2. 일수가 null
+     * 3. 예산이 null
+     * 4. 모호한 표현 포함
      */
     @Override
     protected boolean needsLlmAssist(ConversationState state, TravelContext context) {
-        String userQuery = state.getUserQuery() == null ? "" : state.getUserQuery().toLowerCase();
+        String q = state.getUserQuery() == null ? "" : state.getUserQuery().toLowerCase();
 
-        return context.getDestination() == null
-                || context.getDays() == null
-                || context.getMaxBudget() == null
-                || userQuery.contains("적당히")
-                || userQuery.contains("알아서")
-                || userQuery.contains("무난하게")
-                || userQuery.contains("커플")
-                || userQuery.contains("가족")
-                || userQuery.contains("부모님")
-                || userQuery.contains("아이와");
+        // 목적지 미매칭 → 반드시 LLM 처리 (핵심 수정)
+        if (context.getDestination() == null || context.getDestination().isBlank()) return true;
+        // 일수 / 예산 미파싱
+        if (context.getDays() == null || context.getDays() <= 0)      return true;
+        if (context.getMaxBudget() == null || context.getMaxBudget() <= 0) return true;
+        // 모호한 표현
+        if (q.contains("적당히") || q.contains("알아서") || q.contains("무난하게")) return true;
+        if (q.contains("커플") || q.contains("가족") || q.contains("부모님")
+            || q.contains("아이와") || q.contains("혼자") || q.contains("친구"))  return true;
+
+        return false;
     }
 
     /**
-     * apply Defaults 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
+     * 기본값 적용.
+     * destination 하드코딩("제주도") 제거 → 여전히 null이면 userQuery 원문 사용.
+     * days / maxBudget 은 합리적 기본값 유지.
      */
     @Override
     protected void applyDefaults(TravelContext context, ConversationState state) {
+        // ★ 목적지 기본값 하드코딩 제거
+        // RULE, LLM 모두 추출 실패한 경우 → userQuery 원문을 목적지로 사용
         if (context.getDestination() == null || context.getDestination().isBlank()) {
-            context.setDestination("제주도");
+            String q = state.getUserQuery();
+            // 원문에서 "~여행", "~일정" 등 불필요한 접미사 제거
+            String dest = q == null ? "여행지" : q
+                .replaceAll("\\d+박\\d+일.*", "").replaceAll("\\d+일.*", "")
+                .replaceAll("여행.*|일정.*|가이드.*|관광.*", "").trim();
+            context.setDestination(dest.isBlank() ? "여행지" : dest);
         }
+        // 일수 기본값: 2일
         if (context.getDays() == null || context.getDays() <= 0) {
             context.setDays(2);
         }
+        // 예산 기본값: 50만원
         if (context.getMaxBudget() == null || context.getMaxBudget() <= 0) {
-            context.setMaxBudget(500000);
+            context.setMaxBudget(500_000);
         }
     }
 
-    /**
-     * mark Mode 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @Override
     protected void markMode(TravelContext context, String mode) {
         context.setParserMode(mode);

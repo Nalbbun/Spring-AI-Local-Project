@@ -381,9 +381,34 @@
         </div>
     </div>
 
-    <!-- 7. 즉시 테스트 -->
+    <!-- 7. 카테고리별 모델 우선순위 -->
     <div class="card">
-        <h2>⑦ 현재 설정으로 즉시 테스트</h2>
+        <h2>⑦ 카테고리별 모델 우선순위</h2>
+        <div class="small">각 카테고리에서 Ollama(로컬)와 OpenAI(유료) 중 어느 것을 우선 사용할지 설정합니다.</div>
+
+        <div class="top-gap" style="background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:10px 14px;font-size:12px;color:#64748b">
+            <strong style="color:#93c5fd">우선순위 옵션:</strong>
+            &nbsp;🟢 <strong>OLLAMA_FIRST</strong> — Ollama 우선, 실패 시 OpenAI fallback &nbsp;|&nbsp;
+            🔵 <strong>OPENAI_FIRST</strong> — OpenAI 우선 (Ollama 무시) &nbsp;|&nbsp;
+            ⚫ <strong>OLLAMA_ONLY</strong> — Ollama 전용, OpenAI 차단 &nbsp;|&nbsp;
+            🟣 <strong>OPENAI_ONLY</strong> — OpenAI 전용, Ollama 무시
+        </div>
+
+        <div id="priorityGrid" class="top-gap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+            <!-- JS로 렌더링 -->
+        </div>
+
+        <div id="priorityStatus" class="panel top-gap" style="min-height:40px">우선순위를 조회 중...</div>
+        <div class="actions top-gap">
+            <button id="btnSavePriority"  class="green"   type="button">💾 우선순위 저장</button>
+            <button id="btnResetPriority" class="gray"    type="button">↩ 전체 초기화 (OLLAMA_FIRST)</button>
+            <button id="btnLoadPriority"  class="primary" type="button">🔄 조회</button>
+        </div>
+    </div>
+
+    <!-- 8. 즉시 테스트 -->
+    <div class="card">
+        <h2>⑧ 현재 설정으로 즉시 테스트</h2>
         <div class="row2">
             <div>
                 <label for="testCategory">카테고리</label>

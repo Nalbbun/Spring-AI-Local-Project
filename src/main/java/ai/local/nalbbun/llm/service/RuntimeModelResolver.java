@@ -10,109 +10,125 @@ import org.springframework.stereotype.Component;
 
 import ai.local.nalbbun.internal.model.RuntimeModelTarget;
 import ai.local.nalbbun.internal.service.DebugRuntimeModelConfigService;
+import ai.local.nalbbun.llm.model.ModelPriority;
 
 /**
- * Runtime Model Resolver 타입이다.
+ * 카테고리별 모델 우선순위(ModelPriority)를 반영한 런타임 모델 결정 컴포넌트.
  *
- * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
- * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
- * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
+ * OLLAMA_FIRST : Ollama 설정 모델 시도 → 없으면 OpenAI fallback
+ * OPENAI_FIRST : OpenAI 바로 사용 (Ollama 무시)
+ * OLLAMA_ONLY  : Ollama 전용 — Ollama 모델이 없으면 예외
+ * OPENAI_ONLY  : OpenAI 전용
  */
 @Component
 public class RuntimeModelResolver {
 
     private final DebugRuntimeModelConfigService debugRuntimeModelConfigService;
-    private final ExternalLlmFallbackPolicy fallbackPolicy;
+    private final CategoryModelPriorityService   priorityService;
+    private final ExternalLlmFallbackPolicy      globalFallbackPolicy;
     private final Set<String> toolCapableOllamaModels = new HashSet<>(List.of(
             "qwen2.5-coder:14b",
             "qwen3-coder:latest"
     ));
 
-    /**
-     * Runtime Model Resolver 인스턴스를 초기화한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     public RuntimeModelResolver(
             DebugRuntimeModelConfigService debugRuntimeModelConfigService,
+            CategoryModelPriorityService priorityService,
             @Value("${app.llm.fallback-policy:ALLOW_OPENAI}") String fallbackPolicy
     ) {
         this.debugRuntimeModelConfigService = debugRuntimeModelConfigService;
-        this.fallbackPolicy = ExternalLlmFallbackPolicy.from(fallbackPolicy);
+        this.priorityService    = priorityService;
+        this.globalFallbackPolicy = ExternalLlmFallbackPolicy.from(fallbackPolicy);
     }
 
-    /**
-     * resolve 결과를 계산한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     public RuntimeModelSelection resolve(RuntimeModelTarget target, boolean requiresTools) {
-        String configuredModel = getConfiguredModel(target);
+        ModelPriority priority = priorityService.get(target);
 
-        if (configuredModel == null || configuredModel.isBlank()) {
-            return fallbackOrFail(target, "no-local-model-configured");
-        }
-
-        if (requiresTools && !supportsTools(configuredModel)) {
-            return fallbackOrFail(target, "local-model-does-not-support-tools");
-        }
-
-        return new RuntimeModelSelection(true, configuredModel, false, "local-model-selected");
-    }
-
-    /**
-     * fallback Or Fail 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
-    private RuntimeModelSelection fallbackOrFail(RuntimeModelTarget target, String reason) {
-        if (fallbackPolicy == ExternalLlmFallbackPolicy.ALLOW_OPENAI) {
-            return new RuntimeModelSelection(false, null, true, reason);
-        }
-
-        throw new RuntimeModelResolutionException(
-                "외부 전송 차단 정책으로 인해 OpenAI fallback이 허용되지 않습니다. target=%s, reason=%s"
-                        .formatted(target, reason)
-        );
-    }
-
-    /**
-     * Configured Model 값을 반환한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
-    private String getConfiguredModel(RuntimeModelTarget target) {
-        return switch (target) {
-            case GENERAL -> debugRuntimeModelConfigService.getGeneralModel();
-            case DEV -> debugRuntimeModelConfigService.getDevModel();
-            case MICE -> debugRuntimeModelConfigService.getMiceModel();
-            case TRAVEL_SEARCH -> debugRuntimeModelConfigService.getTravelSearchModel();
-            case TRAVEL_PLAN -> debugRuntimeModelConfigService.getTravelPlanModel();
+        return switch (priority) {
+            case OLLAMA_ONLY   -> resolveOllamaOnly(target, requiresTools);
+            case OPENAI_ONLY   -> resolveOpenAiOnly(target);
+            case OPENAI_FIRST  -> resolveOpenAiFirst(target, requiresTools);
+            default            -> resolveOllamaFirst(target, requiresTools);  // OLLAMA_FIRST
         };
     }
 
-    /**
-     * supports Tools 가능 여부를 확인한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
+    // ── 우선순위별 결정 로직 ──────────────────────────────────
+
+    /** OLLAMA_FIRST: Ollama 시도 → 없으면 OpenAI */
+    private RuntimeModelSelection resolveOllamaFirst(RuntimeModelTarget target, boolean requiresTools) {
+        String model = getConfiguredModel(target);
+        if (model != null && !model.isBlank()) {
+            if (!requiresTools || supportsTools(model)) {
+                return new RuntimeModelSelection(true, model, false, "ollama-first:local-selected");
+            }
+            return fallbackOrFail(target, "ollama-first:tool-not-supported");
+        }
+        return fallbackOrFail(target, "ollama-first:no-local-model");
+    }
+
+    /** OLLAMA_ONLY: Ollama 전용 — 없으면 예외 */
+    private RuntimeModelSelection resolveOllamaOnly(RuntimeModelTarget target, boolean requiresTools) {
+        String model = getConfiguredModel(target);
+        if (model == null || model.isBlank()) {
+            throw new RuntimeModelResolutionException(
+                "OLLAMA_ONLY 정책: Ollama 모델이 설정되지 않았습니다. target=" + target);
+        }
+        if (requiresTools && !supportsTools(model)) {
+            throw new RuntimeModelResolutionException(
+                "OLLAMA_ONLY 정책: tool calling 미지원 모델입니다. target=" + target + ", model=" + model);
+        }
+        return new RuntimeModelSelection(true, model, false, "ollama-only:selected");
+    }
+
+    /** OPENAI_FIRST: OpenAI 바로 사용 */
+    private RuntimeModelSelection resolveOpenAiFirst(RuntimeModelTarget target, boolean requiresTools) {
+        return new RuntimeModelSelection(false, null, false, "openai-first:selected");
+    }
+
+    /** OPENAI_ONLY: OpenAI 전용 */
+    private RuntimeModelSelection resolveOpenAiOnly(RuntimeModelTarget target) {
+        return new RuntimeModelSelection(false, null, false, "openai-only:selected");
+    }
+
+    // ── 기존 fallback 로직 유지 ───────────────────────────────
+    private RuntimeModelSelection fallbackOrFail(RuntimeModelTarget target, String reason) {
+        if (globalFallbackPolicy == ExternalLlmFallbackPolicy.ALLOW_OPENAI) {
+            return new RuntimeModelSelection(false, null, true, reason);
+        }
+        throw new RuntimeModelResolutionException(
+            "외부 전송 차단 정책으로 OpenAI fallback 불가. target=%s, reason=%s"
+                .formatted(target, reason));
+    }
+
+    /** describe용 — 설정/디버그 메시지 생성 */
+    public String describeResolvedModel(RuntimeModelTarget target, boolean requiresTools) {
+        try {
+            RuntimeModelSelection sel = resolve(target, requiresTools);
+            ModelPriority p = priorityService.get(target);
+            return "provider=" + (sel.ollama() ? "OLLAMA" : "OPENAI")
+                + ", model=" + (sel.modelName() != null ? sel.modelName() : "default")
+                + ", priority=" + p.name()
+                + ", reason=" + sel.reason();
+        } catch (Exception e) {
+            return "resolve-failed:" + e.getMessage();
+        }
+    }
+
+    private String getConfiguredModel(RuntimeModelTarget target) {
+        return switch (target) {
+            case GENERAL       -> debugRuntimeModelConfigService.getGeneralModel();
+            case DEV           -> debugRuntimeModelConfigService.getDevModel();
+            case MICE          -> debugRuntimeModelConfigService.getMiceModel();
+            case TRAVEL_SEARCH -> debugRuntimeModelConfigService.getTravelSearchModel();
+            case TRAVEL_PLAN   -> debugRuntimeModelConfigService.getTravelPlanModel();
+        };
+    }
+
     private boolean supportsTools(String modelName) {
-        String normalized = modelName == null ? "" : modelName.trim().toLowerCase(Locale.ROOT);
-
-        if (normalized.isBlank()) {
-            return false;
-        }
-
-        if (normalized.contains("blossom")) {
-            return false;
-        }
-
+        if (modelName == null || modelName.isBlank()) return false;
+        String n = modelName.trim().toLowerCase(Locale.ROOT);
+        if (n.contains("blossom")) return false;
         return toolCapableOllamaModels.stream()
-                .anyMatch(allowed -> allowed.equalsIgnoreCase(modelName));
+                .anyMatch(a -> a.equalsIgnoreCase(modelName));
     }
 }

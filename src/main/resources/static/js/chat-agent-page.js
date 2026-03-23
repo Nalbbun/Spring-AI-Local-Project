@@ -1,6 +1,6 @@
 (() => {
   const { qs, val, setText, fetchJson, htmlEscape } = window.UiCommon;
-  const { startStream, logLine, appendToken } = window.ChatCommon;
+  const { startStream, logLine, appendToken, showResultSkeleton, hideResultSkeleton } = window.ChatCommon;
   let es = null;
   let startTime = null;
   const steps = {};
@@ -8,10 +8,25 @@
   const resultEl = () => qs('result');
   const logEl    = () => qs('eventLog');
   const stepsEl  = () => qs('agentSteps');
-
-  // 토큰 누적 상태
   const tokenState = { text: '' };
 
+  // ── 로딩 제어 ───────────────────────────────────────────
+  function setLoading(active, text = '에이전트 실행 중...') {
+    const ov = qs('loadingOverlay');
+    const tx = qs('loadingText');
+    if (tx) tx.textContent = text;
+    ov?.classList.toggle('active', active);
+    const btn = qs('btnSend');
+    if (btn) btn.classList.toggle('btn-loading', active);
+  }
+
+  // 첫 토큰 수신 → 오버레이 숨김 + 스켈레톤 제거
+  function onFirstToken() {
+    setLoading(false);
+    hideResultSkeleton(resultEl());
+  }
+
+  // ── 뷰 초기화 ───────────────────────────────────────────
   function clearView() {
     tokenState.text = '';
     if (resultEl()) resultEl().textContent = '';
@@ -21,14 +36,16 @@
     setText('elapsedTime', '-');
     Object.keys(steps).forEach(k => delete steps[k]);
     if (es) { es.close(); es = null; }
+    setLoading(false);
   }
 
+  // ── 에이전트 단계 카드 렌더링 ───────────────────────────
   function upsertStep(agent, status, msg) {
     const container = stepsEl();
     if (!container) return;
     container.querySelector('.step-idle')?.remove();
 
-    const icon = { running: '⏳', complete: '✅', error: '❌' }[status] || '🔵';
+    const icon = { running: '⏳', complete: '✅', error: '❌', warning: '⚠️' }[status] || '🔵';
     const cls  = `agent-step ${status}`;
 
     if (steps[agent]) {
@@ -48,6 +65,7 @@
     }
   }
 
+  // ── 전송 ────────────────────────────────────────────────
   function send() {
     const message  = val('message');
     const category = val('category');
@@ -64,22 +82,35 @@
 
     let url = `/api/chat/stream?message=${encodeURIComponent(message)}&category=${encodeURIComponent(category)}`;
     if (promptId) url += `&promptId=${encodeURIComponent(promptId)}`;
+
     logLine(logEl(), `[request] ${message}`);
     logLine(logEl(), `[category] ${category} | prompt: ${promptId || '기본'}`);
 
+    // 오버레이 표시 + 스켈레톤 삽입
+    setLoading(true, '에이전트 실행 중...');
+    showResultSkeleton(resultEl());
+
     es = startStream({
       url,
+      onFirstToken,   // 첫 토큰 → 오버레이 & 스켈레톤 숨김
       onToken: token => appendToken(resultEl(), token, tokenState),
       onAgent: ({ agent, status, message: msg }) => {
         logLine(logEl(), `[${agent}] ${status} — ${msg}`);
         upsertStep(agent, status, msg);
+        // 단계 진행에 따라 로딩 텍스트 업데이트
+        const tx = qs('loadingText');
+        if (tx && status === 'running') tx.textContent = `${agent} 처리 중...`;
       },
       onComplete: () => {
         logLine(logEl(), '[complete] 에이전트 실행 완료');
+        setLoading(false);
+        hideResultSkeleton(resultEl());
         if (startTime) setText('elapsedTime', ((Date.now() - startTime) / 1000).toFixed(1) + 's');
       },
       onError: () => {
         logLine(logEl(), '[error] 스트림 오류');
+        setLoading(false);
+        hideResultSkeleton(resultEl());
         if (startTime) setText('elapsedTime', ((Date.now() - startTime) / 1000).toFixed(1) + 's (오류)');
       },
     });
@@ -109,9 +140,7 @@
     qs('message')?.addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send();
     });
-    // 메모리 인라인 패널
     window.ChatMemoryPanel?.init();
-    // 프롬프트 초기 로드 (TRAVEL 카테고리)
     window.PromptSelector?.init('promptSelect', 'TRAVEL');
     loadModelInfo();
   });

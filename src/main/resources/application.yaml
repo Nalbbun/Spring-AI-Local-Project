@@ -1,4 +1,8 @@
 spring:
+  mvc:
+    async:
+     request-timeout: -1
+
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
@@ -47,11 +51,11 @@ spring:
       chat:
         options:
           model: ${OLLAMA_MODEL:gemma2:9b}
-          keep-alive: 300s
+          keep-alive: 1300s
       embedding:
         options:
           model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
-          keep-alive: 300s
+          keep-alive: 1300s
 
     model:
       embedding: ${SPRING_AI_MODEL_EMBEDDING:ollama}
@@ -82,8 +86,8 @@ app:
 
   llm:
     fallback-policy: ${APP_LLM_FALLBACK_POLICY:BLOCK_OPENAI}
-    timeout-ms: ${APP_LLM_TIMEOUT_MS:45000}
-    retry-attempts: ${APP_LLM_RETRY_ATTEMPTS:2}
+    timeout-ms: ${APP_LLM_TIMEOUT_MS:180000}
+    retry-attempts: ${APP_LLM_RETRY_ATTEMPTS:1}
     retry-backoff-ms: ${APP_LLM_RETRY_BACKOFF_MS:800}
 
   memory:
@@ -93,6 +97,9 @@ app:
 
   prompt:
     store: ${APP_PROMPT_STORE:jdbc}
+
+  apikey:
+    secret: ${APP_APIKEY_SECRET:nalbbun-api-key-secret-32bytes!!}
 
   search:
     provider: ${APP_SEARCH_PROVIDER:tavily}

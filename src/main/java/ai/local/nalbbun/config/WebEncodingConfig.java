@@ -1,14 +1,15 @@
 package ai.local.nalbbun.config;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.web.filter.CharacterEncodingFilter;
+import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 /**
  * Web Encoding Config 타입이다.
@@ -44,5 +45,14 @@ public class WebEncodingConfig implements WebMvcConfigurer {
         filter.setEncoding("UTF-8");
         filter.setForceEncoding(true);
         return filter;
+    }
+    
+    /**
+     * Spring MVC 비동기 요청 타임아웃을 -1(무제한)로 설정합니다.
+     * SSE Emitter 자체의 타임아웃(300초)으로 제어합니다.
+     */
+    @Override
+    public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+        configurer.setDefaultTimeout(-1L);  // yaml과 이중 보호
     }
 }

@@ -29,7 +29,7 @@ class RuntimeModelResolverTest {
      */
     @Test
     void shouldUseLocalOllamaModelWhenConfigured() {
-        RuntimeModelResolver resolver = new RuntimeModelResolver(config("gemma2:9b", "qwen2.5-coder:14b"), "BLOCK_OPENAI");
+        RuntimeModelResolver resolver = new RuntimeModelResolver(config("gemma2:9b", "qwen2.5-coder:14b"), null, "BLOCK_OPENAI");
 
         RuntimeModelSelection selection = resolver.resolve(RuntimeModelTarget.GENERAL, false);
 
@@ -45,7 +45,7 @@ class RuntimeModelResolverTest {
      */
     @Test
     void shouldFallbackToOpenAiWhenPolicyAllowsAndToolModelUnsupported() {
-        RuntimeModelResolver resolver = new RuntimeModelResolver(config("gemma2:9b", "blossom:latest"), "ALLOW_OPENAI");
+        RuntimeModelResolver resolver = new RuntimeModelResolver(config("gemma2:9b", "blossom:latest"), null, "ALLOW_OPENAI");
 
         RuntimeModelSelection selection = resolver.resolve(RuntimeModelTarget.TRAVEL_SEARCH, true);
 
@@ -62,7 +62,7 @@ class RuntimeModelResolverTest {
      */
     @Test
     void shouldBlockOpenAiFallbackWhenPolicyBlocksExternalTransfer() {
-        RuntimeModelResolver resolver = new RuntimeModelResolver(config("", ""), "BLOCK_OPENAI");
+        RuntimeModelResolver resolver = new RuntimeModelResolver(config("", ""), null, "BLOCK_OPENAI");
 
         assertThrows(RuntimeModelResolutionException.class,
                 () -> resolver.resolve(RuntimeModelTarget.TRAVEL_PLAN, false));
