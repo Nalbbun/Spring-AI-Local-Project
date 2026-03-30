@@ -6,7 +6,7 @@ plugins {
 
 group = 'ai.local.nalbbun'
 version = '0.0.1-SNAPSHOT'
-description = 'AI Loacl project for Spring Boot'
+description = 'devMuti platform backend API for Spring Boot'
 
 java {
 	toolchain {
