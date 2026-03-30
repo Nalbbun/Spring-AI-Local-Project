@@ -1,3 +1,4 @@
 /.metadata/
-/ node_modules/
-/ bin/
+/nalbbun-ai-local/
+/nalbbun-frontend-web/node_modules/
+/nalbbun-backend-api/bin/
