@@ -1,5 +1,5 @@
 import { apiGet, apiPostForm, apiSend } from './apiClient';
-import type { DebugOllamaConfig, DebugOllamaConnectionInfo, DebugRuntimeConfig, ModelPriorityResponse, OllamaModelInfo, RagStatusResponse } from '../types/api';
+import type { DebugOllamaConfig, DebugOllamaConnectionInfo, DebugRuntimeConfig, ModelPriorityResponse, OllamaModelInfo, RagStatusResponse, WebSearchStatus } from '../types/api';
 
 export const settingsApi = {
   getConfig: () => apiGet<DebugRuntimeConfig>('/debug/api/config'),
@@ -58,7 +58,18 @@ export const ragApi = {
 export const agentApi = {
   run: (payload: any) => apiSend<any>('/api/agent/execute', 'POST', payload),
   clearMemory: () => apiSend<any>('/debug/api/memory/clear', 'POST'),
-  webSearch: (payload: any) => apiSend<any>('/api/search/web', 'POST', payload),
+  getWebSearchStatus: () => apiGet<WebSearchStatus>('/api/agent/web-search-status'),
+  webSearch: async (payload: { query: string }) => {
+    try {
+      return await apiGet<any>(`/api/agent/web-search-test?query=${encodeURIComponent(payload.query)}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('404')) {
+        return apiGet<any>(`/debug/api/search?query=${encodeURIComponent(payload.query)}`);
+      }
+      throw error;
+    }
+  },
   getAgentConfig: () => apiGet<DebugRuntimeConfig>('/debug/api/config'),
   getOllamaConfig: () => apiGet<DebugOllamaConfig>('/debug/api/ollama/config')
 };

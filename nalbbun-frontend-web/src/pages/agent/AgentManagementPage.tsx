@@ -5,7 +5,7 @@ import { LogPanel } from '../../components/ui/LogPanel';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { useEventLog } from '../../hooks/useEventLog';
 import { agentApi, settingsApi } from '../../services/settingsApi';
-import type { DebugOllamaConfig, DebugRuntimeConfig, OllamaModelInfo } from '../../types/api';
+import type { DebugOllamaConfig, DebugRuntimeConfig, OllamaModelInfo, WebSearchStatus } from '../../types/api';
 
 const categories = [
   { key: 'travelSearchModel', label: 'TRAVEL Search' },
@@ -25,6 +25,7 @@ export function AgentManagementPage() {
   const [config, setConfig] = useState<DebugRuntimeConfig | null>(null);
   const [ollamaConfig, setOllamaConfig] = useState<DebugOllamaConfig | null>(null);
   const [models, setModels] = useState<OllamaModelInfo[]>([]);
+  const [webSearchStatus, setWebSearchStatus] = useState<WebSearchStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('부산 맛집 추천');
   const [searchResult, setSearchResult] = useState<any>(null);
   const [agentQuestion, setAgentQuestion] = useState('제주도 3박4일 100만원 여행 일정 짜줘');
@@ -39,15 +40,17 @@ export function AgentManagementPage() {
 
   const load = async () => {
     logs.append('에이전트 현황과 실행 모델을 조회합니다.');
-    const [cfg, runningModels, modelConfig] = await Promise.all([
+    const [cfg, runningModels, modelConfig, searchStatus] = await Promise.all([
       agentApi.getAgentConfig(),
       settingsApi.browseModels('RUNNING'),
-      agentApi.getOllamaConfig()
+      agentApi.getOllamaConfig(),
+      agentApi.getWebSearchStatus().catch(() => null)
     ]);
     setConfig(cfg);
     setModels(runningModels);
     setOllamaConfig(modelConfig);
     setEditableConfig(modelConfig);
+    setWebSearchStatus(searchStatus);
     logs.append(`조회 완료: running model ${runningModels.length}건`);
   };
 
@@ -110,7 +113,7 @@ export function AgentManagementPage() {
     <div className="page-stack">
       <AppCard
         title="에이전트 현황"
-        description="agent 현황, 모델 배정, 검색 테스트, 실행 테스트, 작업 로그를 한 화면."
+        description="레거시 agent 화면처럼 현황, 모델 배정, 검색 테스트, 실행 테스트, 작업 로그를 한 화면으로 복원했습니다."
         actions={<button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button>}
       >
         <div className="stats-grid compact-four">
@@ -118,6 +121,18 @@ export function AgentManagementPage() {
           <div className="stat-box"><span>Memory Store</span><strong>{config?.memoryStore || config?.memoryServiceType || '-'}</strong></div>
           <div className="stat-box"><span>Fallback</span><strong>{config?.fallbackPolicy || '-'}</strong></div>
           <div className="stat-box"><span>실행 모델 수</span><strong>{models.length}</strong></div>
+        </div>
+        <div className="stats-grid compact-four top-gap">
+          <div className="stat-box"><span>Web Search Provider</span><strong>{webSearchStatus?.provider || '-'}</strong></div>
+          <div className="stat-box"><span>Primary Endpoint</span><strong>{webSearchStatus?.primaryEndpointAvailable ? '정상' : '확인 필요'}</strong></div>
+          <div className="stat-box"><span>Tavily Key</span><strong>{webSearchStatus?.hasTavilyActiveKey ? '활성' : '미확인'}</strong></div>
+          <div className="stat-box"><span>Debug Endpoint</span><strong>{webSearchStatus?.legacyDebugEndpointAvailable ? '활성' : '비활성'}</strong></div>
+        </div>
+        <div className="list-stack top-gap">
+          <div className="list-item-row"><span>Primary Endpoint 경로</span><span className="inline-mini-code">{webSearchStatus?.primaryEndpoint || '/api/agent/web-search-test'}</span></div>
+          <div className="list-item-row"><span>Debug Fallback 경로</span><span className="inline-mini-code">{webSearchStatus?.legacyDebugEndpoint || '/debug/api/search'}</span></div>
+          <div className="list-item-row"><span>Active Profiles</span><span>{webSearchStatus?.activeProfiles?.join(', ') || '-'}</span></div>
+          <div className="list-item-row"><span>상태 메시지</span><span>{webSearchStatus?.message || '상태 조회 전'}</span></div>
         </div>
       </AppCard>
 
@@ -155,7 +170,7 @@ export function AgentManagementPage() {
       </div>
 
       <div className="two-column-grid">
-        <AppCard title="웹 검색 테스트" description="Tavily 연결 여부와 결과 형식을 빠르게 점검합니다.">
+        <AppCard title="웹 검색 테스트" description="현재 provider, endpoint 상태를 확인한 뒤 실제 웹 검색을 바로 테스트합니다.">
           <label className="field-label">검색 쿼리<input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></label>
           <div className="button-row"><button onClick={runSearch}>검색</button></div>
           <JsonBlock value={searchResult} />

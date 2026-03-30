@@ -154,3 +154,19 @@ export interface RagStatusResponse {
     maxNumChunks?: number;
   };
 }
+
+export interface WebSearchStatus {
+  provider?: string;
+  primaryEndpoint?: string;
+  primaryEndpointAvailable?: boolean;
+  legacyDebugEndpoint?: string;
+  legacyDebugEndpointAvailable?: boolean;
+  localProfile?: boolean;
+  debugEnabled?: boolean;
+  activeProfiles?: string[];
+  tavilyRuntimeStatus?: string;
+  openAiRuntimeStatus?: string;
+  hasTavilyActiveKey?: boolean;
+  status?: string;
+  message?: string;
+}
