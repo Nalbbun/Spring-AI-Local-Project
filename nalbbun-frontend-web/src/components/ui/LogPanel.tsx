@@ -1,3 +1,15 @@
 export function LogPanel({ lines }: { lines: string[] }) {
-  return <div className="log-panel">{lines.length ? lines.join('\n') : '로그가 없습니다.'}</div>;
+  if (!lines.length) {
+    return <div className="log-panel">로그가 없습니다.</div>;
+  }
+
+  return (
+    <div className="log-panel">
+      {lines.map((line, index) => (
+        <div key={`${index}-${line.slice(0, 24)}`} className="log-line">
+          {line}
+        </div>
+      ))}
+    </div>
+  );
 }

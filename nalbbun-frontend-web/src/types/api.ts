@@ -19,6 +19,7 @@ export interface ApiKeyEntry {
   maskedKey?: string;
   active?: boolean;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PromptEntry {
@@ -30,6 +31,7 @@ export interface PromptEntry {
   isDefault?: boolean;
   active?: boolean;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PromptSummary {
@@ -41,6 +43,7 @@ export interface PromptSummary {
 export interface MemorySummary {
   storeType?: string;
   conversationCount?: number;
+  conversationIds?: string[];
 }
 
 export interface ConversationMessage {
@@ -57,6 +60,11 @@ export interface ConversationSnapshot {
   importantNotes?: Array<{ category?: string; note?: string; createdAt?: string }>;
 }
 
+export interface ConversationListResult {
+  conversationIds: string[];
+  total: number;
+}
+
 export interface RagSourceItem {
   sourceId?: string;
   category?: string;
@@ -71,4 +79,70 @@ export interface AgentExecutionEvent {
   step?: string;
   message?: string;
   payload?: unknown;
+}
+
+export interface DebugRuntimeConfig {
+  resolverMode?: string;
+  generalParserMode?: string;
+  travelParserMode?: string;
+  devParserMode?: string;
+  miceParserMode?: string;
+  memoryStore?: string;
+  memoryServiceType?: string;
+  fallbackPolicy?: string;
+  conversationId?: string;
+  ollamaBaseUrl?: string;
+}
+
+export interface DebugOllamaConfig {
+  modelSource?: string;
+  generalModel?: string;
+  devModel?: string;
+  miceModel?: string;
+  travelSearchModel?: string;
+  travelPlanModel?: string;
+  residentModelList?: string;
+  residentKeepAlive?: string;
+}
+
+export interface DebugOllamaConnectionInfo {
+  baseUrl?: string;
+  reachable?: boolean;
+  status?: string;
+  message?: string;
+  runningCount?: number;
+  installedCount?: number;
+  runningModels?: string[];
+}
+
+export interface OllamaModelInfo {
+  name?: string;
+  model?: string;
+  state?: string;
+  size?: number;
+  modifiedAt?: string;
+  updatedAt?: string;
+}
+
+export interface ModelPriorityItem {
+  priority?: string;
+  description?: string;
+}
+
+export interface ModelPriorityResponse {
+  priorities?: Record<string, ModelPriorityItem>;
+}
+
+export interface RagStatusResponse {
+  enabled?: boolean;
+  vectorStore?: string;
+  topK?: number;
+  similarityThreshold?: number;
+  includeCitations?: boolean;
+  categories?: Record<string, boolean>;
+  registryBaseDir?: string;
+  ingest?: {
+    chunkSize?: number;
+    maxNumChunks?: number;
+  };
 }

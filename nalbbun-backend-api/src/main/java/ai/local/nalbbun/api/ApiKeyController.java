@@ -1,5 +1,8 @@
 package ai.local.nalbbun.api;
 
+import ai.local.nalbbun.api.dto.apikey.*;
+import ai.local.nalbbun.api.dto.common.ApiResponse;
+import ai.local.nalbbun.api.mapper.ApiKeyDtoMapper;
 import ai.local.nalbbun.infra.security.apikey.service.ApiKeyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -8,10 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * API 키 관리 REST 컨트롤러.
- * /api/api-keys/**
- */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/api-keys")
@@ -19,86 +18,71 @@ public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
 
-    /** 프로바이더 목록 (키 발급 URL 포함) */
     @GetMapping("/providers")
-    public List<Map<String, Object>> providers() {
-        return apiKeyService.listProviders();
+    public ApiResponse<List<ApiKeyProviderDto>> providers() {
+        return ApiResponse.ok(apiKeyService.listProviders().stream().map(ApiKeyDtoMapper::toProviderDto).toList());
     }
 
-    /** 현재 런타임 키 상태 요약 */
     @GetMapping("/runtime-status")
-    public Map<String, Object> runtimeStatus() {
-        return apiKeyService.runtimeStatus();
+    public ApiResponse<ApiKeyRuntimeStatusDto> runtimeStatus() {
+        return ApiResponse.ok(new ApiKeyRuntimeStatusDto(apiKeyService.runtimeStatus()));
     }
 
-    /** 전체 목록 (마스킹) */
     @GetMapping
-    public List<Map<String, Object>> list(
-            @RequestParam(name = "provider", required = false) String provider) {
-        return provider != null && !provider.isBlank()
+    public ApiResponse<List<ApiKeyEntryDto>> list(@RequestParam(name = "provider", required = false) String provider) {
+        List<Map<String, Object>> rows = provider != null && !provider.isBlank()
                 ? apiKeyService.listMaskedByProvider(provider)
                 : apiKeyService.listMasked();
+        return ApiResponse.ok(rows.stream().map(ApiKeyDtoMapper::toEntryDto).toList(), Map.of("count", rows.size()));
     }
 
-    /** 단건 조회 (마스킹) */
     @GetMapping("/{id}")
-    public Map<String, Object> getOne(@PathVariable("id") String id) {
-        return apiKeyService.findMasked(id)
-                .orElseThrow(() -> new IllegalArgumentException("API 키를 찾을 수 없습니다: " + id));
+    public ApiResponse<ApiKeyEntryDto> getOne(@PathVariable("id") String id) {
+        return ApiResponse.ok(apiKeyService.findMasked(id).map(ApiKeyDtoMapper::toEntryDto)
+                .orElseThrow(() -> new IllegalArgumentException("API 키를 찾을 수 없습니다: " + id)));
     }
 
-    /** 복호화 키 조회 — 뷰 버튼 전용 */
     @GetMapping("/{id}/reveal")
-    public Map<String, Object> reveal(@PathVariable("id") String id) {
+    public ApiResponse<ApiKeyRevealDto> reveal(@PathVariable("id") String id) {
         String plain = apiKeyService.revealKey(id)
                 .orElseThrow(() -> new IllegalArgumentException("API 키를 찾을 수 없습니다: " + id));
-        return Map.of("id", id, "keyValue", plain);
+        return ApiResponse.ok(new ApiKeyRevealDto(id, plain));
     }
 
-    /** 생성 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Map<String, Object> create(@RequestBody Map<String, Object> body) {
-        return apiKeyService.create(
+    public ApiResponse<ApiKeyEntryDto> create(@RequestBody Map<String, Object> body) {
+        return ApiResponse.ok(ApiKeyDtoMapper.toEntryDto(apiKeyService.create(
                 str(body, "provider"),
                 str(body, "label"),
                 str(body, "description"),
                 str(body, "keyValue"),
                 bool(body, "active", true)
-        );
+        )));
     }
 
-    /** 수정 */
     @PutMapping("/{id}")
-    public Map<String, Object> update(@PathVariable("id") String id,
+    public ApiResponse<ApiKeyEntryDto> update(@PathVariable("id") String id,
                                        @RequestBody Map<String, Object> body) {
-        return apiKeyService.update(
+        return ApiResponse.ok(ApiKeyDtoMapper.toEntryDto(apiKeyService.update(
                 id,
                 str(body, "provider"),
                 str(body, "label"),
                 str(body, "description"),
                 str(body, "keyValue"),
                 bool(body, "active", true)
-        );
+        )));
     }
 
-    /** 삭제 */
     @DeleteMapping("/{id}")
-    public Map<String, Object> delete(@PathVariable("id") String id) {
+    public ApiResponse<Map<String, Object>> delete(@PathVariable("id") String id) {
         apiKeyService.delete(id);
-        return Map.of("id", id, "deleted", true);
+        return ApiResponse.ok(Map.of("id", id, "deleted", true));
     }
 
-    /** 활성화 (런타임 즉시 반영) */
     @PostMapping("/{id}/activate")
-    public Map<String, Object> activate(@PathVariable("id") String id) {
-        return apiKeyService.activate(id);
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> handleBadRequest(IllegalArgumentException e) {
-        return Map.of("error", e.getMessage());
+    public ApiResponse<ApiKeyEntryDto> activate(@PathVariable("id") String id) {
+        return ApiResponse.ok(ApiKeyDtoMapper.toEntryDto(apiKeyService.activate(id)));
     }
 
     private String str(Map<String, Object> m, String k) {

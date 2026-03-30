@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppCard } from '../../components/ui/AppCard';
 import { DataTable } from '../../components/ui/DataTable';
+import { LogPanel } from '../../components/ui/LogPanel';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { useEventLog } from '../../hooks/useEventLog';
 import { keyApi } from '../../services/keyApi';
 import type { ApiKeyEntry, ProviderStatus } from '../../types/api';
 
@@ -19,6 +21,7 @@ export function KeyManagementPage() {
   const [revealedKey, setRevealedKey] = useState('');
   const [status, setStatus] = useState('대기 중');
   const [form, setForm] = useState({ provider: '', label: '', description: '', keyValue: '', active: true });
+  const logs = useEventLog('key-management-log', ['API 키 관리 로그가 누적됩니다.']);
 
   const load = async () => {
     const [providerData, listData] = await Promise.all([keyApi.providers(), keyApi.list(filter || undefined)]);
@@ -26,7 +29,7 @@ export function KeyManagementPage() {
     setItems(listData);
   };
 
-  useEffect(() => { load().catch(() => undefined); }, [filter]);
+  useEffect(() => { load().catch((error) => logs.append('API 키 조회 실패', error instanceof Error ? error.message : String(error))); }, [filter]);
 
   const save = async () => {
     setStatus('저장 중');
@@ -36,20 +39,30 @@ export function KeyManagementPage() {
       const result = editingId ? await keyApi.update(editingId, payload) : await keyApi.create({ ...payload, keyValue: form.keyValue });
       setEditingId(result.id);
       setStatus(`저장 완료: ${result.label}`);
-      setForm(prev => ({ ...prev, keyValue: '' }));
+      setForm((prev) => ({ ...prev, keyValue: '' }));
+      logs.append(`API 키 저장 완료: ${result.label}`);
       await load();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setStatus(message);
+      logs.append('API 키 저장 실패', message);
     }
   };
 
   const providerHint = useMemo(() => issueMap[form.provider] || '', [form.provider]);
+  const activeCount = providers.filter((provider) => provider.hasActiveKey).length;
 
   return (
     <div className="page-stack">
-      <AppCard title="프로바이더 현황" description="legacy api-keys 화면의 상태 카드와 발급 안내를 React 카드로 분리했습니다." actions={<button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button>}>
-        <div className="provider-grid">
-          {providers.map(provider => (
+      <AppCard title="프로바이더 현황" description="발급 안내, 활성 키 존재 여부, 현재 저장 목록을 함께 관리합니다." actions={<button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button>}>
+        <div className="stats-grid compact-four top-gap">
+          <div className="stat-box"><span>Provider 수</span><strong>{providers.length}</strong></div>
+          <div className="stat-box"><span>Active Provider</span><strong>{activeCount}</strong></div>
+          <div className="stat-box"><span>등록 키 수</span><strong>{items.length}</strong></div>
+          <div className="stat-box"><span>현재 필터</span><strong>{filter || '전체'}</strong></div>
+        </div>
+        <div className="provider-grid top-gap">
+          {providers.map((provider) => (
             <div className="provider-card" key={provider.provider}>
               <div className="provider-title">{provider.displayName}</div>
               <div className="muted">{provider.description}</div>
@@ -63,33 +76,47 @@ export function KeyManagementPage() {
       </AppCard>
 
       <div className="two-column-grid wider-left">
-        <AppCard title="등록된 API 키" actions={<div className="toolbar"><select value={filter} onChange={e => setFilter(e.target.value)}><option value="">전체</option><option value="OPENAI">OpenAI</option><option value="TAVILY">Tavily</option><option value="ANTHROPIC">Anthropic</option><option value="CUSTOM">Custom</option></select><button className="secondary" onClick={() => { setEditingId(null); setForm({ provider: '', label: '', description: '', keyValue: '', active: true }); }}>신규</button></div>}>
+        <AppCard title="등록된 API 키" actions={<div className="toolbar"><select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">전체</option><option value="OPENAI">OpenAI</option><option value="TAVILY">Tavily</option><option value="ANTHROPIC">Anthropic</option><option value="CUSTOM">Custom</option></select><button className="secondary" onClick={() => { setEditingId(null); setForm({ provider: '', label: '', description: '', keyValue: '', active: true }); }}>신규</button></div>}>
           <DataTable
             rows={items}
             columns={[
-              { key: 'label', title: '레이블', render: row => <button className="link-button" onClick={() => { setEditingId(row.id); setForm({ provider: row.provider, label: row.label, description: row.description || '', keyValue: '', active: row.active !== false }); }}>{row.label}</button> },
-              { key: 'provider', title: '프로바이더', render: row => row.provider },
-              { key: 'masked', title: '마스킹', render: row => row.maskedKey ?? '-' },
-              { key: 'status', title: '상태', render: row => <StatusBadge label={row.active ? '활성' : '비활성'} tone={row.active ? 'success' : 'default'} /> },
-              { key: 'actions', title: '작업', render: row => <div className="button-row compact"><button className="secondary" onClick={() => keyApi.reveal(row.id).then(v => setRevealedKey(v.keyValue)).catch(() => setRevealedKey('조회 실패'))}>표시</button><button className="secondary" onClick={() => keyApi.activate(row.id).then(() => load()).catch(() => undefined)}>활성화</button><button className="danger" onClick={() => keyApi.remove(row.id).then(() => load()).catch(() => undefined)}>삭제</button></div> }
+              { key: 'label', title: '레이블', render: (row) => <button className="link-button" onClick={() => { setEditingId(row.id); setForm({ provider: row.provider, label: row.label, description: row.description || '', keyValue: '', active: row.active !== false }); logs.append(`API 키 편집 시작: ${row.label}`); }}>{row.label}</button> },
+              { key: 'provider', title: '프로바이더', render: (row) => row.provider },
+              { key: 'masked', title: '마스킹', render: (row) => row.maskedKey ?? '-' },
+              { key: 'status', title: '상태', render: (row) => <StatusBadge label={row.active ? '활성' : '비활성'} tone={row.active ? 'success' : 'default'} /> },
+              {
+                key: 'actions',
+                title: '작업',
+                render: (row) => (
+                  <div className="button-row compact">
+                    <button className="secondary" onClick={() => keyApi.reveal(row.id).then((v) => { setRevealedKey(v.keyValue); logs.append(`API 키 노출 조회: ${row.label}`); }).catch((e) => logs.append('API 키 조회 실패', e instanceof Error ? e.message : String(e)))}>표시</button>
+                    <button className="secondary" onClick={() => keyApi.activate(row.id).then(() => { logs.append(`API 키 활성화: ${row.label}`); return load(); }).catch((e) => logs.append('API 키 활성화 실패', e instanceof Error ? e.message : String(e)))}>활성화</button>
+                    <button className="danger" onClick={() => keyApi.remove(row.id).then(() => { logs.append(`API 키 삭제: ${row.label}`); return load(); }).catch((e) => logs.append('API 키 삭제 실패', e instanceof Error ? e.message : String(e)))}>삭제</button>
+                  </div>
+                )
+              }
             ]}
           />
           {revealedKey && <div className="inline-code">{revealedKey}</div>}
         </AppCard>
 
-        <AppCard title={editingId ? 'API 키 편집' : 'API 키 등록'} description="실제 키는 프론트에 저장하지 않고 저장 요청만 보냅니다.">
+        <AppCard title={editingId ? 'API 키 편집' : 'API 키 등록'} description="저장 후 활성화하면 런타임 provider 상태 카드에 즉시 반영됩니다.">
           <div className="form-grid two">
-            <label className="field-label">프로바이더<select value={form.provider} onChange={e => setForm(prev => ({ ...prev, provider: e.target.value }))}><option value="">선택</option><option value="OPENAI">OpenAI</option><option value="TAVILY">Tavily</option><option value="ANTHROPIC">Anthropic</option><option value="CUSTOM">Custom</option></select></label>
-            <label className="field-label">레이블<input value={form.label} onChange={e => setForm(prev => ({ ...prev, label: e.target.value }))} /></label>
+            <label className="field-label">프로바이더<select value={form.provider} onChange={(e) => setForm((prev) => ({ ...prev, provider: e.target.value }))}><option value="">선택</option><option value="OPENAI">OpenAI</option><option value="TAVILY">Tavily</option><option value="ANTHROPIC">Anthropic</option><option value="CUSTOM">Custom</option></select></label>
+            <label className="field-label">레이블<input value={form.label} onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))} /></label>
           </div>
-          <label className="field-label">설명<input value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} /></label>
-          <label className="field-label">API Key<input type="password" value={form.keyValue} onChange={e => setForm(prev => ({ ...prev, keyValue: e.target.value }))} placeholder={editingId ? '수정 시에만 입력' : '실제 키 입력'} /></label>
+          <label className="field-label">설명<input value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} /></label>
+          <label className="field-label">API Key<input type="password" value={form.keyValue} onChange={(e) => setForm((prev) => ({ ...prev, keyValue: e.target.value }))} placeholder={editingId ? '수정 시에만 입력' : '실제 키 입력'} /></label>
           {providerHint && <div className="notice-box">발급 페이지: <a href={providerHint} target="_blank" rel="noreferrer">{providerHint}</a></div>}
-          <label className="checkbox-label"><input type="checkbox" checked={form.active} onChange={e => setForm(prev => ({ ...prev, active: e.target.checked }))} /> 활성 상태로 저장</label>
+          <label className="checkbox-label"><input type="checkbox" checked={form.active} onChange={(e) => setForm((prev) => ({ ...prev, active: e.target.checked }))} /> 활성 상태로 저장</label>
           <div className="button-row"><button onClick={save}>저장</button><button className="secondary" onClick={() => { setEditingId(null); setForm({ provider: '', label: '', description: '', keyValue: '', active: true }); }}>초기화</button></div>
           <div className="status-line">{status}</div>
         </AppCard>
       </div>
+
+      <AppCard title="작업 로그" actions={<button className="secondary" onClick={logs.clear}>로그 지우기</button>}>
+        <LogPanel lines={logs.lines} />
+      </AppCard>
     </div>
   );
 }

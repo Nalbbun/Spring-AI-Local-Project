@@ -1,28 +1,66 @@
 import { useEffect, useState } from 'react';
 import { AppCard } from '../../components/ui/AppCard';
 import { DataTable } from '../../components/ui/DataTable';
-import { ragApi } from '../../services/settingsApi';
 import { JsonBlock } from '../../components/ui/JsonBlock';
+import { LogPanel } from '../../components/ui/LogPanel';
+import { useEventLog } from '../../hooks/useEventLog';
+import { ragApi } from '../../services/settingsApi';
+
+const defaultTextForm = { category: 'DEV', sourceId: '', title: '', content: '' };
+const defaultUrlForm = { category: 'DEV', sourceId: '', title: '', url: '' };
 
 export function RagDocumentsPage() {
   const [status, setStatus] = useState<any>(null);
   const [dbInfo, setDbInfo] = useState<any>(null);
   const [sources, setSources] = useState<any[]>([]);
   const [category, setCategory] = useState('');
-  const [textForm, setTextForm] = useState({ category: 'DEV', sourceId: '', title: '', content: '' });
-  const [urlForm, setUrlForm] = useState({ category: 'DEV', sourceId: '', title: '', url: '' });
+  const [textForm, setTextForm] = useState(defaultTextForm);
+  const [urlForm, setUrlForm] = useState(defaultUrlForm);
   const [file, setFile] = useState<File | null>(null);
   const [multiFiles, setMultiFiles] = useState<FileList | null>(null);
+  const [embedding, setEmbedding] = useState<any>(null);
+  const [embeddingModels, setEmbeddingModels] = useState<any>(null);
   const [opStatus, setOpStatus] = useState('대기 중');
+  const logs = useEventLog('rag-documents-log', ['RAG 관리 작업 로그가 누적됩니다.']);
 
   const load = async () => {
-    const [statusData, dbData, sourceData] = await Promise.all([ragApi.getStatus(), ragApi.getDbInfo(), ragApi.getSources(category)]);
+    const [statusData, dbData, sourceData, embeddingConfig, modelList] = await Promise.all([
+      ragApi.getStatus(),
+      ragApi.getDbInfo(),
+      ragApi.getSources(category),
+      ragApi.getEmbeddingConfig(),
+      ragApi.getEmbeddingModels()
+    ]);
     setStatus(statusData);
     setDbInfo(dbData);
     setSources(sourceData);
+    setEmbedding(embeddingConfig);
+    setEmbeddingModels(modelList);
   };
 
-  useEffect(() => { load().catch(() => undefined); }, [category]);
+  useEffect(() => {
+    load().catch((error) => logs.append('RAG 화면 조회 실패', error instanceof Error ? error.message : String(error)));
+  }, [category]);
+
+  const syncSharedFields = (patch: { category?: string; sourceId?: string; title?: string }) => {
+    setTextForm((prev) => ({ ...prev, ...patch }));
+    setUrlForm((prev) => ({ ...prev, ...patch }));
+  };
+
+  const run = async (label: string, action: () => Promise<unknown>) => {
+    setOpStatus(`${label} 실행 중`);
+    logs.append(`${label} 시작`);
+    try {
+      await action();
+      setOpStatus(`${label} 완료`);
+      logs.append(`${label} 완료`);
+      await load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setOpStatus(message);
+      logs.append(`${label} 실패`, message);
+    }
+  };
 
   const uploadSingle = async () => {
     if (!file) return;
@@ -31,54 +69,89 @@ export function RagDocumentsPage() {
     form.append('category', textForm.category);
     form.append('sourceId', textForm.sourceId);
     form.append('title', textForm.title);
-    setOpStatus('단일 업로드 중');
-    try { await ragApi.ingestFile(form); setOpStatus('업로드 완료'); await load(); } catch (error) { setOpStatus(error instanceof Error ? error.message : String(error)); }
+    await run('단일 파일 업로드', () => ragApi.ingestFile(form));
   };
 
   const uploadMulti = async () => {
     if (!multiFiles?.length) return;
     const form = new FormData();
-    Array.from(multiFiles).forEach(f => form.append('files', f));
+    Array.from(multiFiles).forEach((f) => form.append('files', f));
     form.append('category', textForm.category);
     form.append('sourceId', textForm.sourceId);
     form.append('title', textForm.title);
-    setOpStatus('멀티 업로드 중');
-    try { await ragApi.ingestFiles(form); setOpStatus('업로드 완료'); await load(); } catch (error) { setOpStatus(error instanceof Error ? error.message : String(error)); }
+    await run('멀티 파일 업로드', () => ragApi.ingestFiles(form));
   };
 
   return (
     <div className="page-stack">
+      <AppCard title="RAG 운영 현황" description="상태, 저장소, 임베딩, 인입, 소스 목록, 로그를 한 화면으로 다시 배치했습니다.">
+        <div className="stats-grid compact-four">
+          <div className="stat-box"><span>Enabled</span><strong>{String(status?.enabled ?? false)}</strong></div>
+          <div className="stat-box"><span>Vector Store</span><strong>{status?.vectorStore ?? '-'}</strong></div>
+          <div className="stat-box"><span>TopK</span><strong>{status?.topK ?? '-'}</strong></div>
+          <div className="stat-box"><span>Source Count</span><strong>{sources.length}</strong></div>
+        </div>
+      </AppCard>
+
       <div className="two-column-grid">
         <AppCard title="RAG 상태"><JsonBlock value={status} /></AppCard>
         <AppCard title="RAG DB 정보"><JsonBlock value={dbInfo} /></AppCard>
       </div>
 
-      <AppCard title="문서 인입" description="legacy rag/index 화면의 text/url/file 멀티 인입 기능을 React 폼으로 분리했습니다.">
-        <div className="form-grid two">
-          <label className="field-label">카테고리<select value={textForm.category} onChange={e => { const value = e.target.value; setTextForm(prev => ({ ...prev, category: value })); setUrlForm(prev => ({ ...prev, category: value })); }}><option value="GENERAL">GENERAL</option><option value="DEV">DEV</option><option value="MICE">MICE</option><option value="TRAVEL">TRAVEL</option></select></label>
-          <label className="field-label">Source ID<input value={textForm.sourceId} onChange={e => { const value = e.target.value; setTextForm(prev => ({ ...prev, sourceId: value })); setUrlForm(prev => ({ ...prev, sourceId: value })); }} /></label>
+      <div className="two-column-grid">
+        <AppCard title="임베딩 설정 현황" description="레거시 설정에서 빠졌던 임베딩 후보 모델과 현재 설정을 다시 붙였습니다.">
+          <JsonBlock value={embedding} />
+        </AppCard>
+        <AppCard title="임베딩 모델 후보">
+          <JsonBlock value={embeddingModels} />
+        </AppCard>
+      </div>
+
+      <AppCard title="문서 인입" description="텍스트 / URL / 단일 파일 / 멀티 파일 인입을 운영 순서대로 배치했습니다.">
+        <div className="form-grid three">
+          <label className="field-label">카테고리<select value={textForm.category} onChange={(e) => syncSharedFields({ category: e.target.value })}><option value="GENERAL">GENERAL</option><option value="DEV">DEV</option><option value="MICE">MICE</option><option value="TRAVEL">TRAVEL</option></select></label>
+          <label className="field-label">Source ID<input value={textForm.sourceId} onChange={(e) => syncSharedFields({ sourceId: e.target.value })} /></label>
+          <label className="field-label">Title<input value={textForm.title} onChange={(e) => syncSharedFields({ title: e.target.value })} /></label>
         </div>
-        <label className="field-label">Title<input value={textForm.title} onChange={e => { const value = e.target.value; setTextForm(prev => ({ ...prev, title: value })); setUrlForm(prev => ({ ...prev, title: value })); }} /></label>
-        <div className="two-column-grid">
-          <AppCard title="텍스트 인입"><label className="field-label">내용<textarea rows={8} value={textForm.content} onChange={e => setTextForm(prev => ({ ...prev, content: e.target.value }))} /></label><div className="button-row"><button onClick={() => ragApi.ingestText(textForm).then(() => { setOpStatus('텍스트 인입 완료'); load(); }).catch(err => setOpStatus(err.message))}>텍스트 업로드</button></div></AppCard>
-          <AppCard title="URL 인입"><label className="field-label">URL<input value={urlForm.url} onChange={e => setUrlForm(prev => ({ ...prev, url: e.target.value }))} /></label><div className="button-row"><button onClick={() => ragApi.ingestUrl(urlForm).then(() => { setOpStatus('URL 인입 완료'); load(); }).catch(err => setOpStatus(err.message))}>URL 업로드</button></div></AppCard>
+        <div className="two-column-grid top-gap">
+          <AppCard title="텍스트 인입">
+            <label className="field-label">내용<textarea rows={8} value={textForm.content} onChange={(e) => setTextForm((prev) => ({ ...prev, content: e.target.value }))} /></label>
+            <div className="button-row"><button onClick={() => run('텍스트 인입', () => ragApi.ingestText(textForm))}>텍스트 업로드</button></div>
+          </AppCard>
+          <AppCard title="URL 인입">
+            <label className="field-label">URL<input value={urlForm.url} onChange={(e) => setUrlForm((prev) => ({ ...prev, url: e.target.value }))} /></label>
+            <div className="button-row"><button onClick={() => run('URL 인입', () => ragApi.ingestUrl(urlForm))}>URL 업로드</button></div>
+          </AppCard>
         </div>
         <div className="form-grid two top-gap">
-          <label className="field-label">단일 파일<input type="file" onChange={e => setFile(e.target.files?.[0] || null)} /></label>
-          <label className="field-label">멀티 파일<input type="file" multiple onChange={e => setMultiFiles(e.target.files)} /></label>
+          <label className="field-label">단일 파일<input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
+          <label className="field-label">멀티 파일<input type="file" multiple onChange={(e) => setMultiFiles(e.target.files)} /></label>
         </div>
         <div className="button-row"><button onClick={uploadSingle}>단일 업로드</button><button className="secondary" onClick={uploadMulti}>멀티 업로드</button></div>
         <div className="status-line">{opStatus}</div>
       </AppCard>
 
-      <AppCard title="소스 목록" actions={<div className="toolbar"><select value={category} onChange={e => setCategory(e.target.value)}><option value="">전체</option><option value="GENERAL">GENERAL</option><option value="DEV">DEV</option><option value="MICE">MICE</option><option value="TRAVEL">TRAVEL</option></select><button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button></div>}>
+      <AppCard title="소스 목록" actions={<div className="toolbar"><select value={category} onChange={(e) => setCategory(e.target.value)}><option value="">전체</option><option value="GENERAL">GENERAL</option><option value="DEV">DEV</option><option value="MICE">MICE</option><option value="TRAVEL">TRAVEL</option></select><button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button></div>}>
         <DataTable rows={sources} columns={[
-          { key: 'source', title: 'Source', render: row => row.sourceId ?? row.id ?? '-' },
-          { key: 'category', title: '카테고리', render: row => row.category ?? '-' },
-          { key: 'title', title: '제목', render: row => row.title ?? '-' },
-          { key: 'chunks', title: 'Chunk 수', render: row => row.chunkCount ?? '-' },
-          { key: 'actions', title: '작업', render: row => <div className="button-row compact"><button className="secondary" onClick={() => ragApi.reindexSource({ sourceId: row.sourceId ?? row.id }).then(() => load()).catch(() => undefined)}>재색인</button><button className="danger" onClick={() => ragApi.purgeSource({ sourceId: row.sourceId ?? row.id }).then(() => load()).catch(() => undefined)}>삭제</button></div> }
+          { key: 'source', title: 'Source', render: (row) => row.sourceId ?? row.id ?? '-' },
+          { key: 'category', title: '카테고리', render: (row) => row.category ?? '-' },
+          { key: 'title', title: '제목', render: (row) => row.title ?? '-' },
+          { key: 'chunks', title: 'Chunk 수', render: (row) => row.chunkCount ?? '-' },
+          {
+            key: 'actions',
+            title: '작업',
+            render: (row) => (
+              <div className="button-row compact">
+                <button className="secondary" onClick={() => run(`소스 재색인 (${row.sourceId ?? row.id})`, () => ragApi.reindexSource({ sourceId: row.sourceId ?? row.id }))}>재색인</button>
+                <button className="danger" onClick={() => run(`소스 삭제 (${row.sourceId ?? row.id})`, () => ragApi.purgeSource({ sourceId: row.sourceId ?? row.id }))}>삭제</button>
+              </div>
+            )
+          }
         ]} />
+      </AppCard>
+
+      <AppCard title="작업 로그" actions={<button className="secondary" onClick={logs.clear}>로그 지우기</button>}>
+        <LogPanel lines={logs.lines} />
       </AppCard>
     </div>
   );

@@ -16,7 +16,6 @@ const navGroups = [
       { to: '/operations/models', label: '모델 관리' },
       { to: '/operations/keys', label: '키 관리' },
       { to: '/operations/prompts', label: '프롬프트 관리' },
-      { to: '/operations/devices', label: '외부장치 관리' },
       { to: '/operations/api-catalog', label: 'API 목록' }
     ]
   },
