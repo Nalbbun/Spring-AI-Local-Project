@@ -88,6 +88,7 @@ public class RuntimeModelChatService {
                              String userPrompt,
                              Consumer<String> tokenConsumer) {
         RuntimeModelSelection resolved = runtimeModelResolver.resolve(target, false);
+        log.info("LLM stream start. target={}, resolution={}", target, resolved.describe());
 
         if (resolved.fallbackApplied()) {
             log.warn("LLM streaming fallback applied. target={}, resolution={}", target, resolved.describe());
@@ -121,7 +122,8 @@ public class RuntimeModelChatService {
                         .blockLast(Duration.ofMillis(timeoutMs));
             }
         } catch (Exception e) {
-            log.warn("LLM stream failed. target={}, reason={}", target, e.getMessage());
+            log.error("LLM stream failed. target={}, resolution={}, partialLength={}, reason={}",
+                    target, resolved.describe(), fullResponse.length(), e.getMessage(), e);
             // 스트리밍 중 오류 시 지금까지 수집된 텍스트라도 반환
             if (fullResponse.isEmpty()) {
                 throw new IllegalStateException(
@@ -129,6 +131,8 @@ public class RuntimeModelChatService {
             }
         }
 
+        log.info("LLM stream end. target={}, resolution={}, responseLength={}",
+                target, resolved.describe(), fullResponse.length());
         return fullResponse.toString();
     }
 
@@ -331,13 +335,23 @@ public class RuntimeModelChatService {
                 long effectiveTimeoutMs = resolveEffectiveTimeout(target, resolved);
                 log.debug("LLM timeout. target={}, effectiveTimeoutMs={}", target, effectiveTimeoutMs);
 
-                return CompletableFuture.supplyAsync(supplier, llmTaskExecutor)
+                T result = CompletableFuture.supplyAsync(() -> {
+                            try {
+                                return supplier.get();
+                            } catch (Exception ex) {
+                                log.error("LLM supplier failed inside executor. target={}, resolution={}, reason={}",
+                                        target, resolved.describe(), ex.getMessage(), ex);
+                                throw ex;
+                            }
+                        }, llmTaskExecutor)
                         .orTimeout(effectiveTimeoutMs, TimeUnit.MILLISECONDS)
                         .join();
+                log.info("LLM call success. target={}, attempt={}, resolution={}", target, attempt, resolved.describe());
+                return result;
             } catch (Exception e) {
                 lastException = unwrap(e);
-                log.warn("LLM call failed. target={}, attempt={}/{}, reason={}",
-                        target, attempt, retryAttempts, lastException.getMessage());
+                log.error("LLM call failed. target={}, attempt={}/{}, resolution={}, reason={}",
+                        target, attempt, retryAttempts, resolved.describe(), lastException.getMessage(), lastException);
                 sleepBackoff(attempt);
             }
         }

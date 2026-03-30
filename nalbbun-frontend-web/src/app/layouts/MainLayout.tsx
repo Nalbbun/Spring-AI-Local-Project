@@ -10,7 +10,7 @@ const navGroups = [
     ]
   },
   {
-    title: '운영',
+    title: '환경설정',
     items: [
       { to: '/operations/system', label: '시스템 설정' },
       { to: '/operations/models', label: '모델 관리' },
@@ -20,14 +20,14 @@ const navGroups = [
     ]
   },
   {
-    title: '지식 관리',
+    title: 'RAG 설정',
     items: [
       { to: '/knowledge/rag-documents', label: 'RAG 문서 관리' },
       { to: '/knowledge/rag-search-test', label: '검색 테스트' }
     ]
   },
   {
-    title: '에이전트 운영',
+    title: '에이전트 설정',
     items: [
       { to: '/agent/management', label: '에이전트 관리' },
       { to: '/agent/trace', label: '실행 추적' }
@@ -45,7 +45,7 @@ export function MainLayout() {
       <aside className="sidebar">
         <div className="brand-block">
           <div className="brand-title">Nalbbun AI</div>
-          <div className="brand-subtitle">Frontend Web Console</div>
+          <div className="brand-subtitle">Web Console</div>
         </div>
         {navGroups.map(group => (
           <div className="nav-group" key={group.title}>
@@ -61,9 +61,8 @@ export function MainLayout() {
       <div className="content-area">
         <header className="content-header">
           <div>
-            <h1>분리형 프론트엔드 콘솔</h1>
-            <p>레거시 템플릿 기능을 React 구조로 재배치했고, 민감정보는 프론트에 저장하지 않습니다.</p>
-          </div>
+            <h1>Spring AI + React + vite 이용한 AI Test Tool</h1>
+           </div>
         </header>
         <main className="content-main">
           <Outlet />

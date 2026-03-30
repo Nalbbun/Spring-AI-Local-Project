@@ -331,14 +331,14 @@ export function ModelManagementPage() {
         <div className="status-line">{status}</div>
       </AppCard>
 
-      <AppCard title="운영 이벤트 로그" description="모델 관리 화면에서 수행한 연결 확인, 조회, 저장, 실행 이력이 하단에 계속 남습니다." actions={<button className="secondary" onClick={logs.clear}>로그 비우기</button>}>
-        <LogPanel lines={logs.lines} />
-      </AppCard>
-
       <div className="two-column-grid">
         <AppCard title="연결 JSON"><JsonBlock value={connection} /></AppCard>
         <AppCard title="모델 설정 JSON"><JsonBlock value={{ config, modelPriority }} /></AppCard>
       </div>
+
+      <AppCard title="운영 이벤트 로그" description="모델 관리 화면에서 수행한 연결 확인, 조회, 저장, 실행 이력이 하단에 계속 남습니다." actions={<button className="secondary" onClick={logs.clear}>로그 비우기</button>}>
+        <LogPanel lines={logs.lines} />
+      </AppCard>
     </div>
   );
 }

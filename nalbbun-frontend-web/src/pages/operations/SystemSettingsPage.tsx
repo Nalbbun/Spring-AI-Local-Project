@@ -5,12 +5,14 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { settingsApi } from '../../services/settingsApi';
 import type { DebugRuntimeConfig, RagStatusResponse } from '../../types/api';
 
+const runtimeModeOptions = ['RULE', 'LLM', 'HYBRID'];
+
 const defaultForm: DebugRuntimeConfig = {
-  resolverMode: '',
-  generalParserMode: '',
-  travelParserMode: '',
-  devParserMode: '',
-  miceParserMode: '',
+  resolverMode: 'HYBRID',
+  generalParserMode: 'HYBRID',
+  travelParserMode: 'HYBRID',
+  devParserMode: 'HYBRID',
+  miceParserMode: 'HYBRID',
   memoryStore: 'in-memory',
   memoryServiceType: '',
   fallbackPolicy: 'ALLOW_OPENAI',
@@ -36,6 +38,16 @@ const memoryStoreHints: Record<string, string> = {
   jdbc: 'PostgreSQL 기반 영구 저장소입니다.',
   redis: 'Redis 기반 저장소입니다. TTL 정책과 함께 쓰기 좋습니다.'
 };
+
+function ModeSelect({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) {
+  return (
+    <label className="field-label">{label}
+      <select value={value ?? 'HYBRID'} onChange={(e) => onChange(e.target.value)}>
+        {runtimeModeOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+      </select>
+    </label>
+  );
+}
 
 export function SystemSettingsPage() {
   const [config, setConfig] = useState<DebugRuntimeConfig>(defaultForm);
@@ -136,9 +148,7 @@ export function SystemSettingsPage() {
             <div className="sub-panel">
               <h3>기본 런타임 정책</h3>
               <div className="form-grid two top-gap">
-                <label className="field-label">Resolver Mode
-                  <input value={config.resolverMode ?? ''} onChange={(e) => setConfig((prev) => ({ ...prev, resolverMode: e.target.value }))} placeholder="llm / keyword / hybrid" />
-                </label>
+                <ModeSelect label="Resolver Mode" value={config.resolverMode} onChange={(value) => setConfig((prev) => ({ ...prev, resolverMode: value }))} />
                 <label className="field-label">Fallback Policy
                   <select value={config.fallbackPolicy ?? ''} onChange={(e) => setConfig((prev) => ({ ...prev, fallbackPolicy: e.target.value }))}>
                     <option value="ALLOW_OPENAI">ALLOW_OPENAI</option>
@@ -151,18 +161,10 @@ export function SystemSettingsPage() {
             <div className="sub-panel">
               <h3>카테고리 파서 모드</h3>
               <div className="form-grid two top-gap">
-                <label className="field-label">GENERAL Parser
-                  <input value={config.generalParserMode ?? ''} onChange={(e) => setConfig((prev) => ({ ...prev, generalParserMode: e.target.value }))} />
-                </label>
-                <label className="field-label">DEV Parser
-                  <input value={config.devParserMode ?? ''} onChange={(e) => setConfig((prev) => ({ ...prev, devParserMode: e.target.value }))} />
-                </label>
-                <label className="field-label">MICE Parser
-                  <input value={config.miceParserMode ?? ''} onChange={(e) => setConfig((prev) => ({ ...prev, miceParserMode: e.target.value }))} />
-                </label>
-                <label className="field-label">TRAVEL Parser
-                  <input value={config.travelParserMode ?? ''} onChange={(e) => setConfig((prev) => ({ ...prev, travelParserMode: e.target.value }))} />
-                </label>
+                <ModeSelect label="GENERAL Parser" value={config.generalParserMode} onChange={(value) => setConfig((prev) => ({ ...prev, generalParserMode: value }))} />
+                <ModeSelect label="DEV Parser" value={config.devParserMode} onChange={(value) => setConfig((prev) => ({ ...prev, devParserMode: value }))} />
+                <ModeSelect label="MICE Parser" value={config.miceParserMode} onChange={(value) => setConfig((prev) => ({ ...prev, miceParserMode: value }))} />
+                <ModeSelect label="TRAVEL Parser" value={config.travelParserMode} onChange={(value) => setConfig((prev) => ({ ...prev, travelParserMode: value }))} />
               </div>
             </div>
 

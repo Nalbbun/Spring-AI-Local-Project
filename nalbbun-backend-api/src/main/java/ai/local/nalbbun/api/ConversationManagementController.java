@@ -8,8 +8,8 @@ import ai.local.nalbbun.domain.memory.service.ConversationMemoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,7 +21,18 @@ public class ConversationManagementController {
     @GetMapping("/conversations")
     public ApiResponse<ConversationListDto> listConversations() {
         List<String> ids = conversationMemoryService.listConversationIds();
-        return ApiResponse.ok(new ConversationListDto(ids, ids.size()));
+        List<ConversationListItemDto> conversations = ids.stream()
+                .map(conversationMemoryService::snapshot)
+                .map(ConversationDtoMapper::toListItemDto)
+                .sorted(Comparator
+                        .comparing(ConversationListItemDto::lastUpdated,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ConversationListItemDto::conversationId))
+                .toList();
+        List<String> orderedIds = conversations.stream()
+                .map(ConversationListItemDto::conversationId)
+                .toList();
+        return ApiResponse.ok(new ConversationListDto(orderedIds, orderedIds.size(), conversations));
     }
 
     @GetMapping("/conversations/{conversationId}")

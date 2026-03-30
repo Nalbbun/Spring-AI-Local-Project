@@ -23,16 +23,7 @@ export function AgentChatPage() {
 
   return (
     <div className="page-stack">
-      <ChatWorkspace title="에이전트 채팅" description="legacy chat-agent 화면의 SSE 채팅과 에이전트 실행 테스트를 React로 재구성했습니다." defaultCategory="TRAVEL" defaultMessage="부산 2박 3일 여행 코스를 짜줘" />
-      <AppCard title="에이전트 실행 테스트" actions={<span className="status-badge info">{status}</span>}>
-        <label className="field-label">질문<textarea rows={4} value={question} onChange={e => setQuestion(e.target.value)} /></label>
-        <div className="button-row">
-          <button onClick={runAgent}>에이전트 실행</button>
-          <button className="secondary" onClick={() => setResult(null)}>화면 지우기</button>
-          <button className="secondary" onClick={() => agentApi.clearMemory().catch(() => undefined)}>대화 초기화</button>
-        </div>
-        <JsonBlock value={result} />
-      </AppCard>
+      <ChatWorkspace title="에이전트 채팅" description="chat-agent 화면의 SSE 채팅 React로 구성." defaultCategory="TRAVEL" defaultMessage="부산 2박 3일 여행 코스를 짜줘" />
     </div>
   );
 }

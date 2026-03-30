@@ -60,9 +60,17 @@ export interface ConversationSnapshot {
   importantNotes?: Array<{ category?: string; note?: string; createdAt?: string }>;
 }
 
+export interface ConversationListItem {
+  conversationId: string;
+  categories: string[];
+  lastUpdated?: string;
+  messageCount: number;
+}
+
 export interface ConversationListResult {
   conversationIds: string[];
   total: number;
+  conversations?: ConversationListItem[];
 }
 
 export interface RagSourceItem {

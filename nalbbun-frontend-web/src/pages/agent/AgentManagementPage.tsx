@@ -110,7 +110,7 @@ export function AgentManagementPage() {
     <div className="page-stack">
       <AppCard
         title="에이전트 현황"
-        description="레거시 agent 화면처럼 현황, 모델 배정, 검색 테스트, 실행 테스트, 작업 로그를 한 화면으로 복원했습니다."
+        description="agent 현황, 모델 배정, 검색 테스트, 실행 테스트, 작업 로그를 한 화면."
         actions={<button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button>}
       >
         <div className="stats-grid compact-four">
