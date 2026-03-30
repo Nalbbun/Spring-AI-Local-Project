@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.memory.model.ConversationMemorySnapshot;
-import ai.local.nalbbun.domain.memory.service.JdbcConversationMemoryService;
+import ai.local.nalbbun.infra.db.memory.jdbc.JdbcConversationMemoryService;
 
 /**
  * Jdbc Conversation Memory Service Test 타입이다.
@@ -33,7 +33,7 @@ class JdbcConversationMemoryServiceTest {
     @BeforeEach
     void setUp() {
         memoryService = new JdbcConversationMemoryService(createDataSource());
-        memoryService.initializeSchema();
+//        memoryService.initializeSchema();
     }
 
     /**

@@ -1,0 +1,1 @@
+-- Application tables moved to src/main/resources/db/migration via Flyway/manual execution.

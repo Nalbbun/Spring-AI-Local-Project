@@ -2,7 +2,7 @@ package ai.local.nalbbun.infra.security.apikey.service;
 
 import ai.local.nalbbun.infra.security.apikey.model.ApiKeyEntry;
 import ai.local.nalbbun.infra.security.apikey.model.ApiKeyProvider;
-import ai.local.nalbbun.infra.security.apikey.repository.ApiKeyRepository;
+import ai.local.nalbbun.domain.apikey.repository.ApiKeyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.openai.api.OpenAiApi;

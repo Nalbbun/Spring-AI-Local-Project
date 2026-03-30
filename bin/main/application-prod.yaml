@@ -20,4 +20,8 @@ spring:
       port: ${SPRING_DATA_REDIS_PORT:6379}
       password: ${SPRING_DATA_REDIS_PASSWORD:}
       database: ${SPRING_DATA_REDIS_DATABASE:0}
-      timeout: 3s
+      timeout: 3s 
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration

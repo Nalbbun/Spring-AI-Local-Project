@@ -1,17 +1,19 @@
 package ai.local.nalbbun.domain.category.travel;
 
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import ai.local.nalbbun.common.sse.AgentEventPublisher;
+import ai.local.nalbbun.domain.agent.application.travel.TravelWorkflow;
 import ai.local.nalbbun.domain.category.CategoryHandler;
 import ai.local.nalbbun.domain.category.memory.CategoryMemoryUpdateResult;
 import ai.local.nalbbun.domain.category.memory.CategoryMemoryUpdater;
-import ai.local.nalbbun.domain.category.travel.model.TravelContext;
-import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.category.model.CategoryResult;
+import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.category.model.ConversationState;
+import ai.local.nalbbun.domain.category.travel.model.TravelContext;
 import ai.local.nalbbun.domain.memory.service.ConversationMemoryService;
-import ai.local.nalbbun.common.sse.AgentEventPublisher;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * Travel Category Handler 타입이다.
