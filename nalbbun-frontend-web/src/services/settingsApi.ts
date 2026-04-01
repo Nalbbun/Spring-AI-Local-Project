@@ -36,15 +36,32 @@ export const settingsApi = {
   saveRagConfig: (payload: any) => apiSend<RagStatusResponse>('/debug/api/rag/config', 'POST', payload)
 };
 
+const buildOptionalQuery = (params: Record<string, string | undefined>) => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    const normalized = String(value ?? '').trim();
+    if (normalized) search.set(key, normalized);
+  });
+  const query = search.toString();
+  return query ? `?${query}` : '';
+};
+
 export const ragApi = {
   getStatus: () => apiGet<RagStatusResponse>('/debug/api/rag/status'),
+  getHealth: () => apiGet<any>('/debug/api/rag/health'),
   getDbInfo: () => apiGet<any>('/debug/api/rag/db-info'),
-  getSources: (category: string) => apiGet<any[]>(`/debug/api/rag/sources?category=${encodeURIComponent(category)}`),
+  getSources: (category: string, source?: string, version?: string) =>
+    apiGet<any[]>(`/debug/api/rag/sources${buildOptionalQuery({ category, source, version })}`),
+  getSourceFiles: (category: string, source: string, version: string) =>
+    apiGet<any[]>(`/debug/api/rag/source/files${buildOptionalQuery({ category, source, version })}`),
+  search: (payload: { category: string; query: string; source?: string; version?: string }) =>
+    apiGet<any>(`/debug/api/rag/search${buildOptionalQuery(payload)}`),
   ingestText: (payload: any) => apiSend<any>('/debug/api/rag/ingest-text', 'POST', payload),
   ingestUrl: (payload: any) => apiSend<any>('/debug/api/rag/ingest-url', 'POST', payload),
   ingestFile: (form: FormData) => apiPostForm<any>('/debug/api/rag/ingest-file', form),
   ingestFiles: (form: FormData) => apiPostForm<any>('/debug/api/rag/ingest-files', form),
   purgeSource: (payload: any) => apiSend<any>('/debug/api/rag/source/purge', 'POST', payload),
+  purgeSourceFile: (payload: any) => apiSend<any>('/debug/api/rag/source/file/purge', 'POST', payload),
   reindexSource: (payload: any) => apiSend<any>('/debug/api/rag/source/reindex', 'POST', payload),
   getEmbeddingConfig: () => apiGet<any>('/debug/api/rag/embedding/config'),
   saveEmbeddingConfig: (payload: any) => apiSend<any>('/debug/api/rag/embedding/config', 'POST', payload),

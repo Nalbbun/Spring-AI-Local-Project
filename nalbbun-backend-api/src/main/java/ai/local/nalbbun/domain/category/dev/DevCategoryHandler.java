@@ -1,5 +1,8 @@
 package ai.local.nalbbun.domain.category.dev;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -87,12 +90,16 @@ public class DevCategoryHandler implements CategoryHandler {
         );
 
         RagContext ragContext = ragSupportService.buildContext(ChatCategory.DEV, state.getUserQuery());
+        for (var step : ragContext.getSteps()) {
+            agentEventPublisher.send(emitter, "RAG-DEV-" + step.name(), step.status(), step.message());
+        }
         agentEventPublisher.send(
                 emitter,
                 "RAG-DEV",
                 ragContext.isApplied() ? "applied" : (ragContext.isEnabled() ? "empty" : "disabled"),
                 ragContext.getTraceMessage()
         );
+        sseEmitterHelper.send(emitter, SseEventNames.RAG, buildRagEventPayload(ragContext));
 
         // 프롬프트 적용 정보 로그
         String resolvedPromptId = state.getPromptId();
@@ -130,5 +137,32 @@ public class DevCategoryHandler implements CategoryHandler {
                 .finalResponse(response)
                 .payload(context)
                 .build();
+    }
+
+    private Map<String, Object> buildRagEventPayload(RagContext ragContext) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("enabled", ragContext.isEnabled());
+        payload.put("applied", ragContext.isApplied());
+        payload.put("reason", ragContext.getReason());
+        payload.put("traceMessage", ragContext.getTraceMessage());
+        payload.put("candidateCount", ragContext.getCandidateCount());
+        payload.put("hitCount", ragContext.getHitCount());
+        payload.put("retrievalElapsedMs", ragContext.getRetrievalElapsedMs());
+        payload.put("filterExpression", ragContext.getFilterExpression());
+        payload.put("similarityThreshold", ragContext.getSimilarityThreshold());
+        payload.put("topK", ragContext.getTopK());
+        payload.put("rerankApplied", ragContext.isRerankApplied());
+        payload.put("retrievalMode", ragContext.getRetrievalMode());
+        payload.put("steps", ragContext.getSteps());
+        payload.put("documents", ragContext.getDocuments().stream().map(document -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("title", document.title());
+            item.put("source", document.source());
+            item.put("version", document.version());
+            item.put("score", document.score());
+            item.put("preview", document.text());
+            return item;
+        }).toList());
+        return payload;
     }
 }

@@ -74,12 +74,29 @@ export interface ConversationListResult {
 }
 
 export interface RagSourceItem {
+  source?: string;
   sourceId?: string;
   category?: string;
   sourceType?: string;
   title?: string;
+  version?: string;
   createdAt?: string;
+  updatedAt?: string;
+  ingestedAt?: string;
   chunkCount?: number;
+  fileCount?: number;
+}
+
+export interface RagHealthResponse {
+  status?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface RagSourceCommand {
+  category: string;
+  source: string;
+  version?: string;
+  targetVersion?: string;
 }
 
 export interface AgentExecutionEvent {

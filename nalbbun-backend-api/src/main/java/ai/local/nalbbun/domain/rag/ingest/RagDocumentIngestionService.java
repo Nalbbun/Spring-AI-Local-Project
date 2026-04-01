@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.config.rag.RagProperties;
 import ai.local.nalbbun.domain.rag.reader.RagDocumentReaderService;
+import ai.local.nalbbun.domain.rag.service.RagMetadataSupport;
 import ai.local.nalbbun.domain.rag.service.RuntimeOllamaVectorStoreFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -34,6 +35,7 @@ public class RagDocumentIngestionService {
     private final RuntimeOllamaVectorStoreFactory runtimeVectorStoreFactory;
     private final RagProperties ragProperties;
     private final RagDocumentReaderService ragDocumentReaderService;
+    private final RagMetadataSupport ragMetadataSupport;
 
     /**
      * ingest Text 기능을 수행한다.
@@ -239,6 +241,9 @@ public class RagDocumentIngestionService {
         List<Document> splitDocuments = splitter.apply(seedDocuments);
         List<Document> enriched = new ArrayList<>();
 
+        String normalizedSource = ragMetadataSupport.normalizeSource(source);
+        String normalizedVersion = ragMetadataSupport.normalizeVersion(version);
+
         for (int i = 0; i < splitDocuments.size(); i++) {
             Document splitDocument = splitDocuments.get(i);
             Map<String, Object> splitMetadata = new LinkedHashMap<>(splitDocument.getMetadata());
@@ -246,6 +251,8 @@ public class RagDocumentIngestionService {
             splitMetadata.put("source", source);
             splitMetadata.put("version", version);
             splitMetadata.put("title", title);
+            splitMetadata.put("sourceKey", normalizedSource);
+            splitMetadata.put("versionKey", normalizedVersion);
             enriched.add(new Document(splitDocument.getText(), splitMetadata));
         }
 
@@ -273,8 +280,12 @@ public class RagDocumentIngestionService {
             base.putAll(metadata);
         }
         base.put("category", category);
-        base.put("source", blankToDefault(source, "manual"));
-        base.put("version", blankToDefault(version, "v1"));
+        String resolvedSource = blankToDefault(source, "manual");
+        String resolvedVersion = blankToDefault(version, "v1");
+        base.put("source", resolvedSource);
+        base.put("sourceKey", ragMetadataSupport.normalizeSource(resolvedSource));
+        base.put("version", resolvedVersion);
+        base.put("versionKey", ragMetadataSupport.normalizeVersion(resolvedVersion));
         base.put("title", blankToDefault(title, "manual-ingest"));
         base.put("ingestType", ingestType);
         base.put("ingestedAt", LocalDateTime.now().toString());
@@ -303,12 +314,6 @@ public class RagDocumentIngestionService {
         return blankToDefault(version, "v1");
     }
 
-    /**
-     * resolve Source 결과를 계산한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     private String resolveSource(String source, String title, String fallback) {
         String candidate = firstNonBlank(source, title, fallback, "manual");
         return slugify(candidate);

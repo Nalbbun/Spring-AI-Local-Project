@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { AppCard } from '../ui/AppCard';
 import { buildChatStreamUrl, type ChatCategory } from '../../services/chatApi';
 import { LogPanel } from '../ui/LogPanel';
@@ -25,6 +25,29 @@ interface AgentStepView {
   name: string;
   status: string;
   description: string;
+}
+
+interface RagStepView {
+  name: string;
+  status: string;
+  message: string;
+}
+
+interface RagDiagnosticsView {
+  enabled: boolean;
+  applied: boolean;
+  reason: string;
+  traceMessage: string;
+  candidateCount: number;
+  hitCount: number;
+  retrievalElapsedMs: number;
+  filterExpression: string;
+  similarityThreshold: number;
+  topK: number;
+  rerankApplied: boolean;
+  retrievalMode: string;
+  steps: RagStepView[];
+  documents: Array<{ title?: string; source?: string; version?: string; score?: number; preview?: string }>;
 }
 
 interface ConversationOption {
@@ -112,6 +135,37 @@ function formatEventDisplay(type: string, raw: string, parsed: any): string {
   return normalizedRaw || raw;
 }
 
+function parseLatestRagDiagnostics(events: StreamEventLine[]): RagDiagnosticsView | null {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event.type !== 'rag' || !event.parsed || typeof event.parsed !== 'object') {
+      continue;
+    }
+    const parsed = event.parsed as RagDiagnosticsView;
+    return {
+      enabled: Boolean(parsed.enabled),
+      applied: Boolean(parsed.applied),
+      reason: String(parsed.reason || ''),
+      traceMessage: String(parsed.traceMessage || ''),
+      candidateCount: Number(parsed.candidateCount || 0),
+      hitCount: Number(parsed.hitCount || 0),
+      retrievalElapsedMs: Number(parsed.retrievalElapsedMs || 0),
+      filterExpression: String(parsed.filterExpression || ''),
+      similarityThreshold: Number(parsed.similarityThreshold || 0),
+      topK: Number(parsed.topK || 0),
+      rerankApplied: Boolean(parsed.rerankApplied),
+      retrievalMode: String(parsed.retrievalMode || ''),
+      steps: Array.isArray(parsed.steps) ? parsed.steps.map((step: any) => ({
+        name: String(step?.name || ''),
+        status: String(step?.status || ''),
+        message: String(step?.message || '')
+      })) : [],
+      documents: Array.isArray(parsed.documents) ? parsed.documents : []
+    };
+  }
+  return null;
+}
+
 function buildEventLines(events: StreamEventLine[]): string[] {
   const lines: string[] = [];
   let tokenBuffer = '';
@@ -171,6 +225,11 @@ function buildConversationOptions(category: ChatCategory, items: ConversationLis
   return options;
 }
 
+const SPLIT_STORAGE_KEY = 'nalbbun.chat.split.right.width';
+const DEFAULT_RIGHT_WIDTH = 42;
+const MIN_RIGHT_WIDTH = 28;
+const MAX_RIGHT_WIDTH = 62;
+
 export function ChatWorkspace({
   title,
   description,
@@ -193,6 +252,7 @@ export function ChatWorkspace({
   const [memory, setMemory] = useState<any>(null);
   const [memoryStatus, setMemoryStatus] = useState('조회 전');
   const [configConversationId, setConfigConversationId] = useState('');
+  const [rightPaneWidth, setRightPaneWidth] = useState(DEFAULT_RIGHT_WIDTH);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const startedAtRef = useRef<number | null>(null);
@@ -200,6 +260,7 @@ export function ChatWorkspace({
   const streamCompletedRef = useRef(false);
   const terminalErrorRef = useRef(false);
   const closedByClientRef = useRef(false);
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const url = useMemo(
     () => buildChatStreamUrl({ message, conversationId, category: defaultCategory, promptId }),
@@ -207,7 +268,51 @@ export function ChatWorkspace({
   );
 
   const agentSteps = useMemo(() => parseAgentSteps(events), [events]);
+  const ragDiagnostics = useMemo(() => parseLatestRagDiagnostics(events), [events]);
   const eventLines = useMemo(() => buildEventLines(events), [events]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = Number(window.localStorage.getItem(SPLIT_STORAGE_KEY));
+    if (!Number.isNaN(saved) && saved >= MIN_RIGHT_WIDTH && saved <= MAX_RIGHT_WIDTH) {
+      setRightPaneWidth(saved);
+    }
+  }, []);
+
+  const persistSplit = (next: number) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(SPLIT_STORAGE_KEY, String(next));
+    }
+  };
+
+  useEffect(() => {
+    const handleMove = (event: MouseEvent) => {
+      if (!dragStateRef.current || typeof window === 'undefined') return;
+      const deltaX = dragStateRef.current.startX - event.clientX;
+      const percentDelta = (deltaX / window.innerWidth) * 100;
+      const next = Math.min(MAX_RIGHT_WIDTH, Math.max(MIN_RIGHT_WIDTH, dragStateRef.current.startWidth + percentDelta));
+      setRightPaneWidth(next);
+    };
+
+    const handleUp = () => {
+      if (!dragStateRef.current) return;
+      dragStateRef.current = null;
+      persistSplit(rightPaneWidth);
+      document.body.classList.remove('split-dragging');
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [rightPaneWidth]);
+
+  const beginSplitDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
+    dragStateRef.current = { startX: event.clientX, startWidth: rightPaneWidth };
+    document.body.classList.add('split-dragging');
+  };
 
   const loadConversationTargets = async () => {
     try {
@@ -322,7 +427,7 @@ export function ChatWorkspace({
     es.onopen = () => setStatus('스트리밍 중');
     es.onmessage = (event) => appendEvent('message', event.data);
 
-    ['resolver', 'status', 'token', 'result', 'done', 'complete', 'error', 'agent'].forEach((type) => {
+    ['resolver', 'status', 'token', 'result', 'done', 'complete', 'error', 'agent', 'rag'].forEach((type) => {
       es.addEventListener(type, (event) => {
         const data = (event as MessageEvent).data;
 
@@ -406,7 +511,7 @@ export function ChatWorkspace({
   };
 
   return (
-    <div className="page-stack">
+    <div className="page-stack chat-workspace-page">
       <AppCard title={title} description={description} actions={<span className="status-badge info">{status}</span>}>
         <div className="form-grid two">
           <label className="field-label">
@@ -461,44 +566,98 @@ export function ChatWorkspace({
         <div className="inline-code">{url}</div>
       </AppCard>
 
-      {agentSteps.length > 0 && (
-        <AppCard title="진행 단계" description="에이전트/스트리밍 이벤트를 단계형으로 요약합니다.">
-          <div className="agent-step-stack">
-            {agentSteps.map((step) => (
-              <div
-                key={step.name}
-                className={`agent-step-card ${
-                  step.status.includes('error')
-                    ? 'error'
-                    : step.status.includes('done') || step.status.includes('complete')
-                      ? 'complete'
-                      : 'running'
-                }`}
-              >
-                <div className="agent-step-title-row">
-                  <strong>{step.name}</strong>
-                  <span className="status-badge">{step.status}</span>
-                </div>
-                <div className="muted small-text">{step.description}</div>
+      <div className="chat-dashboard-layout" style={{ ['--chat-right-width' as any]: `${rightPaneWidth}%` }}>
+        <section className="chat-response-column">
+          <AppCard title="채팅 정보 상단 / 최종 응답" description="최종 응답과 이벤트 로그를 한 흐름으로 확인합니다.">
+            <div className="result-panel chat-answer-panel">{answer || '응답 대기 중'}</div>
+          </AppCard>
+          <AppCard title="이벤트 로그" description="최종 응답 생성 과정에서 수집된 SSE 이벤트 로그">
+            <LogPanel lines={eventLines} />
+          </AppCard>
+        </section>
+
+        <div className="chat-splitter" onMouseDown={beginSplitDrag} role="separator" aria-orientation="vertical" aria-label="채팅 화면 분할 조절" />
+
+        <section className="chat-side-column">
+          {agentSteps.length > 0 && (
+            <AppCard title="진행 단계" description="에이전트/스트리밍 이벤트를 단계형으로 요약합니다.">
+              <div className="agent-step-stack">
+                {agentSteps.map((step) => (
+                  <div
+                    key={step.name}
+                    className={`agent-step-card ${
+                      step.status.includes('error')
+                        ? 'error'
+                        : step.status.includes('done') || step.status.includes('complete')
+                          ? 'complete'
+                          : 'running'
+                    }`}
+                  >
+                    <div className="agent-step-title-row">
+                      <strong>{step.name}</strong>
+                      <span className="status-badge">{step.status}</span>
+                    </div>
+                    <div className="muted small-text">{step.description}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </AppCard>
-      )}
+            </AppCard>
+          )}
 
-      <div className="two-column-grid">
-        <AppCard title="최종 응답">
-          <div className="result-panel">{answer || '응답 대기 중'}</div>
-        </AppCard>
-        <AppCard title="이벤트 로그">
-          <LogPanel lines={eventLines} />
-        </AppCard>
+          {ragDiagnostics && (
+            <AppCard title="RAG 단계 상태" description="검색 후보 수집, 재정렬, 프롬프트 반영 여부를 단계별로 표시합니다.">
+              <div className="list-item-row">
+                <span>상태</span>
+                <span className={`status-badge ${ragDiagnostics.applied ? 'success' : ragDiagnostics.enabled ? 'warning' : 'danger'}`}>
+                  {ragDiagnostics.applied ? '적용됨' : ragDiagnostics.enabled ? '검색 결과 없음' : '비활성'}
+                </span>
+              </div>
+              <div className="form-grid two top-gap">
+                <div className="json-block">{JSON.stringify({
+                  reason: ragDiagnostics.reason,
+                  candidateCount: ragDiagnostics.candidateCount,
+                  hitCount: ragDiagnostics.hitCount,
+                  retrievalElapsedMs: ragDiagnostics.retrievalElapsedMs,
+                  topK: ragDiagnostics.topK,
+                  similarityThreshold: ragDiagnostics.similarityThreshold,
+                  rerankApplied: ragDiagnostics.rerankApplied,
+                  retrievalMode: ragDiagnostics.retrievalMode
+                }, null, 2)}</div>
+                <div className="json-block">{ragDiagnostics.filterExpression || 'filterExpression 없음'}</div>
+              </div>
+              {ragDiagnostics.steps.length > 0 && (
+                <div className="agent-step-stack top-gap">
+                  {ragDiagnostics.steps.map((step, index) => (
+                    <div
+                      key={`${step.name}-${index}`}
+                      className={`agent-step-card ${
+                        step.status.includes('disabled') || step.status.includes('empty') || step.status.includes('skipped')
+                          ? 'error'
+                          : step.status.includes('ok') || step.status.includes('applied') || step.status.includes('reranked')
+                            ? 'complete'
+                            : 'running'
+                      }`}
+                    >
+                      <div className="agent-step-title-row">
+                        <strong>{step.name}</strong>
+                        <span className="status-badge">{step.status}</span>
+                      </div>
+                      <div className="muted small-text">{step.message}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="top-gap json-block">{ragDiagnostics.traceMessage}</div>
+              <div className="top-gap json-block">{JSON.stringify(ragDiagnostics.documents, null, 2)}</div>
+            </AppCard>
+          )}
+
+          <AppCard title="현재 대화 메모리" description="conversation 기반 메모리 확인">
+            <div className="status-line">{memoryStatus}</div>
+            <div className="json-block">{memory ? JSON.stringify(memory, null, 2) : '메모리 데이터가 없습니다.'}</div>
+          </AppCard>
+        </section>
       </div>
-
-      <AppCard title="현재 대화 메모리" description="레거시 화면처럼 conversation 기반 메모리를 바로 확인할 수 있게 복원했습니다.">
-        <div className="status-line">{memoryStatus}</div>
-        <div className="json-block">{memory ? JSON.stringify(memory, null, 2) : '메모리 데이터가 없습니다.'}</div>
-      </AppCard>
     </div>
   );
 }

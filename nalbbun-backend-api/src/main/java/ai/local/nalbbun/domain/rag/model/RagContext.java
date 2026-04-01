@@ -24,6 +24,15 @@ public class RagContext {
     private final List<RagRetrievedDocument> documents;
     private final String sourceFilter;
     private final String versionFilter;
+    private final List<RagStepTrace> steps;
+    private final int candidateCount;
+    private final int hitCount;
+    private final long retrievalElapsedMs;
+    private final String filterExpression;
+    private final double similarityThreshold;
+    private final int topK;
+    private final boolean rerankApplied;
+    private final String retrievalMode;
 
     /**
      * disabled 기능을 수행한다.
@@ -41,6 +50,15 @@ public class RagContext {
                 .documents(List.of())
                 .sourceFilter("")
                 .versionFilter("")
+                .steps(List.of(new RagStepTrace("RAG 상태 확인", "disabled", reason)))
+                .candidateCount(0)
+                .hitCount(0)
+                .retrievalElapsedMs(0L)
+                .filterExpression("")
+                .similarityThreshold(0.0d)
+                .topK(0)
+                .rerankApplied(false)
+                .retrievalMode("disabled")
                 .build();
     }
 
@@ -60,6 +78,15 @@ public class RagContext {
                 .documents(List.of())
                 .sourceFilter("")
                 .versionFilter("")
+                .steps(List.of(new RagStepTrace("RAG 상태 확인", "disabled", reason)))
+                .candidateCount(0)
+                .hitCount(0)
+                .retrievalElapsedMs(0L)
+                .filterExpression("")
+                .similarityThreshold(0.0d)
+                .topK(0)
+                .rerankApplied(false)
+                .retrievalMode("disabled")
                 .build();
     }
 }

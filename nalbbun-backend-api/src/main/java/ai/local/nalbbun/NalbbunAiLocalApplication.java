@@ -2,7 +2,6 @@ package ai.local.nalbbun;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 
 /**
  * Nalbbun Ai Local Application 타입이다.
@@ -11,7 +10,7 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
  * <p>입력: 호출 계층에서 전달되는 입력값과 주입된 의존성</p>
  * <p>출력: 처리 결과 객체, 상태 변경 또는 후속 처리에 필요한 데이터</p>
  */
-@SpringBootApplication(exclude = DataSourceAutoConfiguration.class)
+@SpringBootApplication
 public class NalbbunAiLocalApplication {
 
     /**

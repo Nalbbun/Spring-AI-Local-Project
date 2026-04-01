@@ -83,11 +83,13 @@ public class RagMetadataSupport {
         clauses.add("category == '" + escapeFilterValue(category.name()) + "'");
         String sourceKey = normalizeSource(sourceFilter);
         if (!sourceKey.isBlank()) {
-            clauses.add("sourceKey == '" + escapeFilterValue(sourceKey) + "'");
+            String escapedSource = escapeFilterValue(sourceKey);
+            clauses.add("(sourceKey == '" + escapedSource + "' || source == '" + escapedSource + "')");
         }
         String versionKey = normalizeVersion(versionFilter);
         if (!versionKey.isBlank()) {
-            clauses.add("versionKey == '" + escapeFilterValue(versionKey) + "'");
+            String escapedVersion = escapeFilterValue(versionKey);
+            clauses.add("(versionKey == '" + escapedVersion + "' || version == '" + escapedVersion + "')");
         }
         return String.join(" && ", clauses);
     }

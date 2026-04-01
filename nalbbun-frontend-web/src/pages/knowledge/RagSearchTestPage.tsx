@@ -1,40 +1,88 @@
 import { useState } from 'react';
-import { ChatWorkspace } from '../../components/chat/ChatWorkspace';
 import { AppCard } from '../../components/ui/AppCard';
+import { DataTable } from '../../components/ui/DataTable';
 import { JsonBlock } from '../../components/ui/JsonBlock';
+import { LogPanel } from '../../components/ui/LogPanel';
+import { useEventLog } from '../../hooks/useEventLog';
 import { ragApi } from '../../services/settingsApi';
 
-export function RagSearchTestPage() {
-  const [embedding, setEmbedding] = useState<any>(null);
-  const [models, setModels] = useState<any>(null);
-  const [status, setStatus] = useState('대기 중');
+const CATEGORY_OPTIONS = ['GENERAL', 'DEV', 'MICE', 'TRAVEL'] as const;
 
-  const load = async () => {
+export function RagSearchTestPage() {
+  const [category, setCategory] = useState<string>('DEV');
+  const [query, setQuery] = useState('RAG 검색 테스트를 위한 문서 분석 및 요약 단계별 가이드');
+  const [source, setSource] = useState('');
+  const [version, setVersion] = useState('');
+  const [status, setStatus] = useState('대기 중');
+  const [result, setResult] = useState<any>(null);
+  const logs = useEventLog('rag-search-test-log', ['RAG 검색 테스트 로그가 누적됩니다.']);
+
+  const search = async () => {
+    if (!query.trim()) {
+      setStatus('검색어를 입력하세요.');
+      return;
+    }
+    setStatus('검색 중');
+    logs.append('RAG 검색 시작', { category, query, source, version });
     try {
-      const [cfg, modelList] = await Promise.all([ragApi.getEmbeddingConfig(), ragApi.getEmbeddingModels()]);
-      setEmbedding(cfg);
-      setModels(modelList);
-      setStatus('조회 완료');
+      const data = await ragApi.search({ category, query, source, version });
+      setResult(data);
+      setStatus(`조회 완료 (hits=${data?.documents?.length ?? 0})`);
+      logs.append('RAG 검색 완료', `applied=${data?.applied} hits=${data?.documents?.length ?? 0} reason=${data?.reason ?? '-'}`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setStatus(message);
+      logs.append('RAG 검색 실패', message);
     }
   };
 
+  const documents = result?.documents ?? [];
+
   return (
     <div className="page-stack">
-      <ChatWorkspace
-        title="RAG 검색 테스트"
-        description="질문 → 검색 → 응답 → 이벤트 로그 → 메모리 확인 흐름으로 RAG 테스트를 수행합니다."
-        defaultCategory="DEV"
-        defaultMessage="RAG 검색 테스트를 위해 관련 문서를 찾아 요약해줘"
-      />
-      <AppCard title="임베딩 설정/후보 모델" description="검색 품질 문제를 빠르게 진단할 수 있도록 현재 설정과 후보 모델을 같이 보여줍니다." actions={<button className="secondary" onClick={load}>새로고침</button>}>
-        <div className="status-line">{status}</div>
-        <div className="two-column-grid">
-          <JsonBlock value={embedding} />
-          <JsonBlock value={models} />
+      <AppCard title="RAG 검색 테스트" description="v0.9처럼 실제 /debug/api/rag/search 결과를 바로 확인하는 테스트 화면으로 복원했습니다.">
+        <div className="form-grid four">
+          <label className="field-label">카테고리
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORY_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          <label className="field-label">Source (선택)
+            <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="예: dev-manual" />
+          </label>
+          <label className="field-label">Version (선택)
+            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="예: v1" />
+          </label>
+          <label className="field-label">상태
+            <input value={status} readOnly />
+          </label>
+        </div>
+        <label className="field-label top-gap">검색어
+          <textarea rows={4} value={query} onChange={(e) => setQuery(e.target.value)} />
+        </label>
+        <div className="button-row">
+          <button onClick={search}>검색 실행</button>
+          <button className="secondary" onClick={() => { setResult(null); setStatus('대기 중'); }}>결과 지우기</button>
         </div>
       </AppCard>
+
+      <AppCard title="검색 결과 문서" description={`hits=${documents.length} | applied=${String(result?.applied ?? '-')}`}>
+        <DataTable rows={documents} columns={[
+          { key: 'idx', title: '#', render: (_row, index) => index + 1 },
+          { key: 'source', title: 'Source', render: (row) => row.source ?? '-' },
+          { key: 'version', title: 'Version', render: (row) => row.version ?? '-' },
+          { key: 'score', title: 'Score', render: (row) => row.score != null ? Number(row.score).toFixed(4) : '-' },
+          { key: 'title', title: '제목', render: (row) => row.title ?? '-' },
+          { key: 'text', title: '본문 미리보기', render: (row) => <div style={{ whiteSpace: 'pre-wrap' }}>{row.text ?? '-'}</div> }
+        ]} emptyText="검색 결과가 없습니다." />
+      </AppCard>
+
+      <div className="two-column-grid">
+        <AppCard title="검색 결과 JSON"><JsonBlock value={result} /></AppCard>
+        <AppCard title="검색 로그" actions={<button className="secondary" onClick={logs.clear}>로그 지우기</button>}>
+          <LogPanel lines={logs.lines} />
+        </AppCard>
+      </div>
     </div>
   );
 }

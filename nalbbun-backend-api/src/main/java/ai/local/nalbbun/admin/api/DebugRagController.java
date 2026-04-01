@@ -111,7 +111,7 @@ public class DebugRagController {
      * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
      */
     @GetMapping("/sources")
-    public List<RagSourceManifest> sources(@RequestParam("category") ChatCategory category,
+    public List<RagSourceManifest> sources(@RequestParam(value = "category", required = false) ChatCategory category,
                                            @RequestParam(value = "source", required = false) String source,
                                            @RequestParam(value = "version", required = false) String version) {
         return ragSourceCatalogService.listSources(category, source, version);
@@ -440,6 +440,12 @@ public class DebugRagController {
         }
         if (message.contains("VectorStore")) {
             return "APP_RAG_ENABLED, SPRING_AI_VECTORSTORE_TYPE, PGVector 연결 상태를 확인하세요.";
+        }
+        if (message.contains("PDF 문서 분석 중 오류")) {
+            return "해당 PDF는 레이아웃이 복잡하거나 스캔본일 수 있습니다. PDF를 다시 저장하거나 TXT/Markdown으로 변환 후 업로드해 보세요.";
+        }
+        if (message.contains("Comparison method violates its general contract")) {
+            return "PDF 내부 텍스트 좌표 정렬 오류입니다. 서버 fallback 파서 적용 여부를 확인하고, 문제 파일은 텍스트 기반 PDF로 다시 저장해 업로드하세요.";
         }
         if (message.contains("category")) {
             return "카테고리를 선택한 후 다시 시도하세요.";

@@ -14,6 +14,7 @@ public final class SseEventNames {
     public static final String MESSAGE = "message";
     public static final String COMPLETE = "complete";
     public static final String ERROR = "error";
+    public static final String RAG = "rag";
 
     /**
      * Sse Event Names 인스턴스를 초기화한다.
