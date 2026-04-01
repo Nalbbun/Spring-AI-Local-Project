@@ -2,7 +2,7 @@ package ai.local.nalbbun.domain.category;
 
 import java.time.Duration;
 
-import ai.local.nalbbun.admin.service.DebugRuntimeOllamaConnectionService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeOllamaConnectionPort;
 import ai.local.nalbbun.domain.category.model.CategoryResolution;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.runtime.service.LlmJsonSupport;
@@ -32,7 +32,7 @@ import reactor.netty.http.client.HttpClient;
 @Component
 public class LlmCategoryResolver {
 
-    private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
+    private final RuntimeOllamaConnectionPort ollamaConnectionService;
     private final String categoryModel;
     private final String chatKeepAlive;
     private final long ollamaConnectTimeoutMs;
@@ -46,7 +46,7 @@ public class LlmCategoryResolver {
      * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
      */
     public LlmCategoryResolver(
-            DebugRuntimeOllamaConnectionService ollamaConnectionService,
+            RuntimeOllamaConnectionPort ollamaConnectionService,
             @Value("${app.ollama.default-general-model:${spring.ai.ollama.chat.options.model:gemma2:9b}}") String categoryModel,
             @Value("${spring.ai.ollama.chat.options.keep-alive:300s}") String chatKeepAlive,
             @Value("${app.ollama.connect-timeout-ms:5000}") long ollamaConnectTimeoutMs,

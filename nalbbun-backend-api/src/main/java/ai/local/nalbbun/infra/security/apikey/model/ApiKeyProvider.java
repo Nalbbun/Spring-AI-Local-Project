@@ -6,6 +6,7 @@ package ai.local.nalbbun.infra.security.apikey.model;
 public enum ApiKeyProvider {
 
     OPENAI("OpenAI", "GPT 계열 LLM API", "https://platform.openai.com/api-keys"),
+    VLLM("vLLM", "vLLM 또는 OpenAI 호환 내부 API 키", null),
     TAVILY("Tavily", "웹 검색 API", "https://app.tavily.com"),
     ANTHROPIC("Anthropic", "Claude API (향후 지원)", "https://console.anthropic.com"),
     CUSTOM("Custom", "사용자 정의 API", null);

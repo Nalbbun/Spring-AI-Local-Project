@@ -5,7 +5,7 @@ import ai.local.nalbbun.domain.category.parser.CategoryParser;
 import ai.local.nalbbun.domain.category.travel.model.TravelContext;
 import ai.local.nalbbun.domain.category.travel.parser.LlmTravelParser;
 import ai.local.nalbbun.domain.category.travel.parser.RuleBasedTravelParser;
-import ai.local.nalbbun.admin.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.category.model.ConversationState;
 import org.springframework.stereotype.Component;
@@ -27,7 +27,7 @@ public class TravelCategoryParser
     public TravelCategoryParser(
             RuleBasedTravelParser ruleBasedTravelParser,
             LlmTravelParser llmTravelParser,
-            DebugRuntimeConfigService debugRuntimeConfigService
+            RuntimeCategoryPolicyPort debugRuntimeConfigService
     ) {
         super(ruleBasedTravelParser, llmTravelParser, debugRuntimeConfigService);
     }

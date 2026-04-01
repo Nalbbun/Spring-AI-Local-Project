@@ -13,6 +13,8 @@ const issueMap: Record<string, string> = {
   ANTHROPIC: 'https://console.anthropic.com'
 };
 
+const emptyForm = { provider: '', label: '', description: '', keyValue: '', active: true };
+
 export function KeyManagementPage() {
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
   const [items, setItems] = useState<ApiKeyEntry[]>([]);
@@ -20,7 +22,7 @@ export function KeyManagementPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [revealedKey, setRevealedKey] = useState('');
   const [status, setStatus] = useState('대기 중');
-  const [form, setForm] = useState({ provider: '', label: '', description: '', keyValue: '', active: true });
+  const [form, setForm] = useState(emptyForm);
   const logs = useEventLog('key-management-log', ['API 키 관리 로그가 누적됩니다.']);
 
   const load = async () => {
@@ -31,15 +33,21 @@ export function KeyManagementPage() {
 
   useEffect(() => { load().catch((error) => logs.append('API 키 조회 실패', error instanceof Error ? error.message : String(error))); }, [filter]);
 
+  const resetForm = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+  };
+
   const save = async () => {
     setStatus('저장 중');
     try {
-      const payload: Record<string, unknown> = { provider: form.provider, label: form.label, description: form.description, active: form.active };
+      const normalizedProvider = form.provider.trim().toUpperCase();
+      const payload: Record<string, unknown> = { provider: normalizedProvider, label: form.label, description: form.description, active: form.active };
       if (form.keyValue) payload.keyValue = form.keyValue;
       const result = editingId ? await keyApi.update(editingId, payload) : await keyApi.create({ ...payload, keyValue: form.keyValue });
       setEditingId(result.id);
       setStatus(`저장 완료: ${result.label}`);
-      setForm((prev) => ({ ...prev, keyValue: '' }));
+      setForm((prev) => ({ ...prev, provider: normalizedProvider, keyValue: '' }));
       logs.append(`API 키 저장 완료: ${result.label}`);
       await load();
     } catch (error) {
@@ -49,12 +57,13 @@ export function KeyManagementPage() {
     }
   };
 
-  const providerHint = useMemo(() => issueMap[form.provider] || '', [form.provider]);
+  const providerHint = useMemo(() => issueMap[form.provider.trim().toUpperCase()] || '', [form.provider]);
   const activeCount = providers.filter((provider) => provider.hasActiveKey).length;
+  const providerNames = providers.map((provider) => provider.provider).filter(Boolean);
 
   return (
     <div className="page-stack">
-      <AppCard title="프로바이더 현황" description="발급 안내, 활성 키 존재 여부, 현재 저장 목록을 함께 관리합니다." actions={<button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button>}>
+      <AppCard title="프로바이더 현황" description="기본 provider와 사용자 정의 provider를 함께 관리합니다." actions={<button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button>}>
         <div className="stats-grid compact-four top-gap">
           <div className="stat-box"><span>Provider 수</span><strong>{providers.length}</strong></div>
           <div className="stat-box"><span>Active Provider</span><strong>{activeCount}</strong></div>
@@ -64,8 +73,8 @@ export function KeyManagementPage() {
         <div className="provider-grid top-gap">
           {providers.map((provider) => (
             <div className="provider-card" key={provider.provider}>
-              <div className="provider-title">{provider.displayName}</div>
-              <div className="muted">{provider.description}</div>
+              <div className="provider-title">{provider.displayName || provider.provider}</div>
+              <div className="muted">{provider.description || '사용자 정의 API 키 그룹'}</div>
               <div className="provider-footer">
                 <StatusBadge label={provider.hasActiveKey ? '활성' : '미설정'} tone={provider.hasActiveKey ? 'success' : 'warning'} />
                 {provider.keyIssueUrl && <a href={provider.keyIssueUrl} target="_blank" rel="noreferrer">키 발급</a>}
@@ -76,7 +85,7 @@ export function KeyManagementPage() {
       </AppCard>
 
       <div className="two-column-grid wider-left">
-        <AppCard title="등록된 API 키" actions={<div className="toolbar"><select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">전체</option><option value="OPENAI">OpenAI</option><option value="TAVILY">Tavily</option><option value="ANTHROPIC">Anthropic</option><option value="CUSTOM">Custom</option></select><button className="secondary" onClick={() => { setEditingId(null); setForm({ provider: '', label: '', description: '', keyValue: '', active: true }); }}>신규</button></div>}>
+        <AppCard title="등록된 API 키" actions={<div className="toolbar"><select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">전체</option>{providerNames.map((provider) => <option key={provider} value={provider}>{provider}</option>)}</select><button className="secondary" onClick={resetForm}>신규</button></div>}>
           <DataTable
             rows={items}
             columns={[
@@ -100,16 +109,21 @@ export function KeyManagementPage() {
           {revealedKey && <div className="inline-code">{revealedKey}</div>}
         </AppCard>
 
-        <AppCard title={editingId ? 'API 키 편집' : 'API 키 등록'} description="저장 후 활성화하면 런타임 provider 상태 카드에 즉시 반영됩니다.">
+        <AppCard title={editingId ? 'API 키 편집' : 'API 키 등록'} description="정해진 provider 외에도 원하는 이름으로 여러 키 그룹을 만들 수 있습니다.">
           <div className="form-grid two">
-            <label className="field-label">프로바이더<select value={form.provider} onChange={(e) => setForm((prev) => ({ ...prev, provider: e.target.value }))}><option value="">선택</option><option value="OPENAI">OpenAI</option><option value="TAVILY">Tavily</option><option value="ANTHROPIC">Anthropic</option><option value="CUSTOM">Custom</option></select></label>
+            <label className="field-label">프로바이더
+              <input list="provider-name-options" value={form.provider} onChange={(e) => setForm((prev) => ({ ...prev, provider: e.target.value }))} placeholder="예: OPENAI, VLLM, CUSTOMER_A, INTERNAL_LLM_01" />
+              <datalist id="provider-name-options">
+                {providerNames.map((provider) => <option key={provider} value={provider} />)}
+              </datalist>
+            </label>
             <label className="field-label">레이블<input value={form.label} onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))} /></label>
           </div>
           <label className="field-label">설명<input value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} /></label>
           <label className="field-label">API Key<input type="password" value={form.keyValue} onChange={(e) => setForm((prev) => ({ ...prev, keyValue: e.target.value }))} placeholder={editingId ? '수정 시에만 입력' : '실제 키 입력'} /></label>
           {providerHint && <div className="notice-box">발급 페이지: <a href={providerHint} target="_blank" rel="noreferrer">{providerHint}</a></div>}
           <label className="checkbox-label"><input type="checkbox" checked={form.active} onChange={(e) => setForm((prev) => ({ ...prev, active: e.target.checked }))} /> 활성 상태로 저장</label>
-          <div className="button-row"><button onClick={save}>저장</button><button className="secondary" onClick={() => { setEditingId(null); setForm({ provider: '', label: '', description: '', keyValue: '', active: true }); }}>초기화</button></div>
+          <div className="button-row"><button onClick={save}>저장</button><button className="secondary" onClick={resetForm}>초기화</button></div>
           <div className="status-line">{status}</div>
         </AppCard>
       </div>

@@ -111,6 +111,9 @@ app:
       api-key: ${TAVILY_API_KEY:}
       max-results: ${TAVILY_MAX_RESULTS:5}
 
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+
   rag:
     enabled: ${APP_RAG_ENABLED:true}
     vector-store: ${APP_RAG_VECTOR_STORE:pgvector}
@@ -142,6 +145,19 @@ app:
       core-pool-size: 4
       max-pool-size: 8
       queue-capacity: 50
+
+  api-llm:
+    connect-timeout-ms: ${APP_API_LLM_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${APP_API_LLM_READ_TIMEOUT_MS:15000}
+
+  vllm:
+    base-url: ${APP_VLLM_BASE_URL:http://127.0.0.1:8000/v1}
+    default-model: ${APP_VLLM_DEFAULT_MODEL:}
+    key-provider: ${APP_VLLM_KEY_PROVIDER:VLLM}
+
+  openai-runtime:
+    base-url: ${APP_OPENAI_RUNTIME_BASE_URL:https://api.openai.com/v1}
+    key-provider: ${APP_OPENAI_RUNTIME_KEY_PROVIDER:OPENAI}
 
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}

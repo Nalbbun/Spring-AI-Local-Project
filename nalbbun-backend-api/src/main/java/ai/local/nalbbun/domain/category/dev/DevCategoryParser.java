@@ -7,7 +7,7 @@ import ai.local.nalbbun.domain.category.parser.CategoryParser;
 import ai.local.nalbbun.domain.category.dev.model.DevContext;
 import ai.local.nalbbun.domain.category.dev.parser.LlmDevParser;
 import ai.local.nalbbun.domain.category.dev.parser.RuleBasedDevParser;
-import ai.local.nalbbun.admin.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.category.model.ConversationState;
 
@@ -32,7 +32,7 @@ public class DevCategoryParser
     public DevCategoryParser(
             RuleBasedDevParser ruleBasedDevParser,
             LlmDevParser llmDevParser,
-            DebugRuntimeConfigService debugRuntimeConfigService
+            RuntimeCategoryPolicyPort debugRuntimeConfigService
     ) {
         super(ruleBasedDevParser, llmDevParser, debugRuntimeConfigService);
     }

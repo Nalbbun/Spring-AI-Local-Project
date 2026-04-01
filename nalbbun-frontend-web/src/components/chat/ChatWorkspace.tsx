@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { AppCard } from '../ui/AppCard';
 import { buildChatStreamUrl, type ChatCategory } from '../../services/chatApi';
+import { setCurrentConversationId } from '../../services/apiClient';
 import { LogPanel } from '../ui/LogPanel';
 import { promptApi } from '../../services/promptApi';
 import { conversationApi } from '../../services/conversationApi';
@@ -272,6 +273,10 @@ export function ChatWorkspace({
   const eventLines = useMemo(() => buildEventLines(events), [events]);
 
   useEffect(() => {
+    setCurrentConversationId(conversationId);
+  }, [conversationId]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const saved = Number(window.localStorage.getItem(SPLIT_STORAGE_KEY));
     if (!Number.isNaN(saved) && saved >= MIN_RIGHT_WIDTH && saved <= MAX_RIGHT_WIDTH) {
@@ -405,7 +410,7 @@ export function ChatWorkspace({
     terminalErrorRef.current = false;
     closedByClientRef.current = false;
 
-    const es = new EventSource(url);
+    const es = new EventSource(url, { withCredentials: true });
     eventSourceRef.current = es;
 
     const safeClose = () => {

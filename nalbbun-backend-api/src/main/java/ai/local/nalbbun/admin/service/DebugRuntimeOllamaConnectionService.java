@@ -5,6 +5,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import ai.local.nalbbun.domain.runtime.port.RuntimeOllamaConnectionPort;
+
 /**
  * Debug Runtime Ollama Connection Service 타입이다.
  *
@@ -12,8 +14,9 @@ import org.springframework.stereotype.Service;
  * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
  * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
  */
+
 @Service
-public class DebugRuntimeOllamaConnectionService {
+public class DebugRuntimeOllamaConnectionService implements RuntimeOllamaConnectionPort {
 
     private final String defaultBaseUrl;
     private final AtomicReference<String> baseUrl;

@@ -18,7 +18,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import io.netty.channel.ChannelOption;
 import reactor.netty.http.client.HttpClient;
 
-import ai.local.nalbbun.admin.service.DebugRuntimeOllamaConnectionService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeOllamaConnectionPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 public class RuntimeOllamaVectorStoreFactory {
 
     private final JdbcTemplate jdbcTemplate;
-    private final DebugRuntimeOllamaConnectionService ollamaConnectionService;
+    private final RuntimeOllamaConnectionPort ollamaConnectionService;
 
     @Value("${spring.ai.ollama.embedding.options.model:nomic-embed-text}")
     private String embeddingModelName;

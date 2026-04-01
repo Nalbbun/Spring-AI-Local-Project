@@ -1,13 +1,12 @@
 app:
   debug:
     enabled: true
-
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   llm:
     fallback-policy: ${APP_LLM_FALLBACK_POLICY:ALLOW_OPENAI}
-
   memory:
     store: ${APP_MEMORY_STORE:jdbc}
-
   search:
     provider: ${APP_SEARCH_PROVIDER:tavily}
 
@@ -23,7 +22,13 @@ spring:
       port: ${SPRING_DATA_REDIS_PORT:6379}
       password: ${SPRING_DATA_REDIS_PASSWORD:}
       database: ${SPRING_DATA_REDIS_DATABASE:0}
-      timeout: 3s 
+      timeout: 3s
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+  vllm:
+    key-provider: ${APP_VLLM_KEY_PROVIDER:VLLM}
+
+  openai-runtime:
+    key-provider: ${APP_OPENAI_RUNTIME_KEY_PROVIDER:OPENAI}

@@ -5,6 +5,7 @@ import { JsonBlock } from '../../components/ui/JsonBlock';
 import { LogPanel } from '../../components/ui/LogPanel';
 import { useEventLog } from '../../hooks/useEventLog';
 import { ragApi } from '../../services/settingsApi';
+import type { RagSearchDocument, RagSearchResult } from '../../types/api';
 
 const CATEGORY_OPTIONS = ['GENERAL', 'DEV', 'MICE', 'TRAVEL'] as const;
 
@@ -14,7 +15,7 @@ export function RagSearchTestPage() {
   const [source, setSource] = useState('');
   const [version, setVersion] = useState('');
   const [status, setStatus] = useState('대기 중');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<RagSearchResult | null>(null);
   const logs = useEventLog('rag-search-test-log', ['RAG 검색 테스트 로그가 누적됩니다.']);
 
   const search = async () => {
@@ -36,11 +37,11 @@ export function RagSearchTestPage() {
     }
   };
 
-  const documents = result?.documents ?? [];
+  const documents: RagSearchDocument[] = result?.documents ?? [];
 
   return (
     <div className="page-stack">
-      <AppCard title="RAG 검색 테스트" description="v0.9처럼 실제 /debug/api/rag/search 결과를 바로 확인하는 테스트 화면으로 복원했습니다.">
+      <AppCard title="RAG 검색 테스트" description="실제 /debug/api/rag/search 결과를 바로 확인하는 테스트 화면입니다.">
         <div className="form-grid four">
           <label className="field-label">카테고리
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -67,14 +68,18 @@ export function RagSearchTestPage() {
       </AppCard>
 
       <AppCard title="검색 결과 문서" description={`hits=${documents.length} | applied=${String(result?.applied ?? '-')}`}>
-        <DataTable rows={documents} columns={[
-          { key: 'idx', title: '#', render: (_row, index) => index + 1 },
-          { key: 'source', title: 'Source', render: (row) => row.source ?? '-' },
-          { key: 'version', title: 'Version', render: (row) => row.version ?? '-' },
-          { key: 'score', title: 'Score', render: (row) => row.score != null ? Number(row.score).toFixed(4) : '-' },
-          { key: 'title', title: '제목', render: (row) => row.title ?? '-' },
-          { key: 'text', title: '본문 미리보기', render: (row) => <div style={{ whiteSpace: 'pre-wrap' }}>{row.text ?? '-'}</div> }
-        ]} emptyText="검색 결과가 없습니다." />
+        <DataTable<RagSearchDocument>
+          rows={documents}
+          columns={[
+            { key: 'idx', title: '#', render: (_row, index) => index + 1 },
+            { key: 'source', title: 'Source', render: (row) => row.source ?? '-' },
+            { key: 'version', title: 'Version', render: (row) => row.version ?? '-' },
+            { key: 'score', title: 'Score', render: (row) => row.score != null ? Number(row.score).toFixed(4) : '-' },
+            { key: 'title', title: '제목', render: (row) => row.title ?? '-' },
+            { key: 'text', title: '본문 미리보기', render: (row) => <div style={{ whiteSpace: 'pre-wrap' }}>{row.text ?? '-'}</div> }
+          ]}
+          emptyText="검색 결과가 없습니다."
+        />
       </AppCard>
 
       <div className="two-column-grid">

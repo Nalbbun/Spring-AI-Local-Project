@@ -1,6 +1,6 @@
 package ai.local.nalbbun.domain.category;
 
-import ai.local.nalbbun.admin.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
 import ai.local.nalbbun.domain.category.model.CategoryResolution;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 
@@ -18,7 +18,7 @@ public class CategoryResolver {
 
     private final RuleBasedCategoryResolver ruleBasedResolver;
     private final LlmCategoryResolver llmCategoryResolver;
-    private final DebugRuntimeConfigService debugRuntimeConfigService;
+    private final RuntimeCategoryPolicyPort debugRuntimeConfigService;
 
     /**
      * Category Resolver 인스턴스를 초기화한다.
@@ -29,7 +29,7 @@ public class CategoryResolver {
     public CategoryResolver(
             RuleBasedCategoryResolver ruleBasedResolver,
             LlmCategoryResolver llmCategoryResolver,
-            DebugRuntimeConfigService debugRuntimeConfigService
+            RuntimeCategoryPolicyPort debugRuntimeConfigService
     ) {
         this.ruleBasedResolver = ruleBasedResolver;
         this.llmCategoryResolver = llmCategoryResolver;

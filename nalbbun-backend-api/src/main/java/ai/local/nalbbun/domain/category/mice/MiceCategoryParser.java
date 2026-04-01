@@ -7,7 +7,7 @@ import ai.local.nalbbun.domain.category.parser.CategoryParser;
 import ai.local.nalbbun.domain.category.mice.model.MiceContext;
 import ai.local.nalbbun.domain.category.mice.parser.LlmMiceParser;
 import ai.local.nalbbun.domain.category.mice.parser.RuleBasedMiceParser;
-import ai.local.nalbbun.admin.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.category.model.ConversationState;
 
@@ -32,7 +32,7 @@ public class MiceCategoryParser
     public MiceCategoryParser(
             RuleBasedMiceParser ruleBasedMiceParser,
             LlmMiceParser llmMiceParser,
-            DebugRuntimeConfigService debugRuntimeConfigService
+            RuntimeCategoryPolicyPort debugRuntimeConfigService
     ) {
         super(ruleBasedMiceParser, llmMiceParser, debugRuntimeConfigService);
     }

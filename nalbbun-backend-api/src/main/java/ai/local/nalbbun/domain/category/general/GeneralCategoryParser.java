@@ -7,7 +7,7 @@ import ai.local.nalbbun.domain.category.parser.CategoryParser;
 import ai.local.nalbbun.domain.category.general.model.GeneralContext;
 import ai.local.nalbbun.domain.category.general.parser.LlmGeneralParser;
 import ai.local.nalbbun.domain.category.general.parser.RuleBasedGeneralParser;
-import ai.local.nalbbun.admin.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.category.model.ConversationState;
 
@@ -32,7 +32,7 @@ public class GeneralCategoryParser
     public GeneralCategoryParser(
             RuleBasedGeneralParser ruleBasedGeneralParser,
             LlmGeneralParser llmGeneralParser,
-            DebugRuntimeConfigService debugRuntimeConfigService
+            RuntimeCategoryPolicyPort debugRuntimeConfigService
     ) {
         super(ruleBasedGeneralParser, llmGeneralParser, debugRuntimeConfigService);
     }

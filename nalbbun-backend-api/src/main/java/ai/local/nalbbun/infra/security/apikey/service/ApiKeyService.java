@@ -9,14 +9,19 @@ import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * API 키 CRUD 서비스.
  * 저장 시 AES 암호화, 조회 시 마스킹, 뷰 요청 시만 복호화합니다.
  * 활성 키 변경 시 OpenAI / Tavily 런타임 설정에 즉시 반영합니다.
+ *
+ * 기본 provider 목록은 안내용으로 유지하되, 사용자가 임의의 provider 이름을 여러 개 등록할 수 있도록
+ * 저장/조회/필터링은 모두 문자열 기반으로 처리합니다.
  */
 @Slf4j
 @Service
@@ -24,7 +29,7 @@ import java.util.Optional;
 public class ApiKeyService {
 
     private final ApiKeyRepository repository;
-    private final ApiKeyCrypto     crypto;
+    private final ApiKeyCrypto crypto;
 
     // OpenAI API 런타임 반영 (Spring AI OpenAiApi 빈)
     private final OpenAiApi openAiApi;
@@ -39,7 +44,7 @@ public class ApiKeyService {
 
     /** provider 별 목록 — keyValue 마스킹 */
     public List<Map<String, Object>> listMaskedByProvider(String provider) {
-        return repository.findByProvider(provider).stream()
+        return repository.findByProvider(normalizeProvider(provider)).stream()
                 .map(this::toMasked)
                 .toList();
     }
@@ -55,22 +60,31 @@ public class ApiKeyService {
                 .map(e -> crypto.decrypt(e.getKeyValue()));
     }
 
-    /** 프로바이더 목록 */
+    /**
+     * provider 목록.
+     * - 기본 provider 는 항상 노출
+     * - DB에 저장된 사용자 정의 provider 도 추가 노출
+     */
     public List<Map<String, Object>> listProviders() {
-        return List.of(
-            providerInfo(ApiKeyProvider.OPENAI),
-            providerInfo(ApiKeyProvider.TAVILY),
-            providerInfo(ApiKeyProvider.ANTHROPIC),
-            providerInfo(ApiKeyProvider.CUSTOM)
-        );
+        Set<String> providerNames = new LinkedHashSet<>(defaultProviderCatalog().keySet());
+        repository.findAll().stream()
+                .map(ApiKeyEntry::getProvider)
+                .filter(v -> v != null && !v.isBlank())
+                .map(this::normalizeProvider)
+                .forEach(providerNames::add);
+
+        return providerNames.stream()
+                .map(this::providerInfo)
+                .toList();
     }
 
     // ── CUD ───────────────────────────────────────────────
     public Map<String, Object> create(String provider, String label,
-                                       String description, String plainKey, boolean active) {
+                                      String description, String plainKey, boolean active) {
         validate(provider, label, plainKey);
+        String normalizedProvider = normalizeProvider(provider);
         ApiKeyEntry entry = ApiKeyEntry.builder()
-                .provider(provider.toUpperCase())
+                .provider(normalizedProvider)
                 .label(label)
                 .description(description)
                 .keyValue(crypto.encrypt(plainKey))
@@ -82,10 +96,10 @@ public class ApiKeyService {
     }
 
     public Map<String, Object> update(String id, String provider, String label,
-                                       String description, String plainKey, boolean active) {
+                                      String description, String plainKey, boolean active) {
         ApiKeyEntry existing = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("API 키를 찾을 수 없습니다: " + id));
-        existing.setProvider(provider != null ? provider.toUpperCase() : existing.getProvider());
+        existing.setProvider(provider != null ? normalizeProvider(provider) : existing.getProvider());
         existing.setLabel(label != null ? label : existing.getLabel());
         existing.setDescription(description);
         existing.setActive(active);
@@ -117,13 +131,28 @@ public class ApiKeyService {
         return toMasked(entry);
     }
 
+    public Optional<String> findActivePlainKey(String provider) {
+        if (provider == null || provider.isBlank()) {
+            return Optional.empty();
+        }
+        return repository.findActiveByProvider(normalizeProvider(provider))
+                .map(e -> crypto.decrypt(e.getKeyValue()));
+    }
+
+    public boolean hasActiveKey(String provider) {
+        if (provider == null || provider.isBlank()) {
+            return false;
+        }
+        return repository.findActiveByProvider(normalizeProvider(provider)).isPresent();
+    }
+
     /** 현재 런타임에 적용된 키 요약 */
     public Map<String, Object> runtimeStatus() {
         Map<String, Object> result = new LinkedHashMap<>();
-        for (ApiKeyProvider p : ApiKeyProvider.values()) {
-            Optional<ApiKeyEntry> active = repository.findActiveByProvider(p.name());
-            result.put(p.name().toLowerCase(),
-                active.map(e -> "활성 (" + e.maskedKey() + ")").orElse("미설정"));
+        for (String provider : listProviders().stream().map(v -> String.valueOf(v.get("provider"))).toList()) {
+            Optional<ApiKeyEntry> active = repository.findActiveByProvider(provider);
+            result.put(provider.toLowerCase(),
+                    active.map(e -> "활성 (" + e.maskedKey() + ")").orElse("미설정"));
         }
         return result;
     }
@@ -131,51 +160,65 @@ public class ApiKeyService {
     // ── 런타임 반영 ───────────────────────────────────────
     private void applyToRuntime(String provider, String plainKey) {
         if (plainKey == null || plainKey.isBlank()) return;
+        String normalizedProvider = normalizeProvider(provider);
         try {
-            switch (provider.toUpperCase()) {
+            switch (normalizedProvider) {
                 case "OPENAI" -> {
-                    // Spring AI OpenAiApi — 리플렉션으로 apiKey 필드 변경
                     var field = openAiApi.getClass().getDeclaredField("apiKey");
                     field.setAccessible(true);
                     field.set(openAiApi, plainKey);
                     log.info("OpenAI API 키 런타임 적용 완료");
                 }
                 case "TAVILY" -> {
-                    // TavilyWebSearchService는 @Value로 주입 — 환경변수로 재설정 안내
                     System.setProperty("TAVILY_API_KEY", plainKey);
                     log.info("Tavily API 키 시스템 프로퍼티 설정 완료 (재시작 시 반영)");
                 }
-                default -> log.info("런타임 반영 미지원 프로바이더: {}", provider);
+                default -> log.info("런타임 반영 미지원 프로바이더: {}", normalizedProvider);
             }
         } catch (Exception e) {
-            log.warn("API 키 런타임 반영 실패 (provider={}, reason={})", provider, e.getMessage());
+            log.warn("API 키 런타임 반영 실패 (provider={}, reason={})", normalizedProvider, e.getMessage());
         }
     }
 
     // ── 내부 유틸 ─────────────────────────────────────────
     private Map<String, Object> toMasked(ApiKeyEntry e) {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id",          e.getId());
-        m.put("provider",    e.getProvider());
-        m.put("label",       e.getLabel());
+        m.put("id", e.getId());
+        m.put("provider", e.getProvider());
+        m.put("label", e.getLabel());
         m.put("description", e.getDescription());
-        m.put("maskedKey",   e.maskedKey());
-        m.put("active",      e.isActive());
-        m.put("createdAt",   e.getCreatedAt());
-        m.put("updatedAt",   e.getUpdatedAt());
+        m.put("maskedKey", e.maskedKey());
+        m.put("active", e.isActive());
+        m.put("createdAt", e.getCreatedAt());
+        m.put("updatedAt", e.getUpdatedAt());
         return m;
     }
 
-    private Map<String, Object> providerInfo(ApiKeyProvider p) {
+    private Map<String, Object> providerInfo(String providerName) {
+        ProviderMeta meta = defaultProviderCatalog().get(normalizeProvider(providerName));
+        String normalized = normalizeProvider(providerName);
+
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("provider",     p.name());
-        m.put("displayName",  p.displayName);
-        m.put("description",  p.description);
-        m.put("keyIssueUrl",  p.keyIssueUrl);
-        Optional<ApiKeyEntry> active = repository.findActiveByProvider(p.name());
+        m.put("provider", normalized);
+        m.put("displayName", meta != null ? meta.displayName() : normalized);
+        m.put("description", meta != null ? meta.description() : "사용자 정의 API 키 그룹");
+        m.put("keyIssueUrl", meta != null ? meta.keyIssueUrl() : null);
+        Optional<ApiKeyEntry> active = repository.findActiveByProvider(normalized);
         m.put("hasActiveKey", active.isPresent());
-        m.put("maskedKey",    active.map(ApiKeyEntry::maskedKey).orElse(null));
+        m.put("maskedKey", active.map(ApiKeyEntry::maskedKey).orElse(null));
         return m;
+    }
+
+    private Map<String, ProviderMeta> defaultProviderCatalog() {
+        Map<String, ProviderMeta> catalog = new LinkedHashMap<>();
+        for (ApiKeyProvider provider : ApiKeyProvider.values()) {
+            catalog.put(provider.name(), new ProviderMeta(provider.displayName, provider.description, provider.keyIssueUrl));
+        }
+        return catalog;
+    }
+
+    private String normalizeProvider(String provider) {
+        return provider == null ? "" : provider.trim().toUpperCase();
     }
 
     private void validate(String provider, String label, String plainKey) {
@@ -186,4 +229,6 @@ public class ApiKeyService {
         if (plainKey == null || plainKey.isBlank())
             throw new IllegalArgumentException("API 키 값은 필수입니다.");
     }
+
+    private record ProviderMeta(String displayName, String description, String keyIssueUrl) {}
 }

@@ -49,21 +49,38 @@ public class TravelWorkflow {
         travelInfoCollector.collect(context, emitter);
 
         // 3. 일정 생성 (LLM callEntity)
+        boolean planGenerated = false;
         agentEventPublisher.send(emitter, "ModelTrace-TRAVEL_PLAN", "info",
             "plan=" + travelPlanAgent.describeModel());
         agentEventPublisher.send(emitter, "TravelPlanAgent", "running", "초기 일정 생성 중...");
-        travelPlanAgent.execute(context);
-        agentEventPublisher.send(emitter, "TravelPlanAgent", "complete", "초기 일정 생성 완료");
+        try {
+            travelPlanAgent.execute(context);
+            planGenerated = context.getPlan() != null;
+            agentEventPublisher.send(emitter, "TravelPlanAgent", planGenerated ? "complete" : "warn",
+                planGenerated ? "초기 일정 생성 완료" : "일정 구조 생성값이 비어 있어 기본 추천 형식으로 응답합니다.");
+        } catch (Exception e) {
+            agentEventPublisher.send(emitter, "TravelPlanAgent", "error",
+                "일정 생성 실패로 기본 추천 형식으로 전환합니다: " + safeMessage(e));
+        }
 
         // 4. 예산 분석
-        agentEventPublisher.send(emitter, "TravelBudgetAgent", "running", "예산 분석 중...");
-        travelBudgetAgent.execute(context);
-        agentEventPublisher.send(emitter, "TravelBudgetAgent", "complete",
-            context.getBudgetAnalysis() != null
-                ? context.getBudgetAnalysis().getMessage() : "예산 분석 완료");
+        if (context.getPlan() != null) {
+            try {
+                agentEventPublisher.send(emitter, "TravelBudgetAgent", "running", "예산 분석 중...");
+                travelBudgetAgent.execute(context);
+                agentEventPublisher.send(emitter, "TravelBudgetAgent", "complete",
+                    context.getBudgetAnalysis() != null
+                        ? context.getBudgetAnalysis().getMessage() : "예산 분석 완료");
+            } catch (Exception e) {
+                agentEventPublisher.send(emitter, "TravelBudgetAgent", "warn",
+                    "예산 분석을 건너뜁니다: " + safeMessage(e));
+            }
+        } else {
+            agentEventPublisher.send(emitter, "TravelBudgetAgent", "info", "일정 데이터가 없어 예산 분석을 건너뜁니다.");
+        }
 
         // 5. 예산 초과 시 재계획
-        if (context.getBudgetAnalysis() != null && context.getBudgetAnalysis().isExceeded()) {
+        if (context.getPlan() != null && context.getBudgetAnalysis() != null && context.getBudgetAnalysis().isExceeded()) {
             travelReplanner.replan(context, emitter);
         }
 
@@ -104,7 +121,32 @@ public class TravelWorkflow {
 
         // 일정 데이터 없을 때
         if (plan == null || plan.getDays() == null || plan.getDays().isEmpty()) {
-            sb.append("> ⚠️ 일정 데이터를 불러오지 못했습니다. 다시 시도해 주세요.\n");
+            sb.append("> ⚠️ 자동 일정 생성 모델 응답이 불안정하여 기본 추천 형식으로 안내합니다.\n\n");
+            sb.append("### 추천 관광지\n");
+            if (context.getAttractions() != null && !context.getAttractions().isEmpty()) {
+                context.getAttractions().stream().limit(5).forEach(item ->
+                    sb.append("- ").append(safe(item.getName())).append(" · ").append(safe(item.getAddress())).append("\n"));
+            } else {
+                sb.append("- 추천 관광지 정보를 불러오지 못했습니다.\n");
+            }
+            sb.append("\n### 추천 맛집\n");
+            if (context.getRestaurants() != null && !context.getRestaurants().isEmpty()) {
+                context.getRestaurants().stream().limit(5).forEach(item ->
+                    sb.append("- ").append(safe(item.getName())).append(" · ").append(safe(item.getAddress())).append("\n"));
+            } else {
+                sb.append("- 추천 맛집 정보를 불러오지 못했습니다.\n");
+            }
+            sb.append("\n### 추천 숙소\n");
+            if (context.getAccommodations() != null && !context.getAccommodations().isEmpty()) {
+                context.getAccommodations().stream().limit(3).forEach(item ->
+                    sb.append("- ").append(safe(item.getName())).append(" · ").append(safe(item.getAddress())).append("\n"));
+            } else {
+                sb.append("- 추천 숙소 정보를 불러오지 못했습니다.\n");
+            }
+            sb.append("\n### 기본 일정 가이드\n");
+            for (int day = 1; day <= Math.max(1, context.getDays()); day++) {
+                sb.append("- Day ").append(day).append(": 오전 관광 / 점심 / 오후 관광 / 저녁 / 휴식\n");
+            }
             return sb.toString().trim();
         }
 
@@ -181,5 +223,12 @@ public class TravelWorkflow {
 
     private String safe(String s) {
         return s == null ? "" : s;
+    }
+
+    private String safeMessage(Exception e) {
+        if (e == null || e.getMessage() == null || e.getMessage().isBlank()) {
+            return "unknown";
+        }
+        return e.getMessage();
     }
 }

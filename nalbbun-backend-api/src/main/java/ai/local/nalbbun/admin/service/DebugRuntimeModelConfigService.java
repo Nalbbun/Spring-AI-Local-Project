@@ -5,6 +5,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import ai.local.nalbbun.domain.runtime.port.RuntimeModelCatalogPort;
+
 import ai.local.nalbbun.admin.model.llm.DebugOllamaModelConfig;
 import ai.local.nalbbun.admin.model.llm.OllamaModelSource;
 
@@ -15,8 +17,9 @@ import ai.local.nalbbun.admin.model.llm.OllamaModelSource;
  * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
  * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
  */
+
 @Service
-public class DebugRuntimeModelConfigService {
+public class DebugRuntimeModelConfigService implements RuntimeModelCatalogPort {
 
     private final AtomicReference<OllamaModelSource> modelSource;
     private final AtomicReference<String> generalModel = new AtomicReference<>("");

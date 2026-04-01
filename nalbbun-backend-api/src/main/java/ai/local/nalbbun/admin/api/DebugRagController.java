@@ -66,6 +66,14 @@ public class DebugRagController {
      * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
      * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
      */
+    @GetMapping("/health")
+    public Map<String, Object> health() {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", ragProperties.isEnabled() ? "UP" : "DISABLED");
+        response.put("details", status());
+        return response;
+    }
+
     @GetMapping("/status")
     public Map<String, Object> status() {
         Map<String, Object> response = new LinkedHashMap<>();

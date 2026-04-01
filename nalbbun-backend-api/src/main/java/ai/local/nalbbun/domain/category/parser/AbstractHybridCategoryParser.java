@@ -1,7 +1,7 @@
 package ai.local.nalbbun.domain.category.parser;
 
 import ai.local.nalbbun.domain.category.CategoryParserMode;
-import ai.local.nalbbun.admin.service.DebugRuntimeConfigService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.category.model.CategoryContext;
 import ai.local.nalbbun.domain.category.model.ConversationState;
@@ -17,7 +17,7 @@ public abstract class AbstractHybridCategoryParser<T extends CategoryContext> {
 
     private final CategoryParsingStrategy<T> ruleStrategy;
     private final CategoryParsingStrategy<T> llmStrategy;
-    private final DebugRuntimeConfigService debugRuntimeConfigService;
+    private final RuntimeCategoryPolicyPort debugRuntimeConfigService;
 
     /**
      * Abstract Hybrid Category Parser 인스턴스를 초기화한다.
@@ -28,7 +28,7 @@ public abstract class AbstractHybridCategoryParser<T extends CategoryContext> {
     protected AbstractHybridCategoryParser(
             CategoryParsingStrategy<T> ruleStrategy,
             CategoryParsingStrategy<T> llmStrategy,
-            DebugRuntimeConfigService debugRuntimeConfigService
+            RuntimeCategoryPolicyPort debugRuntimeConfigService
     ) {
         this.ruleStrategy = ruleStrategy;
         this.llmStrategy = llmStrategy;

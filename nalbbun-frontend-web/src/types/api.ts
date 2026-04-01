@@ -119,6 +119,37 @@ export interface DebugRuntimeConfig {
   ollamaBaseUrl?: string;
 }
 
+export interface DebugApiLlmProviderConfig {
+  baseUrl?: string;
+  defaultModel?: string;
+  keyProvider?: string;
+  healthCheckPath?: string;
+  healthCheckMethod?: 'GET' | 'POST' | string;
+  modelsPath?: string;
+  modelsMethod?: 'GET' | 'POST' | string;
+}
+
+export interface DebugApiLlmConnectionInfo {
+  provider?: string;
+  baseUrl?: string;
+  reachable?: boolean;
+  status?: string;
+  message?: string;
+  defaultModel?: string;
+  modelCount?: number;
+  keyResolved?: boolean;
+  keyProvider?: string;
+  healthCheckPath?: string;
+  healthCheckMethod?: string;
+  modelsPath?: string;
+  modelsMethod?: string;
+  healthCheckOk?: boolean;
+  modelsCheckOk?: boolean;
+  resolvedHealthUrl?: string;
+  resolvedModelsUrl?: string;
+  availableModels?: string[];
+}
+
 export interface DebugOllamaConfig {
   modelSource?: string;
   generalModel?: string;
@@ -186,4 +217,27 @@ export interface WebSearchStatus {
   hasTavilyActiveKey?: boolean;
   status?: string;
   message?: string;
+}
+
+
+export interface RuntimeMeta {
+  debugEnabled?: boolean;
+  adminConsoleEnabled?: boolean;
+  crossOriginSessionSupported?: boolean;
+  conversationTransport?: string;
+  activeProfiles?: string[];
+}
+
+export interface RagSearchDocument {
+  source?: string;
+  version?: string;
+  score?: number;
+  title?: string;
+  text?: string;
+}
+
+export interface RagSearchResult {
+  applied?: boolean;
+  reason?: string;
+  documents?: RagSearchDocument[];
 }

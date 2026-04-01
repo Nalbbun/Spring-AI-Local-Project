@@ -1,5 +1,17 @@
 import { apiGet, apiPostForm, apiSend } from './apiClient';
-import type { DebugOllamaConfig, DebugOllamaConnectionInfo, DebugRuntimeConfig, ModelPriorityResponse, OllamaModelInfo, RagStatusResponse, WebSearchStatus } from '../types/api';
+import type {
+  DebugApiLlmConnectionInfo,
+  DebugApiLlmProviderConfig,
+  DebugOllamaConfig,
+  DebugOllamaConnectionInfo,
+  DebugRuntimeConfig,
+  ModelPriorityResponse,
+  OllamaModelInfo,
+  RagSearchResult,
+  RagStatusResponse,
+  RuntimeMeta,
+  WebSearchStatus
+} from '../types/api';
 
 export const settingsApi = {
   getConfig: () => apiGet<DebugRuntimeConfig>('/debug/api/config'),
@@ -16,6 +28,14 @@ export const settingsApi = {
 
   browseModels: (source = 'RUNNING') => apiGet<OllamaModelInfo[]>(`/debug/api/ollama/models?source=${encodeURIComponent(source)}`),
   modelAction: (payload: { model: string; pull?: boolean; keepAlive?: string }) => apiSend<any>('/debug/api/ollama/models/action', 'POST', payload),
+
+  getLlmProvidersStatus: () => apiGet<Record<string, DebugApiLlmConnectionInfo>>('/debug/api/llm/providers/status'),
+  getVllmStatus: () => apiGet<DebugApiLlmConnectionInfo>('/debug/api/llm/providers/vllm'),
+  saveVllmConfig: (payload: DebugApiLlmProviderConfig) => apiSend<DebugApiLlmConnectionInfo>('/debug/api/llm/providers/vllm', 'POST', payload),
+  resetVllmConfig: () => apiSend<DebugApiLlmConnectionInfo>('/debug/api/llm/providers/vllm/reset', 'POST'),
+  getOpenAiStatus: () => apiGet<DebugApiLlmConnectionInfo>('/debug/api/llm/providers/openai'),
+  saveOpenAiConfig: (payload: DebugApiLlmProviderConfig) => apiSend<DebugApiLlmConnectionInfo>('/debug/api/llm/providers/openai', 'POST', payload),
+  resetOpenAiConfig: () => apiSend<DebugApiLlmConnectionInfo>('/debug/api/llm/providers/openai/reset', 'POST'),
 
   getModelPriority: async () => {
     const response = await apiGet<ModelPriorityResponse>('/api/model-priority');
@@ -55,7 +75,7 @@ export const ragApi = {
   getSourceFiles: (category: string, source: string, version: string) =>
     apiGet<any[]>(`/debug/api/rag/source/files${buildOptionalQuery({ category, source, version })}`),
   search: (payload: { category: string; query: string; source?: string; version?: string }) =>
-    apiGet<any>(`/debug/api/rag/search${buildOptionalQuery(payload)}`),
+    apiGet<RagSearchResult>(`/debug/api/rag/search${buildOptionalQuery(payload)}`),
   ingestText: (payload: any) => apiSend<any>('/debug/api/rag/ingest-text', 'POST', payload),
   ingestUrl: (payload: any) => apiSend<any>('/debug/api/rag/ingest-url', 'POST', payload),
   ingestFile: (form: FormData) => apiPostForm<any>('/debug/api/rag/ingest-file', form),
@@ -70,6 +90,10 @@ export const ragApi = {
     const response = await apiGet<{ currentModel?: string; models?: string[] }>('/debug/api/rag/embedding/models');
     return response;
   }
+};
+
+export const runtimeApi = {
+  getMeta: () => apiGet<RuntimeMeta>('/api/runtime/meta')
 };
 
 export const agentApi = {

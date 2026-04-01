@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { runtimeApi } from '../../services/settingsApi';
+import type { RuntimeMeta } from '../../types/api';
 
 const navGroups = [
   {
     title: '채팅',
+    requiresAdmin: false,
     items: [
       { to: '/chat/general', label: '일반 채팅' },
       { to: '/chat/rag', label: 'RAG 채팅' },
@@ -12,6 +15,7 @@ const navGroups = [
   },
   {
     title: '환경설정',
+    requiresAdmin: true,
     items: [
       { to: '/operations/system', label: '시스템 설정' },
       { to: '/operations/models', label: '모델 관리' },
@@ -22,6 +26,7 @@ const navGroups = [
   },
   {
     title: 'RAG 설정',
+    requiresAdmin: true,
     items: [
       { to: '/knowledge/rag-documents', label: 'RAG 문서 관리' },
       { to: '/knowledge/rag-search-test', label: '검색 테스트' }
@@ -29,6 +34,7 @@ const navGroups = [
   },
   {
     title: '에이전트 설정',
+    requiresAdmin: true,
     items: [
       { to: '/agent/management', label: '에이전트 관리' },
       { to: '/agent/trace', label: '실행 추적' }
@@ -36,20 +42,33 @@ const navGroups = [
   },
   {
     title: '대화 관리',
+    requiresAdmin: false,
     items: [{ to: '/conversation/list', label: '대화 목록' }]
   }
-];
+] as const;
 
 const SIDEBAR_STORAGE_KEY = 'nalbbun.sidebar.collapsed';
 
 export function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [runtimeMeta, setRuntimeMeta] = useState<RuntimeMeta | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const saved = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
     setSidebarCollapsed(saved === 'true');
   }, []);
+
+  useEffect(() => {
+    runtimeApi.getMeta()
+      .then(setRuntimeMeta)
+      .catch(() => setRuntimeMeta({ adminConsoleEnabled: false, debugEnabled: false }));
+  }, []);
+
+  const visibleNavGroups = useMemo(() => {
+    const adminEnabled = Boolean(runtimeMeta?.adminConsoleEnabled);
+    return navGroups.filter((group) => !group.requiresAdmin || adminEnabled);
+  }, [runtimeMeta]);
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -75,7 +94,7 @@ export function MainLayout() {
             </button>
           </div>
         </div>
-        {!sidebarCollapsed && navGroups.map(group => (
+        {!sidebarCollapsed && visibleNavGroups.map(group => (
           <div className="nav-group" key={group.title}>
             <div className="nav-group-title">{group.title}</div>
             {group.items.map(item => (
@@ -97,6 +116,9 @@ export function MainLayout() {
               )}
               <div>
                 <h1>Spring AI + React + vite 이용한 AI Test Tool</h1>
+                {runtimeMeta && !runtimeMeta.adminConsoleEnabled && (
+                  <div className="content-header-note">운영 모드에서는 debug/admin 메뉴가 숨김 처리됩니다.</div>
+                )}
               </div>
             </div>
           </div>

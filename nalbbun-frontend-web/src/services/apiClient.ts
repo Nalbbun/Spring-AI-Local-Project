@@ -6,10 +6,12 @@ type ApiEnvelope<T> = {
   meta?: Record<string, unknown>;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').trim().replace(/\/$/, '');
+const CONVERSATION_ID_STORAGE_KEY = 'nalbbun.current.conversation-id';
 
 function buildUrl(path: string) {
-  return `${API_BASE_URL}${path}`;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
 }
 
 function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
@@ -18,6 +20,20 @@ function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
     'data' in (value as Record<string, unknown>) ||
     'error' in (value as Record<string, unknown>)
   );
+}
+
+function getConversationId() {
+  if (typeof window === 'undefined') return '';
+  return String(window.localStorage.getItem(CONVERSATION_ID_STORAGE_KEY) || '').trim();
+}
+
+function buildHeaders(extraHeaders?: Record<string, string>) {
+  const headers = new Headers(extraHeaders || {});
+  const conversationId = getConversationId();
+  if (conversationId) {
+    headers.set('X-Conversation-Id', conversationId);
+  }
+  return headers;
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -53,26 +69,50 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return response.text() as unknown as T;
 }
 
+export function setCurrentConversationId(conversationId?: string) {
+  if (typeof window === 'undefined') return;
+  const normalized = String(conversationId || '').trim();
+  if (normalized) {
+    window.localStorage.setItem(CONVERSATION_ID_STORAGE_KEY, normalized);
+  } else {
+    window.localStorage.removeItem(CONVERSATION_ID_STORAGE_KEY);
+  }
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(buildUrl(path));
+  const response = await fetch(buildUrl(path), {
+    credentials: 'include',
+    headers: buildHeaders()
+  });
   return parseResponse<T>(response);
 }
 
 export async function apiSend<T>(path: string, method: 'POST'|'PUT'|'DELETE', body?: unknown): Promise<T> {
   const response = await fetch(buildUrl(path), {
     method,
-    headers: body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    headers: body instanceof FormData ? buildHeaders() : buildHeaders({ 'Content-Type': 'application/json' }),
     body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined
   });
   return parseResponse<T>(response);
 }
 
 export async function apiPostForm<T>(path: string, form: FormData): Promise<T> {
-  const response = await fetch(buildUrl(path), { method: 'POST', body: form });
+  const response = await fetch(buildUrl(path), {
+    method: 'POST',
+    credentials: 'include',
+    headers: buildHeaders(),
+    body: form
+  });
   return parseResponse<T>(response);
 }
 
 export function buildSseUrl(path: string, params: Record<string, string>) {
-  const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '')).toString();
+  const search = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== ''));
+  const conversationId = getConversationId();
+  if (conversationId && !search.get('conversationId')) {
+    search.set('conversationId', conversationId);
+  }
+  const query = search.toString();
   return `${buildUrl(path)}${query ? `?${query}` : ''}`;
 }

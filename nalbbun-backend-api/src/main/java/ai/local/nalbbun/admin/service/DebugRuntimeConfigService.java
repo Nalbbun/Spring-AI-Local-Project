@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
+
 import ai.local.nalbbun.domain.category.CategoryParserMode;
 import ai.local.nalbbun.domain.category.CategoryResolverMode;
 import ai.local.nalbbun.admin.model.DebugRuntimeConfig;
@@ -21,8 +23,9 @@ import ai.local.nalbbun.domain.memory.service.ConversationMemoryService;
  * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
  * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
  */
+
 @Service
-public class DebugRuntimeConfigService {
+public class DebugRuntimeConfigService implements RuntimeCategoryPolicyPort {
 
     private final AtomicReference<CategoryResolverMode> resolverMode;
     private final Map<ChatCategory, AtomicReference<CategoryParserMode>> parserModes =

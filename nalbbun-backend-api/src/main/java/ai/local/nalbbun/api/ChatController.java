@@ -138,7 +138,7 @@ public class ChatController {
                     log.error("SSE error event dispatch failed. conversationId={}", conversationId, sendException);
                 }
                 sseDiagnosticsTracker.markLifecycle(emitter, "failed", errorMessage);
-                sseEmitterHelper.completeWithError(emitter, e);
+                sseEmitterHelper.complete(emitter);
             }
         }, chatTaskExecutor).orTimeout(timeoutMs + 10000L, TimeUnit.MILLISECONDS).exceptionally(ex -> {
             log.error("SSE worker future failed outside stream loop. conversationId={}, requestSummary={}",
