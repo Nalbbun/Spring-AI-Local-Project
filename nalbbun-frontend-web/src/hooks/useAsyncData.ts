@@ -1,15 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useAsyncData<T>(loader: () => Promise<T>, immediate = true) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const loaderRef = useRef(loader);
+
+  useEffect(() => {
+    loaderRef.current = loader;
+  }, [loader]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const value = await loader();
+      const value = await loaderRef.current();
       setData(value);
       return value;
     } catch (err) {
@@ -19,13 +24,12 @@ export function useAsyncData<T>(loader: () => Promise<T>, immediate = true) {
     } finally {
       setLoading(false);
     }
-  }, [loader]);
+  }, []);
 
   useEffect(() => {
-    if (immediate) {
-      refresh().catch(() => undefined);
-    }
-  }, [refresh, immediate]);
+    if (!immediate) return;
+    refresh().catch(() => undefined);
+  }, [immediate, refresh]);
 
   return { data, setData, loading, error, refresh };
 }
