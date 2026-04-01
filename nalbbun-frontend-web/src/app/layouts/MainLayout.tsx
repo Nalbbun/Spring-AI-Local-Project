@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navGroups = [
@@ -39,15 +40,42 @@ const navGroups = [
   }
 ];
 
+const SIDEBAR_STORAGE_KEY = 'nalbbun.sidebar.collapsed';
+
 export function MainLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    setSidebarCollapsed(saved === 'true');
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+      }
+      return next;
+    });
+  };
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="brand-block">
-          <div className="brand-title">Nalbbun AI</div>
-          <div className="brand-subtitle">Web Console</div>
+          <div className="brand-row">
+            <div>
+              <div className="brand-title">Nalbbun AI</div>
+              <div className="brand-subtitle">Web Console</div>
+            </div>
+            <button type="button" className="sidebar-toggle" onClick={toggleSidebar} aria-label={sidebarCollapsed ? '메뉴 열기' : '메뉴 닫기'}>
+              {sidebarCollapsed ? '»' : '«'}
+            </button>
+          </div>
         </div>
-        {navGroups.map(group => (
+        {!sidebarCollapsed && navGroups.map(group => (
           <div className="nav-group" key={group.title}>
             <div className="nav-group-title">{group.title}</div>
             {group.items.map(item => (
@@ -60,9 +88,18 @@ export function MainLayout() {
       </aside>
       <div className="content-area">
         <header className="content-header">
-          <div>
-            <h1>Spring AI + React + vite 이용한 AI Test Tool</h1>
-           </div>
+          <div className="content-header-row">
+            <div className="header-left-group">
+              {sidebarCollapsed && (
+                <button type="button" className="sidebar-toggle header-toggle" onClick={toggleSidebar} aria-label="메뉴 열기">
+                  ≡
+                </button>
+              )}
+              <div>
+                <h1>Spring AI + React + vite 이용한 AI Test Tool</h1>
+              </div>
+            </div>
+          </div>
         </header>
         <main className="content-main">
           <Outlet />
