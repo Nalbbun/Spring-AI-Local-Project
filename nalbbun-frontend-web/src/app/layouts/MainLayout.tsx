@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { runtimeApi } from '../../services/settingsApi';
+import { subscribeUiFeedback, type GlobalNoticeTone } from '../../lib/uiFeedback';
 import type { RuntimeMeta } from '../../types/api';
 
 const navGroups = [
@@ -49,9 +50,15 @@ const navGroups = [
 
 const SIDEBAR_STORAGE_KEY = 'nalbbun.sidebar.collapsed';
 
+type NoticeItem = { id: number; message: string; tone: GlobalNoticeTone };
+
 export function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [runtimeMeta, setRuntimeMeta] = useState<RuntimeMeta | null>(null);
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
+  const [pendingRequests, setPendingRequests] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('로딩 중...');
+  const [showGlobalLoading, setShowGlobalLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -64,6 +71,39 @@ export function MainLayout() {
       .then(setRuntimeMeta)
       .catch(() => setRuntimeMeta({ adminConsoleEnabled: false, debugEnabled: false }));
   }, []);
+
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const unsubscribe = subscribeUiFeedback((detail) => {
+      if (detail.type === 'request-start') {
+        setPendingRequests((prev) => prev + 1);
+        setLoadingMessage(detail.message || '로딩 중...');
+      }
+      if (detail.type === 'request-end') {
+        setPendingRequests((prev) => Math.max(0, prev - 1));
+      }
+      if (detail.type === 'notify') {
+        const id = Date.now() + Math.floor(Math.random() * 1000);
+        setNotices((prev) => [...prev, { id, message: detail.message, tone: detail.tone }]);
+        window.setTimeout(() => {
+          setNotices((prev) => prev.filter((item) => item.id !== id));
+        }, 3200);
+      }
+    });
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pendingRequests > 0) {
+      const timer = window.setTimeout(() => setShowGlobalLoading(true), 350);
+      return () => window.clearTimeout(timer);
+    }
+    setShowGlobalLoading(false);
+  }, [pendingRequests]);
 
   const visibleNavGroups = useMemo(() => {
     const adminEnabled = Boolean(runtimeMeta?.adminConsoleEnabled);
@@ -106,6 +146,24 @@ export function MainLayout() {
         ))}
       </aside>
       <div className="content-area">
+        {notices.length > 0 && (
+          <div className="global-toast-stack">
+            {notices.map((notice) => (
+              <div key={notice.id} className={`global-toast ${notice.tone}`}>
+                <span>{notice.message}</span>
+                <button type="button" className="secondary" onClick={() => setNotices((prev) => prev.filter((item) => item.id !== notice.id))}>닫기</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {showGlobalLoading && (
+          <div className="global-loading-overlay" role="status" aria-live="polite">
+            <div className="global-loading-box">
+              <div className="global-loading-spinner" />
+              <div className="global-loading-text">{loadingMessage || '로딩 중...'}</div>
+            </div>
+          </div>
+        )}
         <header className="content-header">
           <div className="content-header-row">
             <div className="header-left-group">

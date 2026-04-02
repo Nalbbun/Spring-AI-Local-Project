@@ -506,7 +506,7 @@ export function ChatWorkspace({
   const clearMemory = async () => {
     setMemoryStatus('전체 대화 메모리 초기화 요청 중');
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/debug/api/memory/clear`, { method: 'POST' });
+      await apiSend('/debug/api/memory/clear', 'POST');
       setMemory(null);
       setMemoryStatus('대화 메모리 초기화 완료');
       loadConversationTargets().catch(() => undefined);

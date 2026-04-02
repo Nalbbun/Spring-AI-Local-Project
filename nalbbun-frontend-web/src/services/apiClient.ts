@@ -1,3 +1,4 @@
+import { beginGlobalLoading, endGlobalLoading, notifyGlobal } from '../lib/uiFeedback';
 type ApiEnvelope<T> = {
   success?: boolean;
   data?: T;
@@ -79,32 +80,54 @@ export function setCurrentConversationId(conversationId?: string) {
   }
 }
 
+async function withGlobalRequest<T>(message: string | undefined, runner: () => Promise<T>, successMessage?: string): Promise<T> {
+  beginGlobalLoading(message);
+  try {
+    const result = await runner();
+    if (successMessage) notifyGlobal(successMessage, 'success');
+    return result;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    notifyGlobal(detail, 'error');
+    throw error;
+  } finally {
+    endGlobalLoading();
+  }
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(buildUrl(path), {
-    credentials: 'include',
-    headers: buildHeaders()
+  return withGlobalRequest<T>(undefined, async () => {
+    const response = await fetch(buildUrl(path), {
+      credentials: 'include',
+      headers: buildHeaders()
+    });
+    return parseResponse<T>(response);
   });
-  return parseResponse<T>(response);
 }
 
 export async function apiSend<T>(path: string, method: 'POST'|'PUT'|'DELETE', body?: unknown): Promise<T> {
-  const response = await fetch(buildUrl(path), {
-    method,
-    credentials: 'include',
-    headers: body instanceof FormData ? buildHeaders() : buildHeaders({ 'Content-Type': 'application/json' }),
-    body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined
-  });
-  return parseResponse<T>(response);
+  const actionLabel = method === 'DELETE' ? '삭제 중입니다...' : '저장 중입니다...';
+  return withGlobalRequest<T>(actionLabel, async () => {
+    const response = await fetch(buildUrl(path), {
+      method,
+      credentials: 'include',
+      headers: body instanceof FormData ? buildHeaders() : buildHeaders({ 'Content-Type': 'application/json' }),
+      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined
+    });
+    return parseResponse<T>(response);
+  }, method === 'DELETE' ? '삭제가 완료되었습니다.' : '저장이 완료되었습니다.');
 }
 
 export async function apiPostForm<T>(path: string, form: FormData): Promise<T> {
-  const response = await fetch(buildUrl(path), {
-    method: 'POST',
-    credentials: 'include',
-    headers: buildHeaders(),
-    body: form
-  });
-  return parseResponse<T>(response);
+  return withGlobalRequest<T>('업로드 중입니다...', async () => {
+    const response = await fetch(buildUrl(path), {
+      method: 'POST',
+      credentials: 'include',
+      headers: buildHeaders(),
+      body: form
+    });
+    return parseResponse<T>(response);
+  }, '업로드가 완료되었습니다.');
 }
 
 export function buildSseUrl(path: string, params: Record<string, string>) {
