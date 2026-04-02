@@ -127,6 +127,14 @@ export interface DebugApiLlmProviderConfig {
   healthCheckMethod?: 'GET' | 'POST' | string;
   modelsPath?: string;
   modelsMethod?: 'GET' | 'POST' | string;
+  sllmPath?: string;
+  llmPath?: string;
+  embeddingPath?: string;
+  rerankPath?: string;
+  searchModel?: string;
+  answerModel?: string;
+  embeddingModel?: string;
+  rerankModel?: string;
 }
 
 export interface DebugApiLlmConnectionInfo {
@@ -148,6 +156,20 @@ export interface DebugApiLlmConnectionInfo {
   resolvedHealthUrl?: string;
   resolvedModelsUrl?: string;
   availableModels?: string[];
+  sllmPath?: string;
+  llmPath?: string;
+  embeddingPath?: string;
+  rerankPath?: string;
+  searchModel?: string;
+  answerModel?: string;
+  embeddingModel?: string;
+  rerankModel?: string;
+  resolvedSllmUrl?: string;
+  resolvedLlmUrl?: string;
+  resolvedEmbeddingUrl?: string;
+  resolvedRerankUrl?: string;
+  infoModels?: Record<string, string>;
+  infoEndpoints?: Record<string, string>;
 }
 
 export interface DebugOllamaConfig {

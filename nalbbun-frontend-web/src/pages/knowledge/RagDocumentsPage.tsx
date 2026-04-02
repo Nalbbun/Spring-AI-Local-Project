@@ -121,8 +121,20 @@ export function RagDocumentsPage() {
       </div>
 
       <div className="two-column-grid">
-        <AppCard title="임베딩 설정 현황" description="레거시 설정에서 빠졌던 임베딩 후보 모델과 현재 설정을 다시 붙였습니다.">
+        <AppCard title="임베딩 설정 현황" description="OLLAMA / VLLM / OPENAI 임베딩 모델을 선택해 RAG 인제스트·검색에 사용할 수 있습니다.">
           <JsonBlock value={embedding} />
+          <div className="form-grid two top-gap">
+            <label className="field-label">임베딩 모델
+              <input list="embedding-model-options" value={embedding?.model || ''} onChange={(e) => setEmbedding((prev) => ({ ...(prev || {}), model: e.target.value }))} />
+              <datalist id="embedding-model-options">
+                {((embeddingModels?.models || embeddingModels || []) as any[]).map((name: any) => <option key={String(name)} value={String(name)} />)}
+              </datalist>
+            </label>
+            <label className="field-label">차원 수
+              <input value={embedding?.dimensions || ''} onChange={(e) => setEmbedding((prev) => ({ ...(prev || {}), dimensions: Number(e.target.value || 0) }))} />
+            </label>
+          </div>
+          <div className="button-row top-gap"><button onClick={() => run('임베딩 설정 저장', () => ragApi.saveEmbeddingConfig(embedding || {}))}>임베딩 저장</button><button className="secondary" onClick={() => run('임베딩 설정 초기화', () => ragApi.resetEmbeddingConfig())}>초기화</button></div>
         </AppCard>
         <AppCard title="임베딩 모델 후보">
           <JsonBlock value={embeddingModels} />

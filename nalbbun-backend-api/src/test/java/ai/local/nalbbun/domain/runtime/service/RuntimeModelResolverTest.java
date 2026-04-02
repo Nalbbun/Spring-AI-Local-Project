@@ -66,7 +66,7 @@ class RuntimeModelResolverTest {
         return new RuntimeModelResolver(
                 configService,
                 new DebugRuntimeOllamaConnectionService("http://127.0.0.1:11434"),
-                new DebugRuntimeVllmConnectionService("http://127.0.0.1:8000/v1", "", "VLLM", fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, apiKeyService),
+                new DebugRuntimeVllmConnectionService("http://127.0.0.1:8000/v1", "", "VLLM", fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, apiKeyService),
                 new DebugRuntimeOpenAiConnectionService("https://api.openai.com/v1", "gpt-4.1-mini", "OPENAI", fallbackPolicy, fallbackPolicy, fallbackPolicy, fallbackPolicy, apiKeyService),
                 new CategoryModelPriorityService(),
                 fallbackPolicy

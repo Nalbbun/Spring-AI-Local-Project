@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppCard } from '../../components/ui/AppCard';
 import { JsonBlock } from '../../components/ui/JsonBlock';
 import { LogPanel } from '../../components/ui/LogPanel';
@@ -7,13 +7,6 @@ import { useEventLog } from '../../hooks/useEventLog';
 import { agentApi, settingsApi } from '../../services/settingsApi';
 import type { DebugOllamaConfig, DebugRuntimeConfig, OllamaModelInfo, WebSearchStatus } from '../../types/api';
 
-const categories = [
-  { key: 'travelSearchModel', label: 'TRAVEL Search' },
-  { key: 'travelPlanModel', label: 'TRAVEL Plan' },
-  { key: 'generalModel', label: 'GENERAL' },
-  { key: 'devModel', label: 'DEV' },
-  { key: 'miceModel', label: 'MICE' }
-] as const;
 
 function parseAgentPayload(result: any) {
   const payload = result?.result?.payload ?? result?.payload ?? null;
@@ -30,13 +23,8 @@ export function AgentManagementPage() {
   const [searchResult, setSearchResult] = useState<any>(null);
   const [agentQuestion, setAgentQuestion] = useState('제주도 3박4일 100만원 여행 일정 짜줘');
   const [agentResult, setAgentResult] = useState<any>(null);
-  const [editableConfig, setEditableConfig] = useState<DebugOllamaConfig | null>(null);
   const logs = useEventLog('agent-management-log', ['에이전트 관리 로그가 누적됩니다.']);
 
-  const availableModels = useMemo(
-    () => models.map((item) => item.name || item.model || '').filter(Boolean),
-    [models]
-  );
 
   const load = async () => {
     logs.append('에이전트 현황과 실행 모델을 조회합니다.');
@@ -49,7 +37,6 @@ export function AgentManagementPage() {
     setConfig(cfg);
     setModels(runningModels);
     setOllamaConfig(modelConfig);
-    setEditableConfig(modelConfig);
     setWebSearchStatus(searchStatus);
     logs.append(`조회 완료: running model ${runningModels.length}건`);
   };
@@ -58,18 +45,6 @@ export function AgentManagementPage() {
     load().catch((error) => logs.append('초기 조회 실패', error instanceof Error ? error.message : String(error)));
   }, []);
 
-  const saveModels = async () => {
-    if (!editableConfig) return;
-    logs.append('에이전트용 모델 매핑 저장을 시작합니다.', editableConfig);
-    try {
-      const saved = await settingsApi.saveOllamaConfig(editableConfig);
-      setOllamaConfig(saved);
-      setEditableConfig(saved);
-      logs.append('에이전트용 모델 매핑 저장 완료', saved);
-    } catch (error) {
-      logs.append('에이전트용 모델 매핑 저장 실패', error instanceof Error ? error.message : String(error));
-    }
-  };
 
   const runSearch = async () => {
     logs.append('웹 검색 테스트 실행', { query: searchQuery });
@@ -113,7 +88,7 @@ export function AgentManagementPage() {
     <div className="page-stack">
       <AppCard
         title="에이전트 현황"
-        description="레거시 agent 화면처럼 현황, 모델 배정, 검색 테스트, 실행 테스트, 작업 로그를 한 화면으로 복원했습니다."
+        description=" agent 화면처럼 현황, 검색 테스트, 실행 테스트, 작업 로그를 한 화면으로 복원했습니다. 모델 배정은 운영 > 모델 관리에서 설정합니다."
         actions={<button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button>}
       >
         <div className="stats-grid compact-four">
@@ -136,38 +111,15 @@ export function AgentManagementPage() {
         </div>
       </AppCard>
 
-      <div className="two-column-grid wider-left">
-        <AppCard title="에이전트 모델 배정" description="TRAVEL Search/Plan을 포함한 카테고리별 모델 배정을 여기서 바로 조정합니다.">
-          <div className="form-grid two">
-            {categories.map((item) => (
-              <label className="field-label" key={item.key}>
-                {item.label}
-                <select
-                  value={String(editableConfig?.[item.key] || '')}
-                  onChange={(e) => setEditableConfig((prev) => ({ ...(prev || {}), [item.key]: e.target.value }))}
-                >
-                  <option value="">선택 안 함</option>
-                  {availableModels.map((modelName) => <option key={modelName} value={modelName}>{modelName}</option>)}
-                </select>
-              </label>
-            ))}
-          </div>
-          <div className="button-row">
-            <button onClick={saveModels}>모델 배정 저장</button>
-            <button className="secondary" onClick={() => setEditableConfig(ollamaConfig)}>원복</button>
-          </div>
-          <div className="status-line">실행 가능한 RUNNING 모델을 기반으로 콤보를 구성했습니다.</div>
-        </AppCard>
-
-        <AppCard title="현재 적용 상태">
-          <div className="list-stack">
-            <div className="list-item-row"><span>Conversation ID</span><span className="inline-mini-code">{config?.conversationId || '(없음)'}</span></div>
-            <div className="list-item-row"><span>Travel Search Model</span><StatusBadge label={ollamaConfig?.travelSearchModel || '-'} tone="info" /></div>
-            <div className="list-item-row"><span>Travel Plan Model</span><StatusBadge label={ollamaConfig?.travelPlanModel || '-'} tone="info" /></div>
-            <div className="list-item-row"><span>일반/개발/MICE</span><span>{[ollamaConfig?.generalModel, ollamaConfig?.devModel, ollamaConfig?.miceModel].filter(Boolean).join(' / ') || '-'}</span></div>
-          </div>
-        </AppCard>
-      </div>
+      <AppCard title="현재 적용 상태" description="에이전트 모델 배정 화면은 제거하고, 현재 적용 중인 런타임/모델 상태만 표시합니다. 실제 모델 배정은 운영 > 모델 관리에서 설정합니다.">
+        <div className="list-stack">
+          <div className="list-item-row"><span>Conversation ID</span><span className="inline-mini-code">{config?.conversationId || '(없음)'}</span></div>
+          <div className="list-item-row"><span>Travel Search Model</span><StatusBadge label={ollamaConfig?.travelSearchModel || '-'} tone="info" /></div>
+          <div className="list-item-row"><span>Travel Plan Model</span><StatusBadge label={ollamaConfig?.travelPlanModel || '-'} tone="info" /></div>
+          <div className="list-item-row"><span>일반/개발/MICE</span><span>{[ollamaConfig?.generalModel, ollamaConfig?.devModel, ollamaConfig?.miceModel].filter(Boolean).join(' / ') || '-'}</span></div>
+          <div className="list-item-row"><span>실행 가능한 모델 수</span><span>{models.length}</span></div>
+        </div>
+      </AppCard>
 
       <div className="two-column-grid">
         <AppCard title="웹 검색 테스트" description="현재 provider, endpoint 상태를 확인한 뒤 실제 웹 검색을 바로 테스트합니다.">

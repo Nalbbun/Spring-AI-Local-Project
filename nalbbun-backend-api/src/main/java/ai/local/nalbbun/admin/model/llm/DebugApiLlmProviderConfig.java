@@ -11,4 +11,12 @@ public class DebugApiLlmProviderConfig {
     private String healthCheckMethod;
     private String modelsPath;
     private String modelsMethod;
+    private String sllmPath;
+    private String llmPath;
+    private String embeddingPath;
+    private String rerankPath;
+    private String searchModel;
+    private String answerModel;
+    private String embeddingModel;
+    private String rerankModel;
 }

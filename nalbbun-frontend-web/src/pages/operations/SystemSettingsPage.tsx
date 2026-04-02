@@ -127,7 +127,7 @@ export function SystemSettingsPage() {
     <div className="page-stack">
       <AppCard
         title="시스템 설정"
-        description="레거시 settings 화면의 런타임 설정 영역을 분리했습니다. Resolver, Parser, Memory Store, Fallback 정책을 먼저 안정화합니다."
+        description=" settings 화면의 런타임 설정 영역을 분리했습니다. Resolver, Parser, Memory Store, Fallback 정책을 먼저 안정화합니다."
         actions={
           <div className="button-row compact">
             <button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button>
@@ -212,7 +212,7 @@ export function SystemSettingsPage() {
         <div className="status-line">{status}</div>
       </AppCard>
 
-      <AppCard title="RAG 런타임 설정" description="레거시 settings의 RAG 설정 저장 기능을 이 화면으로 옮겼습니다." actions={<button onClick={saveRag}>RAG 설정 저장</button>}>
+      <AppCard title="RAG 런타임 설정" description=" settings의 RAG 설정 저장 기능을 이 화면으로 옮겼습니다." actions={<button onClick={saveRag}>RAG 설정 저장</button>}>
         <div className="form-grid three">
           <label className="field-label">Enabled
             <select value={String(ragForm.enabled)} onChange={(e) => setRagForm((prev) => ({ ...prev, enabled: e.target.value === 'true' }))}>

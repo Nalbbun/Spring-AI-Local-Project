@@ -24,86 +24,33 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @RequestMapping("/debug/api/llm")
 public class DebugLlmProviderController {
-
     private final ApiCompatibleLlmDiscoveryService discoveryService;
     private final DebugRuntimeVllmConnectionService vllmConnectionService;
     private final DebugRuntimeOpenAiConnectionService openAiConnectionService;
 
     @GetMapping("/providers/status")
-    public Map<String, DebugApiLlmConnectionInfo> status() {
-        Map<String, DebugApiLlmConnectionInfo> result = new LinkedHashMap<>();
-        result.put("vllm", vllmStatus());
-        result.put("openai", openAiStatus());
-        return result;
-    }
+    public Map<String, DebugApiLlmConnectionInfo> status() { Map<String, DebugApiLlmConnectionInfo> r = new LinkedHashMap<>(); r.put("vllm", vllmStatus()); r.put("openai", openAiStatus()); return r; }
 
     @GetMapping("/providers/vllm")
     public DebugApiLlmConnectionInfo vllmStatus() {
-        return discoveryService.inspect(
-                "VLLM",
-                vllmConnectionService.getBaseUrl(),
-                vllmConnectionService.getResolvedApiKey(),
-                vllmConnectionService.getKeyProvider(),
-                vllmConnectionService.getConfiguredOrDefaultModel(),
-                vllmConnectionService.getHealthCheckPath(),
-                vllmConnectionService.getHealthCheckMethod(),
-                vllmConnectionService.getModelsPath(),
-                vllmConnectionService.getModelsMethod()
-        );
+        DebugApiLlmConnectionInfo info = discoveryService.inspect("VLLM", vllmConnectionService.getBaseUrl(), vllmConnectionService.getResolvedApiKey(), vllmConnectionService.getKeyProvider(), vllmConnectionService.getConfiguredOrDefaultModel(), vllmConnectionService.getHealthCheckPath(), vllmConnectionService.getHealthCheckMethod(), vllmConnectionService.getModelsPath(), vllmConnectionService.getModelsMethod());
+        info.setSllmPath(vllmConnectionService.getSllmPath()); info.setLlmPath(vllmConnectionService.getLlmPath()); info.setEmbeddingPath(vllmConnectionService.getEmbeddingPath()); info.setRerankPath(vllmConnectionService.getRerankPath());
+        info.setSearchModel(vllmConnectionService.getSearchModel()); info.setAnswerModel(vllmConnectionService.getAnswerModel()); info.setEmbeddingModel(vllmConnectionService.getEmbeddingModel()); info.setRerankModel(vllmConnectionService.getRerankModel());
+        info.setResolvedSllmUrl(vllmConnectionService.getSllmBaseUrl() + "/v1/chat/completions");
+        info.setResolvedLlmUrl(vllmConnectionService.getLlmBaseUrl() + "/v1/chat/completions");
+        info.setResolvedEmbeddingUrl(vllmConnectionService.getEmbeddingBaseUrl() + "/v1/embeddings");
+        info.setResolvedRerankUrl(vllmConnectionService.getRerankBaseUrl() + "/rerank");
+        return info;
     }
 
     @PostMapping("/providers/vllm")
     public DebugApiLlmConnectionInfo updateVllm(@RequestBody(required = false) DebugApiLlmProviderConfig request) {
-        vllmConnectionService.update(
-                request == null ? null : request.getBaseUrl(),
-                request == null ? null : request.getDefaultModel(),
-                request == null ? null : request.getKeyProvider(),
-                request == null ? null : request.getHealthCheckPath(),
-                request == null ? null : request.getHealthCheckMethod(),
-                request == null ? null : request.getModelsPath(),
-                request == null ? null : request.getModelsMethod()
-        );
+        vllmConnectionService.update(request == null ? null : request.getBaseUrl(), request == null ? null : request.getDefaultModel(), request == null ? null : request.getKeyProvider(), request == null ? null : request.getHealthCheckPath(), request == null ? null : request.getHealthCheckMethod(), request == null ? null : request.getModelsPath(), request == null ? null : request.getModelsMethod(), request == null ? null : request.getSllmPath(), request == null ? null : request.getLlmPath(), request == null ? null : request.getEmbeddingPath(), request == null ? null : request.getRerankPath(), request == null ? null : request.getSearchModel(), request == null ? null : request.getAnswerModel(), request == null ? null : request.getEmbeddingModel(), request == null ? null : request.getRerankModel());
         return vllmStatus();
     }
 
-    @PostMapping("/providers/vllm/reset")
-    public DebugApiLlmConnectionInfo resetVllm() {
-        vllmConnectionService.reset();
-        return vllmStatus();
-    }
-
-    @GetMapping("/providers/openai")
-    public DebugApiLlmConnectionInfo openAiStatus() {
-        return discoveryService.inspect(
-                "OPENAI",
-                openAiConnectionService.getBaseUrl(),
-                openAiConnectionService.getResolvedApiKey(),
-                openAiConnectionService.getKeyProvider(),
-                openAiConnectionService.getConfiguredOrDefaultModel(),
-                openAiConnectionService.getHealthCheckPath(),
-                openAiConnectionService.getHealthCheckMethod(),
-                openAiConnectionService.getModelsPath(),
-                openAiConnectionService.getModelsMethod()
-        );
-    }
-
-    @PostMapping("/providers/openai")
-    public DebugApiLlmConnectionInfo updateOpenAi(@RequestBody(required = false) DebugApiLlmProviderConfig request) {
-        openAiConnectionService.update(
-                request == null ? null : request.getBaseUrl(),
-                request == null ? null : request.getDefaultModel(),
-                request == null ? null : request.getKeyProvider(),
-                request == null ? null : request.getHealthCheckPath(),
-                request == null ? null : request.getHealthCheckMethod(),
-                request == null ? null : request.getModelsPath(),
-                request == null ? null : request.getModelsMethod()
-        );
-        return openAiStatus();
-    }
-
-    @PostMapping("/providers/openai/reset")
-    public DebugApiLlmConnectionInfo resetOpenAi() {
-        openAiConnectionService.reset();
-        return openAiStatus();
-    }
+    @PostMapping("/providers/vllm/reset") public DebugApiLlmConnectionInfo resetVllm() { vllmConnectionService.reset(); return vllmStatus(); }
+    @GetMapping("/providers/openai") public DebugApiLlmConnectionInfo openAiStatus() { return discoveryService.inspect("OPENAI", openAiConnectionService.getBaseUrl(), openAiConnectionService.getResolvedApiKey(), openAiConnectionService.getKeyProvider(), openAiConnectionService.getConfiguredOrDefaultModel(), openAiConnectionService.getHealthCheckPath(), openAiConnectionService.getHealthCheckMethod(), openAiConnectionService.getModelsPath(), openAiConnectionService.getModelsMethod()); }
+    @PostMapping("/providers/openai") public DebugApiLlmConnectionInfo updateOpenAi(@RequestBody(required = false) DebugApiLlmProviderConfig request) { openAiConnectionService.update(request == null ? null : request.getBaseUrl(), request == null ? null : request.getDefaultModel(), request == null ? null : request.getKeyProvider(), request == null ? null : request.getHealthCheckPath(), request == null ? null : request.getHealthCheckMethod(), request == null ? null : request.getModelsPath(), request == null ? null : request.getModelsMethod()); return openAiStatus(); }
+    @PostMapping("/providers/openai/reset") public DebugApiLlmConnectionInfo resetOpenAi() { openAiConnectionService.reset(); return openAiStatus(); }
 }

@@ -68,7 +68,7 @@ export function PromptManagementPage() {
     <div className="page-stack">
       <AppCard
         title="프롬프트 운영 현황"
-        description="레거시 prompts 화면의 저장소 요약, 카테고리 필터, 편집, 기본 지정, 이벤트 로그 흐름을 React로 복원했습니다."
+        description=" prompts 화면의 저장소 요약, 카테고리 필터, 편집, 기본 지정, 이벤트 로그 흐름을 React로 복원했습니다."
         actions={<div className="button-row compact"><button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button><button className="secondary" onClick={() => promptApi.seed().then((v) => { logs.append(`기본 시드 완료: ${v.seeded}/${v.total}`); return load(); }).catch((e) => logs.append('기본 시드 실패', e instanceof Error ? e.message : String(e)))}>기본 시드</button></div>}
       >
         <div className="stats-grid compact-four">
