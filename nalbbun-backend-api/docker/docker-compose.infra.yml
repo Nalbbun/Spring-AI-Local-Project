@@ -4,17 +4,17 @@ services:
     container_name: nalbbun-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-nalbbun_ai}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_USER: ${POSTGRES_USER:-nalbbun}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nalbbun1234}
       TZ: Asia/Seoul
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nalbbun} -d ${POSTGRES_DB:-nalbbun_ai}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nalbbun} -d ${POSTGRES_DB:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -27,13 +27,9 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis_data:/data
+      - ./redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
-
-volumes:
-  postgres_data:
-  redis_data:

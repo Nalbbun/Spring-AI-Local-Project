@@ -6,6 +6,7 @@ import ai.local.nalbbun.domain.apikey.repository.ApiKeyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -30,11 +31,8 @@ public class ApiKeyService {
 
     private final ApiKeyRepository repository;
     private final ApiKeyCrypto crypto;
+    private final ObjectProvider<OpenAiApi> openAiApiProvider;
 
-    // OpenAI API 런타임 반영 (Spring AI OpenAiApi 빈)
-    private final OpenAiApi openAiApi;
-
-    // ── 조회 ──────────────────────────────────────────────
     /** 전체 목록 — keyValue 는 마스킹 */
     public List<Map<String, Object>> listMasked() {
         return repository.findAll().stream()
@@ -78,7 +76,6 @@ public class ApiKeyService {
                 .toList();
     }
 
-    // ── CUD ───────────────────────────────────────────────
     public Map<String, Object> create(String provider, String label,
                                       String description, String plainKey, boolean active) {
         validate(provider, label, plainKey);
@@ -157,18 +154,12 @@ public class ApiKeyService {
         return result;
     }
 
-    // ── 런타임 반영 ───────────────────────────────────────
     private void applyToRuntime(String provider, String plainKey) {
         if (plainKey == null || plainKey.isBlank()) return;
         String normalizedProvider = normalizeProvider(provider);
         try {
             switch (normalizedProvider) {
-                case "OPENAI" -> {
-                    var field = openAiApi.getClass().getDeclaredField("apiKey");
-                    field.setAccessible(true);
-                    field.set(openAiApi, plainKey);
-                    log.info("OpenAI API 키 런타임 적용 완료");
-                }
+                case "OPENAI" -> applyOpenAiKey(plainKey);
                 case "TAVILY" -> {
                     System.setProperty("TAVILY_API_KEY", plainKey);
                     log.info("Tavily API 키 시스템 프로퍼티 설정 완료 (재시작 시 반영)");
@@ -180,7 +171,18 @@ public class ApiKeyService {
         }
     }
 
-    // ── 내부 유틸 ─────────────────────────────────────────
+    private void applyOpenAiKey(String plainKey) throws Exception {
+        OpenAiApi openAiApi = openAiApiProvider.getIfAvailable();
+        if (openAiApi == null) {
+            log.info("OpenAI API 빈이 아직 생성되지 않아 런타임 반영을 건너뜁니다.");
+            return;
+        }
+        var field = openAiApi.getClass().getDeclaredField("apiKey");
+        field.setAccessible(true);
+        field.set(openAiApi, plainKey);
+        log.info("OpenAI API 키 런타임 적용 완료");
+    }
+
     private Map<String, Object> toMasked(ApiKeyEntry e) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", e.getId());

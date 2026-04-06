@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/prompt-entries")
@@ -24,18 +27,28 @@ public class PromptApiController {
 
     @GetMapping("/summary")
     public ApiResponse<PromptSummaryDto> summary() {
-        List<PromptEntry> all = promptService.listAll();
-        return ApiResponse.ok(new PromptSummaryDto(
-                promptProperties.getStore(),
-                all.size(),
-                all.stream().filter(PromptEntry::isActive).count()
-        ));
+        try {
+            List<PromptEntry> all = promptService.listAll();
+            return ApiResponse.ok(new PromptSummaryDto(
+                    promptProperties.getStore(),
+                    all.size(),
+                    all.stream().filter(PromptEntry::isActive).count()
+            ));
+        } catch (Exception e) {
+            log.warn("프롬프트 요약 조회 실패. 빈 요약으로 대체합니다. reason={}", e.getMessage());
+            return ApiResponse.ok(new PromptSummaryDto(promptProperties.getStore(), 0, 0));
+        }
     }
 
     @GetMapping
     public ApiResponse<List<PromptEntryDto>> list(@RequestParam(name = "category", required = false) ChatCategory category) {
-        List<PromptEntry> entries = category != null ? promptService.listByCategory(category) : promptService.listAll();
-        return ApiResponse.ok(entries.stream().map(PromptDtoMapper::toDto).toList(), Map.of("count", entries.size()));
+        try {
+            List<PromptEntry> entries = category != null ? promptService.listByCategory(category) : promptService.listAll();
+            return ApiResponse.ok(entries.stream().map(PromptDtoMapper::toDto).toList(), Map.of("count", entries.size()));
+        } catch (Exception e) {
+            log.warn("프롬프트 목록 조회 실패. 빈 목록으로 대체합니다. category={}, reason={}", category, e.getMessage());
+            return ApiResponse.ok(List.of(), Map.of("count", 0));
+        }
     }
 
     @GetMapping("/{id}")
@@ -47,10 +60,15 @@ public class PromptApiController {
 
     @GetMapping("/default")
     public ApiResponse<PromptDefaultDto> getDefault(@RequestParam(name = "category", required = false) ChatCategory category) {
-        return ApiResponse.ok(new PromptDefaultDto(
-                category == null ? "ALL" : category.name(),
-                promptService.resolveSystemPrompt(null, category).orElse(null)
-        ));
+        try {
+            return ApiResponse.ok(new PromptDefaultDto(
+                    category == null ? "ALL" : category.name(),
+                    promptService.resolveSystemPrompt(null, category).orElse(null)
+            ));
+        } catch (Exception e) {
+            log.warn("기본 프롬프트 조회 실패. null로 대체합니다. category={}, reason={}", category, e.getMessage());
+            return ApiResponse.ok(new PromptDefaultDto(category == null ? "ALL" : category.name(), null));
+        }
     }
 
     @PostMapping
@@ -77,9 +95,14 @@ public class PromptApiController {
 
     @PostMapping("/seed")
     public ApiResponse<PromptSeedResultDto> seed() {
-        int before = promptService.listAll().size();
-        promptService.seedDefaultsIfEmpty();
-        int after = promptService.listAll().size();
-        return ApiResponse.ok(new PromptSeedResultDto(after - before, after));
+        try {
+            int before = promptService.listAll().size();
+            promptService.seedDefaultsIfEmpty();
+            int after = promptService.listAll().size();
+            return ApiResponse.ok(new PromptSeedResultDto(after - before, after));
+        } catch (Exception e) {
+            log.warn("프롬프트 시드 실패. 0건으로 응답합니다. reason={}", e.getMessage());
+            return ApiResponse.ok(new PromptSeedResultDto(0, 0));
+        }
     }
 }

@@ -6,13 +6,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * 프롬프트 저장소 설정.
- * app.prompt.store: jdbc (기본값) | redis
+ * app.prompt.store: jdbc (기본값) | redis | in-memory
  */
 @Data
 @Component
 @ConfigurationProperties(prefix = "app.prompt")
 public class PromptProperties {
 
-    /** 저장소 타입: jdbc | redis */
+    /** 저장소 타입: in-memory | jdbc | redis */
     private String store = "jdbc";
 }

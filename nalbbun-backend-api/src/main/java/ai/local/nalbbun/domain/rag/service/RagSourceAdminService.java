@@ -12,6 +12,7 @@ import java.util.Map;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import ai.local.nalbbun.domain.category.model.ChatCategory;
@@ -41,6 +42,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RagSourceAdminService {
 
+    @Qualifier("vectorDataSource")
     private final ObjectProvider<DataSource> dataSourceProvider;
     private final RagSourceRegistryService ragSourceRegistryService;
     private final RagSourceCatalogService ragSourceCatalogService;

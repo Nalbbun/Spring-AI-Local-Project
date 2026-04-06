@@ -33,3 +33,8 @@ export function subscribeUiFeedback(listener: (detail: FeedbackEventDetail) => v
   window.addEventListener(EVENT_NAME, handler as EventListener);
   return () => window.removeEventListener(EVENT_NAME, handler as EventListener);
 }
+
+
+export function notifyUi(payload: { type?: 'notify'; tone?: GlobalNoticeTone; message: string }) {
+  notifyGlobal(payload.message, payload.tone ?? 'info');
+}

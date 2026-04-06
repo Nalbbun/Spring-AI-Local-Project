@@ -16,19 +16,13 @@ import ai.local.nalbbun.common.sse.SseEmitterHelper;
 import ai.local.nalbbun.common.sse.SseEventNames;
 import ai.local.nalbbun.domain.category.model.CategoryResult;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
+import ai.local.nalbbun.domain.category.model.ExecutionMode;
 import ai.local.nalbbun.domain.chat.application.CategoryChatOrchestrator;
 import ai.local.nalbbun.domain.conversation.ConversationIdResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Chat Controller 타입이다.
- *
- * <p>기능 설명: HTTP 요청을 받아 서비스 또는 오케스트레이터로 전달하고 응답을 구성한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
- * <p>입력: HTTP 요청 파라미터, 요청 본문, 세션 또는 헤더 정보</p>
- * <p>출력: HTTP 응답, SSE 이벤트, 뷰 이름 또는 직렬화 가능한 결과</p>
- */
 @Slf4j
 @RestController
 public class ChatController {
@@ -57,6 +51,7 @@ public class ChatController {
     public SseEmitter stream(
             @RequestParam(name = "message") String message,
             @RequestParam(name = "category", required = false) ChatCategory category,
+            @RequestParam(name = "executionMode", required = false) ExecutionMode executionMode,
             @RequestParam(name = "promptId", required = false) String promptId,
             HttpServletRequest request,
             HttpSession session
@@ -65,13 +60,13 @@ public class ChatController {
         long timeoutMs = 300000L;
         SseEmitter emitter = new SseEmitter(timeoutMs);
         String requestSummary = "category=" + (category != null ? category : "AUTO")
+                + ", executionMode=" + (executionMode != null ? executionMode : "AUTO")
                 + ", promptId=" + (promptId != null ? promptId : "")
                 + ", messagePreview=" + summarize(message);
 
         sseDiagnosticsTracker.register(emitter, conversationId, requestSummary);
         sseDiagnosticsTracker.markLifecycle(emitter, "opened", null);
-        log.info("SSE stream opened. conversationId={}, timeoutMs={}, {}",
-                conversationId, timeoutMs, requestSummary);
+        log.info("SSE stream opened. conversationId={}, timeoutMs={}, {}", conversationId, timeoutMs, requestSummary);
 
         emitter.onCompletion(() -> {
             var context = sseDiagnosticsTracker.get(emitter);
@@ -112,6 +107,7 @@ public class ChatController {
                         message,
                         conversationId,
                         category,
+                        executionMode,
                         promptId,
                         emitter
                 );
@@ -150,9 +146,7 @@ public class ChatController {
     }
 
     private String summarize(String text) {
-        if (text == null) {
-            return "";
-        }
+        if (text == null) return "";
         String normalized = text.replace("\n", " ").replace("\r", " ").trim();
         return normalized.length() > 120 ? normalized.substring(0, 120) + "..." : normalized;
     }

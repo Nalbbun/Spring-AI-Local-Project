@@ -91,6 +91,7 @@ export function PromptManagementPage() {
               { key: 'name', title: '이름', render: (row) => <button className="link-button" onClick={() => edit(row)}>{row.name}</button> },
               { key: 'category', title: '카테고리', render: (row) => row.category || '공통' },
               { key: 'default', title: '기본', render: (row) => row.isDefault ? <StatusBadge label="기본" tone="info" /> : '-' },
+              { key: 'version', title: '버전', render: (row) => `v${row.versionNo ?? 1}` },
               { key: 'status', title: '상태', render: (row) => <StatusBadge label={row.active ? '활성' : '비활성'} tone={row.active ? 'success' : 'default'} /> },
               {
                 key: 'actions',
@@ -107,6 +108,7 @@ export function PromptManagementPage() {
         </AppCard>
 
         <AppCard title={editingId ? '프롬프트 편집' : '새 프롬프트 작성'} description="작성 → 저장 → 기본 지정 → 채팅 적용 흐름을 고려해 편집 폼을 구성했습니다.">
+          {editingId && <div className="notice-box">버전 관리는 자동입니다. 수정 저장 시 버전 번호가 증가하며 직전 버전 ID가 기록됩니다.</div>}
           <div className="form-grid two">
             <label className="field-label">이름<input value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} /></label>
             <label className="field-label">카테고리<select value={form.category} onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}><option value="">공통</option><option value="GENERAL">GENERAL</option><option value="DEV">DEV</option><option value="MICE">MICE</option><option value="TRAVEL">TRAVEL</option></select></label>

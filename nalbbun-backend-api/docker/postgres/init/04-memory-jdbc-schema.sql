@@ -1,0 +1,1 @@
+-- Schema is applied by 04-init-memory-schema.sh to nalbbun_memory.

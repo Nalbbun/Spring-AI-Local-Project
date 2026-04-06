@@ -23,7 +23,7 @@ export function AgentChatPage() {
 
   return (
     <div className="page-stack">
-      <ChatWorkspace title="에이전트 채팅" description="chat-agent 화면의 SSE 채팅 React로 구성." defaultCategory="TRAVEL" defaultMessage="부산 2박 3일 여행 코스를 짜줘" />
+      <ChatWorkspace title="에이전트 채팅" description="chat-agent 화면의 SSE 채팅 React로 구성." defaultCategory="TRAVEL" defaultExecutionMode="AUTO" defaultMessage="부산 2박 3일 여행 코스를 짜줘" />
     </div>
   );
 }

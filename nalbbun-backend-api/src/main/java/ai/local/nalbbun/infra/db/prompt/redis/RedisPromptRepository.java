@@ -7,9 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -23,8 +21,6 @@ import java.util.stream.Collectors;
  *   prompt:default:{category|ALL} — 기본 프롬프트 ID
  */
 @Slf4j
-@Repository
-@ConditionalOnProperty(prefix = "app.prompt", name = "store", havingValue = "redis")
 public class RedisPromptRepository implements PromptRepository {
 
     private static final String KEY_PREFIX  = "prompt:entry:";
@@ -76,6 +72,7 @@ public class RedisPromptRepository implements PromptRepository {
         if (entry.getId() == null || entry.getId().isBlank()) {
             entry.setId(UUID.randomUUID().toString().replace("-", "").substring(0, 12));
         }
+        if (entry.getVersionNo() <= 0) entry.setVersionNo(1);
         LocalDateTime now = LocalDateTime.now();
         entry.setCreatedAt(now);
         entry.setUpdatedAt(now);
@@ -86,6 +83,7 @@ public class RedisPromptRepository implements PromptRepository {
 
     @Override
     public PromptEntry update(PromptEntry entry) {
+        if (entry.getVersionNo() <= 0) entry.setVersionNo(1);
         entry.setUpdatedAt(LocalDateTime.now());
         if (entry.isDefault()) clearDefault(entry.getCategory());
         persist(entry);

@@ -15,6 +15,8 @@ public final class PromptDtoMapper {
                 entry.getDescription(),
                 entry.isDefault(),
                 entry.isActive(),
+                entry.getVersionNo(),
+                entry.getPreviousVersionId(),
                 entry.getCreatedAt(),
                 entry.getUpdatedAt()
         );

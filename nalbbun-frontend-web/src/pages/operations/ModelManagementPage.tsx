@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppCard } from '../../components/ui/AppCard';
 import { DataTable } from '../../components/ui/DataTable';
 import { JsonBlock } from '../../components/ui/JsonBlock';
@@ -279,6 +279,8 @@ export function ModelManagementPage() {
   const [busyMessage, setBusyMessage] = useState('');
   const [busyCount, setBusyCount] = useState(0);
   const logs = useEventLog('operations-model-management-log', ['모델 관리 작업 로그가 여기에 누적됩니다.']);
+  const initialLoadedRef = useRef(false);
+  const modelListLoadingRef = useRef(false);
 
   const beginBusy = (message: string) => {
     setBusyMessage(message);
@@ -312,7 +314,7 @@ export function ModelManagementPage() {
     logs.append(message, detail);
   };
 
-  const refreshProviders = async () => {
+  const refreshProviders = useCallback(async () => {
     const [providers, apiKeyProviders] = await Promise.all([
       settingsApi.getLlmProvidersStatus(),
       keyApi.providers().catch(() => [])
@@ -355,9 +357,9 @@ export function ModelManagementPage() {
     setKeyProviderOptions(dynamicOptions);
 
     return providers;
-  };
+  }, []);
 
-  const loadConnection = async () => {
+  const loadConnection = useCallback(async () => {
     const [cfg, conn] = await Promise.all([
       settingsApi.getOllamaConfig(),
       settingsApi.checkConnection()
@@ -368,25 +370,35 @@ export function ModelManagementPage() {
     setConnection(conn);
     setBaseUrl(conn?.baseUrl ?? '');
     return { cfg, conn };
-  };
+  }, [source]);
 
-  const loadModels = async (targetSource = source) => {
-    const [priority, modelList] = await Promise.all([
-      settingsApi.getModelPriority(),
-      settingsApi.browseModels(targetSource),
-      refreshProviders()
-    ]);
-    setModelPriority(priority);
-    setModels(modelList);
-    return { priority, modelList };
-  };
+  const loadModels = useCallback(async (targetSource?: string) => {
+    const resolvedSource = String(targetSource || source || 'RUNNING');
+    if (modelListLoadingRef.current) {
+      return { priority: modelPriority, modelList: models };
+    }
+    modelListLoadingRef.current = true;
+    try {
+      const [priority, modelList] = await Promise.all([
+        settingsApi.getModelPriority(),
+        settingsApi.browseModels(resolvedSource),
+        refreshProviders()
+      ]);
+      setModelPriority(priority);
+      setModels(modelList);
+      return { priority, modelList };
+    } finally {
+      modelListLoadingRef.current = false;
+    }
+  }, [source, refreshProviders, modelPriority, models]);
 
-  const loadAll = async (targetSource = source) => {
+  const loadAll = useCallback(async (targetSource?: string) => {
+    const resolvedSource = String(targetSource || source || 'RUNNING');
     beginBusy('전체 정보를 다시 조회하는 중입니다.');
     syncStatus('연결, 모델, 우선순위 정보를 다시 조회합니다.');
     try {
-      const [{ conn }, { modelList }] = await Promise.all([loadConnection(), loadModels(targetSource)]);
-      const message = `조회 완료: ${targetSource} 기준 ${modelList.length}개 모델 / reachable=${String(conn?.reachable ?? false)}`;
+      const [{ conn }, { modelList }] = await Promise.all([loadConnection(), loadModels(resolvedSource)]);
+      const message = `조회 완료: ${resolvedSource} 기준 ${modelList.length}개 모델 / reachable=${String(conn?.reachable ?? false)}`;
       syncStatus(message);
       notifyGlobal(message, 'success');
     } catch (error) {
@@ -396,12 +408,31 @@ export function ModelManagementPage() {
     } finally {
       endBusy();
     }
-  };
+  }, [source, loadConnection, loadModels]);
 
   useEffect(() => {
+    if (initialLoadedRef.current) return;
+    initialLoadedRef.current = true;
     loadAll(source).catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source]);
+  }, [source, loadAll]);
+
+  const handleSourceChange = useCallback(async (nextSource: string) => {
+    setSource(nextSource);
+    setConfig((prev) => ({ ...prev, modelSource: nextSource }));
+    beginBusy(`모델 소스를 ${nextSource} 기준으로 조회하는 중입니다.`);
+    try {
+      const { modelList } = await loadModels(nextSource);
+      const message = `모델 소스 변경 완료: ${nextSource} / ${modelList.length}개`;
+      syncStatus(message);
+      notifyGlobal(message, 'info');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      syncStatus(message);
+      notifyGlobal(`모델 목록 조회 실패: ${message}`, 'error');
+    } finally {
+      endBusy();
+    }
+  }, [loadModels]);
 
   const saveConnection = async () => {
     if (!baseUrl.trim()) {
@@ -649,7 +680,7 @@ export function ModelManagementPage() {
           <div className="list-item-row"><span>Running / Installed</span><span>{connection?.runningCount ?? 0} / {connection?.installedCount ?? 0}</span></div>
         </div>
         <div className="toolbar top-gap">
-          <select value={source} onChange={(e) => { const nextSource = e.target.value; setSource(nextSource); setConfig((prev) => ({ ...prev, modelSource: nextSource })); }}>
+          <select value={source} onChange={(e) => { void handleSourceChange(e.target.value); }}>
             {sourceOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </div>
@@ -694,7 +725,7 @@ export function ModelManagementPage() {
 
       <AppCard title="4. 카테고리별 모델 설정" description="Model Source를 바꾸면 Ollama 모델 목록도 함께 다시 조회됩니다. Resident Keep Alive / Resident Model List 항목은 화면에서 제거했습니다.">
         <div className="provider-grid top-gap">
-          <label className="field-label">Model Source<select value={config.modelSource || 'RUNNING'} onChange={(e) => { const nextSource = e.target.value; setConfig((prev) => ({ ...prev, modelSource: nextSource })); setSource(nextSource); }}>{sourceOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          <label className="field-label">Model Source<select value={config.modelSource || 'RUNNING'} onChange={(e) => { void handleSourceChange(e.target.value); }}>{sourceOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           <div className="notice-box">선택 가능한 모델은 현재 Model Source 기준 Ollama 모델 + OpenAI + vLLM 모델을 합쳐서 표시합니다.</div>
           <CategoryModelSelect label="GENERAL" field="generalModel" value={config.generalModel || ''} config={config} availableModels={availableModelNames} onChange={setConfig} />
           <CategoryModelSelect label="DEV" field="devModel" value={config.devModel || ''} config={config} availableModels={availableModelNames} onChange={setConfig} />

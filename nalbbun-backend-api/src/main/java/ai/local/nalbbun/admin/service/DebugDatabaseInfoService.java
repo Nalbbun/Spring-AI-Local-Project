@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -35,7 +36,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DebugDatabaseInfoService {
 
-    private final ObjectProvider<DataSource> dataSourceProvider;
+    @Qualifier("apiDataSource")
+    private final ObjectProvider<DataSource> apiDataSourceProvider;
+    @Qualifier("vectorDataSource")
+    private final ObjectProvider<DataSource> vectorDataSourceProvider;
+    @Qualifier("memoryJdbcDataSource")
+    private final ObjectProvider<DataSource> memoryDataSourceProvider;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final RagProperties ragProperties;
 
@@ -50,7 +56,8 @@ public class DebugDatabaseInfoService {
         response.put("ragEnabled", ragProperties.isEnabled());
         response.put("vectorStoreType", ragProperties.getVectorStore());
         response.put("registryBaseDir", ragProperties.getRegistry().getBaseDir());
-        response.put("jdbc", jdbcInfo());
+        response.put("apiDb", apiDbInfo());
+        response.put("jdbc", apiDbInfo());
         response.put("vectorDb", vectorDbInfo());
         response.put("memoryDb", memoryDbInfo());
         response.put("redis", redisInfo());
@@ -64,12 +71,12 @@ public class DebugDatabaseInfoService {
      * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
      * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
      */
-    private Map<String, Object> jdbcInfo() {
+    private Map<String, Object> apiDbInfo() {
         Map<String, Object> result = new LinkedHashMap<>();
-        DataSource dataSource = dataSourceProvider.getIfAvailable();
+        DataSource dataSource = apiDataSourceProvider.getIfAvailable();
         if (dataSource == null) {
             result.put("connected", false);
-            result.put("message", "DataSource bean 없음");
+            result.put("message", "API DataSource bean 없음");
             return result;
         }
 
@@ -98,10 +105,10 @@ public class DebugDatabaseInfoService {
      */
     private Map<String, Object> vectorDbInfo() {
         Map<String, Object> result = new LinkedHashMap<>();
-        DataSource dataSource = dataSourceProvider.getIfAvailable();
+        DataSource dataSource = vectorDataSourceProvider.getIfAvailable();
         if (dataSource == null) {
             result.put("tableExists", false);
-            result.put("message", "DataSource bean 없음");
+            result.put("message", "Vector DataSource bean 없음");
             return result;
         }
 
@@ -133,10 +140,10 @@ public class DebugDatabaseInfoService {
      */
     private Map<String, Object> memoryDbInfo() {
         Map<String, Object> result = new LinkedHashMap<>();
-        DataSource dataSource = dataSourceProvider.getIfAvailable();
+        DataSource dataSource = memoryDataSourceProvider.getIfAvailable();
         if (dataSource == null) {
             result.put("available", false);
-            result.put("message", "DataSource bean 없음");
+            result.put("message", "Memory JDBC DataSource bean 없음");
             return result;
         }
 

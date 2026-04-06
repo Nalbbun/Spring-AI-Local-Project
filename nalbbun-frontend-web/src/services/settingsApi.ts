@@ -37,6 +37,14 @@ export const settingsApi = {
   saveOpenAiConfig: (payload: DebugApiLlmProviderConfig) => apiSend<DebugApiLlmConnectionInfo>('/debug/api/llm/providers/openai', 'POST', payload),
   resetOpenAiConfig: () => apiSend<DebugApiLlmConnectionInfo>('/debug/api/llm/providers/openai/reset', 'POST'),
 
+  syncVllmFromInfo: () => apiSend<any>('/debug/api/llm/providers/vllm/sync-info', 'POST'),
+  testVllmChat: (payload: { mode: 'LLM' | 'SLLM'; model?: string; systemPrompt?: string; userPrompt: string }) =>
+    apiSend<any>('/debug/api/llm/providers/vllm/test/chat', 'POST', payload),
+  testVllmEmbedding: (payload: { texts: string[] }) =>
+    apiSend<any>('/debug/api/llm/providers/vllm/test/embedding', 'POST', payload),
+  testVllmRerank: (payload: { query: string; documents: string[]; topK?: number }) =>
+    apiSend<any>('/debug/api/llm/providers/vllm/test/rerank', 'POST', payload),
+
   getModelPriority: async () => {
     const response = await apiGet<ModelPriorityResponse>('/api/model-priority');
     return response.priorities ?? {};

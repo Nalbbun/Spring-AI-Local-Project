@@ -1,6 +1,7 @@
 package ai.local.nalbbun.domain.runtime.service;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -22,11 +23,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import ai.local.nalbbun.domain.runtime.model.RuntimeLlmProvider;
+import ai.local.nalbbun.domain.runtime.model.RuntimeModelTarget;
 import ai.local.nalbbun.domain.runtime.port.RuntimeOllamaConnectionPort;
 import ai.local.nalbbun.domain.runtime.port.RuntimeOpenAiConnectionPort;
 import ai.local.nalbbun.domain.runtime.port.RuntimeVllmConnectionPort;
-import ai.local.nalbbun.domain.runtime.model.RuntimeLlmProvider;
-import ai.local.nalbbun.domain.runtime.model.RuntimeModelTarget;
 import io.netty.channel.ChannelOption;
 import lombok.extern.slf4j.Slf4j;
 import reactor.netty.http.client.HttpClient;
@@ -106,7 +107,18 @@ public class RuntimeModelChatService {
         } catch (Exception e) {
             log.error("LLM stream failed. target={}, resolution={}, partialLength={}, reason={}",
                     target, resolved.describe(), fullResponse.length(), e.getMessage(), e);
-            if (fullResponse.isEmpty()) {
+            if (resolved.provider() == RuntimeLlmProvider.VLLM && fullResponse.isEmpty()) {
+                try {
+                    String fallback = runtimeChatClient(systemPrompt, resolved).prompt().user(userPrompt).call().content();
+                    if (fallback != null && !fallback.isBlank()) {
+                        fullResponse.append(fallback);
+                        tokenConsumer.accept(fallback);
+                    }
+                } catch (Exception fallbackError) {
+                    throw new IllegalStateException(
+                            "LLM 스트리밍 실패: target=%s, cause=%s".formatted(target, fallbackError.getMessage()), fallbackError);
+                }
+            } else if (fullResponse.isEmpty()) {
                 throw new IllegalStateException(
                         "LLM 스트리밍 실패: target=%s, cause=%s".formatted(target, e.getMessage()), e);
             }
@@ -221,6 +233,7 @@ public class RuntimeModelChatService {
         String apiKey = resolved.provider() == RuntimeLlmProvider.VLLM
                 ? vllmConnectionService.getResolvedApiKey()
                 : openAiConnectionService.getResolvedApiKey();
+        String resolvedModelName = resolved.provider() == RuntimeLlmProvider.VLLM ? normalizeVllmModelAlias(resolved.modelName()) : resolved.modelName();
         OpenAiApi api = OpenAiApi.builder()
                 .baseUrl(resolved.baseUrl())
                 .apiKey(apiKey)
@@ -229,10 +242,10 @@ public class RuntimeModelChatService {
                 .build();
         OpenAiChatModel chatModel = OpenAiChatModel.builder()
                 .openAiApi(api)
-                .defaultOptions(OpenAiChatOptions.builder().model(resolved.modelName()).build())
+                .defaultOptions(OpenAiChatOptions.builder().model(resolvedModelName).build())
                 .build();
         log.info("Using runtime API-compatible connection. provider={}, baseUrl={}, model={}, keyProvider={}",
-                resolved.provider(), resolved.baseUrl(), resolved.modelName(), resolved.keyProvider());
+                resolved.provider(), resolved.baseUrl(), resolvedModelName, resolved.keyProvider());
         return ChatClient.builder(chatModel)
                 .defaultSystem(systemPrompt)
                 .build();
@@ -335,4 +348,16 @@ public class RuntimeModelChatService {
         }
         return current instanceof Exception ex ? ex : e;
     }
+
+    private String normalizeVllmModelAlias(String modelName) {
+        if (modelName == null) return null;
+        String normalized = modelName.trim().toLowerCase(Locale.ROOT);
+        if (normalized.contains("exaone-3.5-2.4b")) return "exaone-3.5-2.4b-it";
+        if (normalized.contains("exaone-3.5-32b")) return "exaone-3.5-32b-it";
+        if (normalized.contains("bge-reranker-v2-m3")) return "bge-reranker-v2-m3";
+        if (normalized.contains("bge-m3")) return "bge-m3";
+        return modelName;
+    }
 }
+
+

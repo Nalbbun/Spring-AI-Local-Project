@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { AppCard } from '../ui/AppCard';
 import { buildChatStreamUrl, type ChatCategory } from '../../services/chatApi';
-import { setCurrentConversationId } from '../../services/apiClient';
+import type { DebugRuntimeConfig, ExecutionMode } from '../../types/api';
+import { apiSend, setCurrentConversationId } from '../../services/apiClient';
 import { LogPanel } from '../ui/LogPanel';
 import { promptApi } from '../../services/promptApi';
 import { conversationApi } from '../../services/conversationApi';
@@ -192,6 +193,38 @@ function buildEventLines(events: StreamEventLine[]): string[] {
   return lines;
 }
 
+function parseEffectiveExecutionMode(events: StreamEventLine[]): ExecutionMode | '' {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event.type !== 'agent' || !event.parsed || typeof event.parsed !== 'object') continue;
+    const value = String(event.parsed.executionMode || '').trim().toUpperCase();
+    if (value === 'CHAT' || value === 'RAG' || value === 'AGENT' || value === 'AUTO') {
+      return value as ExecutionMode;
+    }
+    const message = String(event.parsed.message || '');
+    const matched = message.match(/executionMode=([A-Z]+)/);
+    if (matched && ['CHAT', 'RAG', 'AGENT', 'AUTO'].includes(matched[1])) {
+      return matched[1] as ExecutionMode;
+    }
+  }
+  return '';
+}
+
+function getConfigExecutionMode(config: DebugRuntimeConfig | null, category: ChatCategory): ExecutionMode {
+  if (!config) return 'AUTO';
+  const mapping: Record<ChatCategory, string | undefined> = {
+    GENERAL: config.generalExecutionMode,
+    DEV: config.devExecutionMode,
+    MICE: config.miceExecutionMode,
+    TRAVEL: config.travelExecutionMode
+  };
+  const value = String(mapping[category] || '').toUpperCase();
+  if (value === 'CHAT' || value === 'RAG' || value === 'AGENT' || value === 'AUTO') {
+    return value as ExecutionMode;
+  }
+  return 'AUTO';
+}
+
 function pickRecentCategoryConversations(items: ConversationListItem[], category: ChatCategory) {
   return [...items]
     .filter((item) => item.categories?.includes(category))
@@ -235,11 +268,13 @@ export function ChatWorkspace({
   title,
   description,
   defaultCategory,
+  defaultExecutionMode = 'AUTO',
   defaultMessage
 }: {
   title: string;
   description: string;
   defaultCategory: ChatCategory;
+  defaultExecutionMode?: ExecutionMode;
   defaultMessage: string;
 }) {
   const [message, setMessage] = useState(defaultMessage);
@@ -253,6 +288,8 @@ export function ChatWorkspace({
   const [memory, setMemory] = useState<any>(null);
   const [memoryStatus, setMemoryStatus] = useState('조회 전');
   const [configConversationId, setConfigConversationId] = useState('');
+  const [runtimeConfig, setRuntimeConfig] = useState<DebugRuntimeConfig | null>(null);
+  const [selectedExecutionMode, setSelectedExecutionMode] = useState<ExecutionMode>(defaultExecutionMode);
   const [rightPaneWidth, setRightPaneWidth] = useState(DEFAULT_RIGHT_WIDTH);
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -264,13 +301,15 @@ export function ChatWorkspace({
   const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const url = useMemo(
-    () => buildChatStreamUrl({ message, conversationId, category: defaultCategory, promptId }),
-    [message, conversationId, defaultCategory, promptId]
+    () => buildChatStreamUrl({ message, conversationId, category: defaultCategory, executionMode: selectedExecutionMode, promptId }),
+    [message, conversationId, defaultCategory, selectedExecutionMode, promptId]
   );
 
   const agentSteps = useMemo(() => parseAgentSteps(events), [events]);
   const ragDiagnostics = useMemo(() => parseLatestRagDiagnostics(events), [events]);
   const eventLines = useMemo(() => buildEventLines(events), [events]);
+  const configuredExecutionMode = useMemo(() => getConfigExecutionMode(runtimeConfig, defaultCategory), [runtimeConfig, defaultCategory]);
+  const effectiveExecutionMode = useMemo(() => parseEffectiveExecutionMode(events), [events]);
 
   useEffect(() => {
     setCurrentConversationId(conversationId);
@@ -321,12 +360,13 @@ export function ChatWorkspace({
 
   const loadConversationTargets = async () => {
     try {
-      const [runtimeConfig, list] = await Promise.all([
+      const [configResponse, list] = await Promise.all([
         settingsApi.getConfig().catch(() => ({ conversationId: '' })),
         conversationApi.list().catch(() => [])
       ]);
 
-      const configuredId = String(runtimeConfig?.conversationId || '').trim();
+      setRuntimeConfig(configResponse as DebugRuntimeConfig);
+      const configuredId = String(configResponse?.conversationId || '').trim();
       setConfigConversationId(configuredId);
 
       const options = buildConversationOptions(defaultCategory, list, configuredId);
@@ -357,6 +397,7 @@ export function ChatWorkspace({
   }, []);
 
   useEffect(() => {
+    setSelectedExecutionMode(defaultExecutionMode);
     promptApi.listEntries(defaultCategory)
       .then((items) => {
         const active = items.filter((item) => item.active !== false);
@@ -369,7 +410,7 @@ export function ChatWorkspace({
       .catch(() => setPromptOptions([]));
 
     loadConversationTargets().catch(() => undefined);
-  }, [defaultCategory]);
+  }, [defaultCategory, defaultExecutionMode]);
 
   const appendEvent = (type: string, raw: string) => {
     let parsed: any = undefined;
@@ -551,12 +592,37 @@ export function ChatWorkspace({
                 ))}
               </select>
             </label>
+
+            <label className="field-label">
+              실행 모드
+              <select value={selectedExecutionMode} onChange={(e) => setSelectedExecutionMode(e.target.value as ExecutionMode)}>
+                <option value="AUTO">AUTO</option>
+                <option value="CHAT">CHAT</option>
+                <option value="RAG">RAG</option>
+                <option value="AGENT">AGENT</option>
+              </select>
+              <div className="muted small-text top-gap">
+                AUTO 선택 시 시스템 설정의 {defaultCategory} 기본 실행 모드를 따릅니다.
+              </div>
+            </label>
           </div>
         </div>
 
         <div className="list-item-row top-gap">
           <span>현재 설정 기본 ID</span>
           <span className="inline-mini-code">{configConversationId || '(설정 없음)'}</span>
+        </div>
+        <div className="list-item-row">
+          <span>시스템 기본 실행 모드</span>
+          <span className="status-badge info">{configuredExecutionMode}</span>
+        </div>
+        <div className="list-item-row">
+          <span>현재 요청 실행 모드</span>
+          <span className="status-badge warning">{selectedExecutionMode}</span>
+        </div>
+        <div className="list-item-row">
+          <span>실제 실행 결과</span>
+          <span className={`status-badge ${effectiveExecutionMode ? 'success' : 'default'}`}>{effectiveExecutionMode || '대기 중'}</span>
         </div>
 
         <div className="button-row">

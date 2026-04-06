@@ -1,0 +1,1 @@
+-- Schema is applied by 03-init-vector-schema.sh to nalbbun_vector.

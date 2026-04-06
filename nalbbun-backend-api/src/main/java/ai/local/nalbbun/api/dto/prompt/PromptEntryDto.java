@@ -10,6 +10,8 @@ public record PromptEntryDto(
         String description,
         boolean isDefault,
         boolean active,
+        int versionNo,
+        String previousVersionId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

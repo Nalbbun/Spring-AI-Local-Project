@@ -8,220 +8,182 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
-
+import ai.local.nalbbun.admin.model.DebugRuntimeConfig;
 import ai.local.nalbbun.domain.category.CategoryParserMode;
 import ai.local.nalbbun.domain.category.CategoryResolverMode;
-import ai.local.nalbbun.admin.model.DebugRuntimeConfig;
 import ai.local.nalbbun.domain.category.model.ChatCategory;
-import ai.local.nalbbun.domain.memory.service.ConversationMemoryService;
-
-/**
- * Debug Runtime Config Service 타입이다.
- *
- * <p>기능 설명: 비즈니스 규칙과 처리 흐름을 수행한다. 클래스 단위 책임이 명확하도록 관련 기능을 응집해 제공한다.</p>
- * <p>입력: 도메인 요청 데이터, 주입된 의존성, 설정값</p>
- * <p>출력: 처리 결과 데이터, 상태 변경, 외부 연동 결과</p>
- */
+import ai.local.nalbbun.domain.category.model.ExecutionMode;
+import ai.local.nalbbun.domain.memory.model.MemoryStoreRuntimeState;
+import ai.local.nalbbun.domain.memory.service.MemoryStoreRuntimeStateService;
+import ai.local.nalbbun.domain.memory.service.RoutingConversationMemoryService;
+import ai.local.nalbbun.domain.runtime.port.RuntimeCategoryPolicyPort;
 
 @Service
 public class DebugRuntimeConfigService implements RuntimeCategoryPolicyPort {
 
     private final AtomicReference<CategoryResolverMode> resolverMode;
-    private final Map<ChatCategory, AtomicReference<CategoryParserMode>> parserModes =
-            new EnumMap<>(ChatCategory.class);
-    private final String configuredMemoryStore;
+    private final Map<ChatCategory, AtomicReference<CategoryParserMode>> parserModes = new EnumMap<>(ChatCategory.class);
+    private final Map<ChatCategory, AtomicReference<ExecutionMode>> executionModes = new EnumMap<>(ChatCategory.class);
     private final String fallbackPolicy;
-    private final ConversationMemoryService conversationMemoryService;
+    private final RoutingConversationMemoryService routingConversationMemoryService;
+    private final MemoryStoreRuntimeStateService runtimeStateService;
 
     private DebugRuntimeOllamaConnectionService ollamaConnectionService;
 
-    /**
-     * Debug Runtime Config Service 인스턴스를 초기화한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     public DebugRuntimeConfigService(
             @Value("${app.category.resolver.mode:HYBRID}") String resolverMode,
             @Value("${app.parser.general.mode:HYBRID}") String generalMode,
             @Value("${app.parser.travel.mode:HYBRID}") String travelMode,
             @Value("${app.parser.dev.mode:HYBRID}") String devMode,
             @Value("${app.parser.mice.mode:HYBRID}") String miceMode,
-            @Value("${app.memory.store:in-memory}") String configuredMemoryStore,
+            @Value("${app.execution.general.mode:CHAT}") String generalExecutionMode,
+            @Value("${app.execution.travel.mode:AGENT}") String travelExecutionMode,
+            @Value("${app.execution.dev.mode:RAG}") String devExecutionMode,
+            @Value("${app.execution.mice.mode:CHAT}") String miceExecutionMode,
             @Value("${app.llm.fallback-policy:BLOCK_OPENAI}") String fallbackPolicy,
-            ConversationMemoryService conversationMemoryService
+            RoutingConversationMemoryService routingConversationMemoryService,
+            MemoryStoreRuntimeStateService runtimeStateService
     ) {
         this.resolverMode = new AtomicReference<>(safeResolverMode(resolverMode));
-        this.configuredMemoryStore = configuredMemoryStore;
         this.fallbackPolicy = normalizeFallbackPolicy(fallbackPolicy);
-        this.conversationMemoryService = conversationMemoryService;
+        this.routingConversationMemoryService = routingConversationMemoryService;
+        this.runtimeStateService = runtimeStateService;
 
         parserModes.put(ChatCategory.GENERAL, new AtomicReference<>(safeParserMode(generalMode)));
         parserModes.put(ChatCategory.TRAVEL, new AtomicReference<>(safeParserMode(travelMode)));
         parserModes.put(ChatCategory.DEV, new AtomicReference<>(safeParserMode(devMode)));
         parserModes.put(ChatCategory.MICE, new AtomicReference<>(safeParserMode(miceMode)));
+
+        executionModes.put(ChatCategory.GENERAL, new AtomicReference<>(safeExecutionMode(generalExecutionMode, ExecutionMode.CHAT)));
+        executionModes.put(ChatCategory.TRAVEL, new AtomicReference<>(safeExecutionMode(travelExecutionMode, ExecutionMode.AGENT)));
+        executionModes.put(ChatCategory.DEV, new AtomicReference<>(safeExecutionMode(devExecutionMode, ExecutionMode.RAG)));
+        executionModes.put(ChatCategory.MICE, new AtomicReference<>(safeExecutionMode(miceExecutionMode, ExecutionMode.CHAT)));
     }
 
-    /**
-     * Ollama Connection Service 값을 설정한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
     @Autowired(required = false)
     public void setOllamaConnectionService(DebugRuntimeOllamaConnectionService ollamaConnectionService) {
         this.ollamaConnectionService = ollamaConnectionService;
     }
 
-    /**
-     * Resolver Mode 값을 반환한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
-    public CategoryResolverMode getResolverMode() {
-        return resolverMode.get();
-    }
-
-    /**
-     * Resolver Mode 값을 설정한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
-    public void setResolverMode(CategoryResolverMode mode) {
-        if (mode != null) {
-            resolverMode.set(mode);
-        }
-    }
-
-    /**
-     * Parser Mode 값을 반환한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
-    public CategoryParserMode getParserMode(ChatCategory category) {
-        AtomicReference<CategoryParserMode> ref = parserModes.get(category);
-        return ref == null ? CategoryParserMode.HYBRID : ref.get();
-    }
-
-    /**
-     * Parser Mode 값을 설정한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
-     */
-    public void setParserMode(ChatCategory category, CategoryParserMode mode) {
-        if (category == null || mode == null) {
-            return;
-        }
-        parserModes.computeIfAbsent(category, key -> new AtomicReference<>(CategoryParserMode.HYBRID))
-                   .set(mode);
-    }
-
-    /**
-     * Current Config 값을 반환한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     public DebugRuntimeConfig getCurrentConfig() {
+        MemoryStoreRuntimeState state = runtimeStateService.currentState(routingConversationMemoryService.getActiveStore());
+
         DebugRuntimeConfig config = new DebugRuntimeConfig();
         config.setResolverMode(getResolverMode().name());
         config.setGeneralParserMode(getParserMode(ChatCategory.GENERAL).name());
         config.setTravelParserMode(getParserMode(ChatCategory.TRAVEL).name());
         config.setDevParserMode(getParserMode(ChatCategory.DEV).name());
         config.setMiceParserMode(getParserMode(ChatCategory.MICE).name());
-        config.setMemoryStore(normalizeMemoryStore(configuredMemoryStore));
-        config.setMemoryServiceType(conversationMemoryService.getClass().getSimpleName());
+        config.setGeneralExecutionMode(getDefaultExecutionMode(ChatCategory.GENERAL).name());
+        config.setDevExecutionMode(getDefaultExecutionMode(ChatCategory.DEV).name());
+        config.setMiceExecutionMode(getDefaultExecutionMode(ChatCategory.MICE).name());
+        config.setTravelExecutionMode(getDefaultExecutionMode(ChatCategory.TRAVEL).name());
+        config.setMemoryStore(state.getRequestedStore());
+        config.setActiveMemoryStore(routingConversationMemoryService.getActiveStore());
+        config.setRequestedMemoryStore(state.getRequestedStore());
+        config.setMemoryServiceType(routingConversationMemoryService.getActiveServiceType());
+        config.setRestartRequired(routingConversationMemoryService.isApplyRequired());
+        config.setRestartSupported(true);
+        config.setMemoryStoreNotice(routingConversationMemoryService.memoryStoreNotice());
+        config.setAvailableMemoryStores(routingConversationMemoryService.getAvailableStores());
+        config.setRestartRequestedAt(state.getRestartRequestedAt());
+        config.setLastAppliedAt(state.getLastAppliedAt());
+        config.setRedisSessionTtlMinutes(state.getRedisSessionTtlMinutes());
+        config.setRestartAction(state.getLastAction());
         config.setFallbackPolicy(fallbackPolicy);
         config.setOllamaBaseUrl(ollamaConnectionService == null ? null : ollamaConnectionService.getBaseUrl());
         return config;
     }
 
-    /**
-     * update 작업을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     public DebugRuntimeConfig update(DebugRuntimeConfig request) {
         if (request == null) {
             return getCurrentConfig();
         }
 
-        if (hasText(request.getResolverMode())) {
-            setResolverMode(safeResolverMode(request.getResolverMode()));
-        }
-        if (hasText(request.getGeneralParserMode())) {
-            setParserMode(ChatCategory.GENERAL, safeParserMode(request.getGeneralParserMode()));
-        }
-        if (hasText(request.getTravelParserMode())) {
-            setParserMode(ChatCategory.TRAVEL, safeParserMode(request.getTravelParserMode()));
-        }
-        if (hasText(request.getDevParserMode())) {
-            setParserMode(ChatCategory.DEV, safeParserMode(request.getDevParserMode()));
-        }
-        if (hasText(request.getMiceParserMode())) {
-            setParserMode(ChatCategory.MICE, safeParserMode(request.getMiceParserMode()));
-        }
+        if (hasText(request.getResolverMode())) setResolverMode(safeResolverMode(request.getResolverMode()));
+        if (hasText(request.getGeneralParserMode())) setParserMode(ChatCategory.GENERAL, safeParserMode(request.getGeneralParserMode()));
+        if (hasText(request.getTravelParserMode())) setParserMode(ChatCategory.TRAVEL, safeParserMode(request.getTravelParserMode()));
+        if (hasText(request.getDevParserMode())) setParserMode(ChatCategory.DEV, safeParserMode(request.getDevParserMode()));
+        if (hasText(request.getMiceParserMode())) setParserMode(ChatCategory.MICE, safeParserMode(request.getMiceParserMode()));
 
+        if (hasText(request.getGeneralExecutionMode())) setExecutionMode(ChatCategory.GENERAL, safeExecutionMode(request.getGeneralExecutionMode(), ExecutionMode.CHAT));
+        if (hasText(request.getTravelExecutionMode())) setExecutionMode(ChatCategory.TRAVEL, safeExecutionMode(request.getTravelExecutionMode(), ExecutionMode.AGENT));
+        if (hasText(request.getDevExecutionMode())) setExecutionMode(ChatCategory.DEV, safeExecutionMode(request.getDevExecutionMode(), ExecutionMode.RAG));
+        if (hasText(request.getMiceExecutionMode())) setExecutionMode(ChatCategory.MICE, safeExecutionMode(request.getMiceExecutionMode(), ExecutionMode.CHAT));
+
+        String requestedMemoryStore = hasText(request.getRequestedMemoryStore()) ? request.getRequestedMemoryStore() : request.getMemoryStore();
+        if (hasText(requestedMemoryStore)) {
+            routingConversationMemoryService.updateRequestedStore(requestedMemoryStore);
+        }
         return getCurrentConfig();
     }
 
-    /**
-     * reset 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
+    public DebugRuntimeConfig applyRequestedMemoryStore() {
+        routingConversationMemoryService.applyRequestedStore();
+        return getCurrentConfig();
+    }
+
     public DebugRuntimeConfig reset() {
         setResolverMode(CategoryResolverMode.HYBRID);
         setParserMode(ChatCategory.GENERAL, CategoryParserMode.HYBRID);
         setParserMode(ChatCategory.TRAVEL, CategoryParserMode.HYBRID);
         setParserMode(ChatCategory.DEV, CategoryParserMode.HYBRID);
         setParserMode(ChatCategory.MICE, CategoryParserMode.HYBRID);
+        setExecutionMode(ChatCategory.GENERAL, ExecutionMode.CHAT);
+        setExecutionMode(ChatCategory.TRAVEL, ExecutionMode.AGENT);
+        setExecutionMode(ChatCategory.DEV, ExecutionMode.RAG);
+        setExecutionMode(ChatCategory.MICE, ExecutionMode.CHAT);
+        routingConversationMemoryService.updateRequestedStore(routingConversationMemoryService.getActiveStore());
+        runtimeStateService.reset(routingConversationMemoryService.getActiveStore());
         return getCurrentConfig();
     }
 
-    /**
-     * has Text 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
+    public CategoryResolverMode getResolverMode() {
+        return resolverMode.get();
+    }
+
+    public void setResolverMode(CategoryResolverMode mode) {
+        if (mode != null) {
+            resolverMode.set(mode);
+        }
+    }
+
+    public CategoryParserMode getParserMode(ChatCategory category) {
+        AtomicReference<CategoryParserMode> ref = parserModes.get(category);
+        return ref == null ? CategoryParserMode.HYBRID : ref.get();
+    }
+
+    public void setParserMode(ChatCategory category, CategoryParserMode mode) {
+        if (category == null || mode == null) return;
+        parserModes.computeIfAbsent(category, key -> new AtomicReference<>(CategoryParserMode.HYBRID)).set(mode);
+    }
+
+    @Override
+    public ExecutionMode getDefaultExecutionMode(ChatCategory category) {
+        AtomicReference<ExecutionMode> ref = executionModes.get(category);
+        if (ref != null) {
+            return ref.get();
+        }
+        return switch (category == null ? ChatCategory.GENERAL : category) {
+            case DEV -> ExecutionMode.RAG;
+            case TRAVEL -> ExecutionMode.AGENT;
+            case GENERAL, MICE -> ExecutionMode.CHAT;
+        };
+    }
+
+    public void setExecutionMode(ChatCategory category, ExecutionMode mode) {
+        if (category == null || mode == null) return;
+        executionModes.computeIfAbsent(category, key -> new AtomicReference<>(getDefaultExecutionMode(key))).set(mode);
+    }
+
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 
-    /**
-     * normalize Memory Store 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
-    private String normalizeMemoryStore(String value) {
-        return hasText(value) ? value.trim().toLowerCase() : "in-memory";
-    }
-
-    /**
-     * normalize Fallback Policy 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     private String normalizeFallbackPolicy(String value) {
         return hasText(value) ? value.trim().toUpperCase() : "BLOCK_OPENAI";
     }
 
-    /**
-     * safe Resolver Mode 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     private CategoryResolverMode safeResolverMode(String value) {
         try {
             return CategoryResolverMode.valueOf(value.trim().toUpperCase());
@@ -230,17 +192,15 @@ public class DebugRuntimeConfigService implements RuntimeCategoryPolicyPort {
         }
     }
 
-    /**
-     * safe Parser Mode 기능을 수행한다.
-     *
-     * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
-     * <p>출력: 반환값, 상태 변경 또는 후속 처리용 결과</p>
-     */
     private CategoryParserMode safeParserMode(String value) {
         try {
             return CategoryParserMode.valueOf(value.trim().toUpperCase());
         } catch (Exception e) {
             return CategoryParserMode.HYBRID;
         }
+    }
+
+    private ExecutionMode safeExecutionMode(String value, ExecutionMode fallback) {
+        return ExecutionMode.from(value, fallback);
     }
 }

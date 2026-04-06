@@ -81,7 +81,20 @@ public class DebugRagController {
         response.put("vectorStore", ragProperties.getVectorStore());
         response.put("topK", ragProperties.getTopK());
         response.put("similarityThreshold", ragProperties.getSimilarityThreshold());
-        response.put("categories", ragProperties.getCategories());
+        response.put("includeCitations", ragProperties.isIncludeCitations());
+        Map<String, Object> categories = new LinkedHashMap<>();
+        categories.put("GENERAL", ragProperties.getCategories().isGeneral());
+        categories.put("DEV", ragProperties.getCategories().isDev());
+        categories.put("MICE", ragProperties.getCategories().isMice());
+        categories.put("TRAVEL", ragProperties.getCategories().isTravel());
+        response.put("categories", categories);
+        Map<String, Object> ingest = new LinkedHashMap<>();
+        ingest.put("chunkSize", ragProperties.getIngest().getChunkSize());
+        ingest.put("minChunkSizeChars", ragProperties.getIngest().getMinChunkSizeChars());
+        ingest.put("minChunkLengthToEmbed", ragProperties.getIngest().getMinChunkLengthToEmbed());
+        ingest.put("maxNumChunks", ragProperties.getIngest().getMaxNumChunks());
+        ingest.put("maxUploadFileCount", ragProperties.getIngest().getMaxUploadFileCount());
+        response.put("ingest", ingest);
         response.put("registryBaseDir", ragProperties.getRegistry().getBaseDir());
         response.put("supportedReaders", List.of("text", "file-single", "file-multi", "pdf", "markdown", "text-like", "web-url"));
         return response;
@@ -363,6 +376,22 @@ public class DebugRagController {
         if (body.containsKey("includeCitations")) {
             ragProperties.setIncludeCitations(Boolean.parseBoolean(String.valueOf(body.get("includeCitations"))));
         }
+
+        Object categories = body.get("categories");
+        if (categories instanceof Map<?, ?> categoryMap) {
+            if (categoryMap.containsKey("GENERAL")) {
+                ragProperties.getCategories().setGeneral(Boolean.parseBoolean(String.valueOf(categoryMap.get("GENERAL"))));
+            }
+            if (categoryMap.containsKey("DEV")) {
+                ragProperties.getCategories().setDev(Boolean.parseBoolean(String.valueOf(categoryMap.get("DEV"))));
+            }
+            if (categoryMap.containsKey("MICE")) {
+                ragProperties.getCategories().setMice(Boolean.parseBoolean(String.valueOf(categoryMap.get("MICE"))));
+            }
+            if (categoryMap.containsKey("TRAVEL")) {
+                ragProperties.getCategories().setTravel(Boolean.parseBoolean(String.valueOf(categoryMap.get("TRAVEL"))));
+            }
+        }
         if (body.containsKey("generalEnabled")) {
             ragProperties.getCategories().setGeneral(Boolean.parseBoolean(String.valueOf(body.get("generalEnabled"))));
         }
@@ -375,11 +404,39 @@ public class DebugRagController {
         if (body.containsKey("travelEnabled")) {
             ragProperties.getCategories().setTravel(Boolean.parseBoolean(String.valueOf(body.get("travelEnabled"))));
         }
+
+        Object ingest = body.get("ingest");
+        if (ingest instanceof Map<?, ?> ingestMap) {
+            if (ingestMap.containsKey("chunkSize")) {
+                ragProperties.getIngest().setChunkSize(Integer.parseInt(String.valueOf(ingestMap.get("chunkSize"))));
+            }
+            if (ingestMap.containsKey("minChunkSizeChars")) {
+                ragProperties.getIngest().setMinChunkSizeChars(Integer.parseInt(String.valueOf(ingestMap.get("minChunkSizeChars"))));
+            }
+            if (ingestMap.containsKey("minChunkLengthToEmbed")) {
+                ragProperties.getIngest().setMinChunkLengthToEmbed(Integer.parseInt(String.valueOf(ingestMap.get("minChunkLengthToEmbed"))));
+            }
+            if (ingestMap.containsKey("maxNumChunks")) {
+                ragProperties.getIngest().setMaxNumChunks(Integer.parseInt(String.valueOf(ingestMap.get("maxNumChunks"))));
+            }
+            if (ingestMap.containsKey("maxUploadFileCount")) {
+                ragProperties.getIngest().setMaxUploadFileCount(Integer.parseInt(String.valueOf(ingestMap.get("maxUploadFileCount"))));
+            }
+        }
         if (body.containsKey("chunkSize")) {
             ragProperties.getIngest().setChunkSize(Integer.parseInt(String.valueOf(body.get("chunkSize"))));
         }
+        if (body.containsKey("minChunkSizeChars")) {
+            ragProperties.getIngest().setMinChunkSizeChars(Integer.parseInt(String.valueOf(body.get("minChunkSizeChars"))));
+        }
+        if (body.containsKey("minChunkLengthToEmbed")) {
+            ragProperties.getIngest().setMinChunkLengthToEmbed(Integer.parseInt(String.valueOf(body.get("minChunkLengthToEmbed"))));
+        }
         if (body.containsKey("maxNumChunks")) {
             ragProperties.getIngest().setMaxNumChunks(Integer.parseInt(String.valueOf(body.get("maxNumChunks"))));
+        }
+        if (body.containsKey("maxUploadFileCount")) {
+            ragProperties.getIngest().setMaxUploadFileCount(Integer.parseInt(String.valueOf(body.get("maxUploadFileCount"))));
         }
         return status();
     }

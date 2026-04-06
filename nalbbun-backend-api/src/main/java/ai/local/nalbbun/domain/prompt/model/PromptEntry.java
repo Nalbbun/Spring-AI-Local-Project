@@ -50,6 +50,13 @@ public class PromptEntry {
     /** 활성화 여부 */
     private boolean active;
 
+    /** 프롬프트 버전 번호 */
+    @Builder.Default
+    private int versionNo = 1;
+
+    /** 직전 버전 ID */
+    private String previousVersionId;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

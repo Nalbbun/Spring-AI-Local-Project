@@ -26,9 +26,17 @@ spring:
       charset: UTF-8
       force: true
   
+  session:
+    store-type: ${SPRING_SESSION_STORE_TYPE:none}
+    redis:
+      namespace: ${SPRING_SESSION_REDIS_NAMESPACE:nalbbun:session}
   flyway:
-    enabled: true
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
     locations: classpath:db/migration
+    url: ${SPRING_FLYWAY_URL:${APP_API_DATASOURCE_URL:${SPRING_DATASOURCE_URL:}}}
+    user: ${SPRING_FLYWAY_USER:${APP_API_DATASOURCE_USERNAME:${SPRING_DATASOURCE_USERNAME:}}}
+    password: ${SPRING_FLYWAY_PASSWORD:${APP_API_DATASOURCE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}}
+    baseline-on-migrate: true
 
   web:
     resources:
@@ -44,17 +52,17 @@ spring:
         enabled: true
 
     openai:
-      api-key: ${OPENAI_API_KEY:}
+      api-key: ${OPENAI_API_KEY:placeholder-openai-key-for-local-runtime}
       chat:
         options:
           model: ${OPENAI_MODEL:gpt-4.1-mini}
           temperature: 0.7
 
     ollama:
-      base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+      base-url: ${OLLAMA_BASE_URL:http://192.168.1.10:11434}
       chat:
         options:
-          model: ${OLLAMA_MODEL:gemma2:9b}
+          model: ${OLLAMA_MODEL:llama3.1:8b}
           keep-alive: 1300s
       embedding:
         options:
@@ -98,12 +106,33 @@ app:
     store: ${APP_MEMORY_STORE:jdbc}
     redis:
       ttl-hours: ${APP_MEMORY_REDIS_TTL_HOURS:24}
+      session-ttl-minutes: ${APP_MEMORY_REDIS_SESSION_TTL_MINUTES:180}
+    jdbc:
+      datasource:
+        url: ${APP_MEMORY_JDBC_DATASOURCE_URL:${APP_API_DATASOURCE_URL:${SPRING_DATASOURCE_URL:}}}
+        username: ${APP_MEMORY_JDBC_DATASOURCE_USERNAME:${APP_API_DATASOURCE_USERNAME:${SPRING_DATASOURCE_USERNAME:}}}
+        password: ${APP_MEMORY_JDBC_DATASOURCE_PASSWORD:${APP_API_DATASOURCE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}}
+        driver-class-name: ${APP_MEMORY_JDBC_DATASOURCE_DRIVER_CLASS_NAME:${APP_API_DATASOURCE_DRIVER_CLASS_NAME:${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}}}
 
   prompt:
     store: ${APP_PROMPT_STORE:jdbc}
 
   apikey:
     secret: ${APP_APIKEY_SECRET:nalbbun-api-key-secret-32bytes!!}
+
+  api:
+    datasource:
+      url: ${APP_API_DATASOURCE_URL:${SPRING_DATASOURCE_URL:}}
+      username: ${APP_API_DATASOURCE_USERNAME:${SPRING_DATASOURCE_USERNAME:}}
+      password: ${APP_API_DATASOURCE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}
+      driver-class-name: ${APP_API_DATASOURCE_DRIVER_CLASS_NAME:${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}}
+
+  vector:
+    datasource:
+      url: ${APP_VECTOR_DATASOURCE_URL:${SPRING_DATASOURCE_URL:}}
+      username: ${APP_VECTOR_DATASOURCE_USERNAME:${SPRING_DATASOURCE_USERNAME:}}
+      password: ${APP_VECTOR_DATASOURCE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}
+      driver-class-name: ${APP_VECTOR_DATASOURCE_DRIVER_CLASS_NAME:${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}}
 
   search:
     provider: ${APP_SEARCH_PROVIDER:tavily}
@@ -151,7 +180,7 @@ app:
     read-timeout-ms: ${APP_API_LLM_READ_TIMEOUT_MS:15000}
 
   vllm:
-    base-url: ${APP_VLLM_BASE_URL:http://127.0.0.1:8000/v1}
+    base-url: ${APP_VLLM_BASE_URL:http://192.168.0.208:9000}
     default-model: ${APP_VLLM_DEFAULT_MODEL:}
     key-provider: ${APP_VLLM_KEY_PROVIDER:VLLM}
 
@@ -160,18 +189,21 @@ app:
     key-provider: ${APP_OPENAI_RUNTIME_KEY_PROVIDER:OPENAI}
 
   ollama:
-    base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+    base-url: ${OLLAMA_BASE_URL:http://192.168.1.10:11434}
     connect-timeout-ms: ${APP_OLLAMA_CONNECT_TIMEOUT_MS:5000}
     request-timeout-ms: ${APP_OLLAMA_REQUEST_TIMEOUT_MS:300000}
     model-source: RUNNING
-    default-general-model: ${APP_OLLAMA_GENERAL_MODEL:gemma2:9b}
-    default-dev-model: ${APP_OLLAMA_DEV_MODEL:qwen2.5-coder:14b}
-    default-mice-model: ${APP_OLLAMA_MICE_MODEL:exaone3.5:7.8b}
-    default-travel-search-model: ${APP_OLLAMA_TRAVEL_SEARCH_MODEL:gemma2:9b}
-    default-travel-plan-model: ${APP_OLLAMA_TRAVEL_PLAN_MODEL:exaone3.5:7.8b}
+    default-general-model: ${APP_OLLAMA_GENERAL_MODEL:llama3.1:8b}
+    default-dev-model: ${APP_OLLAMA_DEV_MODEL:llama3.1:8bb}
+    default-mice-model: ${APP_OLLAMA_MICE_MODEL:llama3.1:8b}
+    default-travel-search-model: ${APP_OLLAMA_TRAVEL_SEARCH_MODEL:llama3.1:8b}
+    default-travel-plan-model: ${APP_OLLAMA_TRAVEL_PLAN_MODEL:llama3.1:8b}
 
 server:
   port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      timeout: ${APP_MEMORY_REDIS_SESSION_TTL_MINUTES:180}m
 
 logging:
   pattern:

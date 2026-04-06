@@ -7,10 +7,28 @@ app:
     fallback-policy: ${APP_LLM_FALLBACK_POLICY:BLOCK_OPENAI}
   memory:
     store: ${APP_MEMORY_STORE:jdbc}
+    jdbc:
+      datasource:
+        url: ${APP_MEMORY_JDBC_DATASOURCE_URL:jdbc:postgresql://postgres:5432/nalbbun_memory}
+        username: ${APP_MEMORY_JDBC_DATASOURCE_USERNAME:nalbbun}
+        password: ${APP_MEMORY_JDBC_DATASOURCE_PASSWORD:change-me}
+        driver-class-name: ${APP_MEMORY_JDBC_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
+  api:
+    datasource:
+      url: ${APP_API_DATASOURCE_URL:jdbc:postgresql://postgres:5432/nalbbun_api}
+      username: ${APP_API_DATASOURCE_USERNAME:nalbbun}
+      password: ${APP_API_DATASOURCE_PASSWORD:change-me}
+      driver-class-name: ${APP_API_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
+  vector:
+    datasource:
+      url: ${APP_VECTOR_DATASOURCE_URL:jdbc:postgresql://postgres:5432/nalbbun_vector}
+      username: ${APP_VECTOR_DATASOURCE_USERNAME:nalbbun}
+      password: ${APP_VECTOR_DATASOURCE_PASSWORD:change-me}
+      driver-class-name: ${APP_VECTOR_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/nalbbun_ai}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/nalbbun_vector}
     username: ${SPRING_DATASOURCE_USERNAME:nalbbun}
     password: ${SPRING_DATASOURCE_PASSWORD:change-me}
     driver-class-name: org.postgresql.Driver
@@ -25,6 +43,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    url: ${SPRING_FLYWAY_URL:${APP_API_DATASOURCE_URL:jdbc:postgresql://postgres:5432/nalbbun_api}}
+    user: ${SPRING_FLYWAY_USER:${APP_API_DATASOURCE_USERNAME:nalbbun}}
+    password: ${SPRING_FLYWAY_PASSWORD:${APP_API_DATASOURCE_PASSWORD:change-me}}
+    baseline-on-migrate: true
 
   vllm:
     key-provider: ${APP_VLLM_KEY_PROVIDER:VLLM}

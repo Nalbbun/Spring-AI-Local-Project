@@ -18,6 +18,8 @@ export interface ApiKeyEntry {
   description?: string;
   maskedKey?: string;
   active?: boolean;
+  versionNo?: number;
+  previousVersionId?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -30,6 +32,8 @@ export interface PromptEntry {
   systemPrompt: string;
   isDefault?: boolean;
   active?: boolean;
+  versionNo?: number;
+  previousVersionId?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -106,14 +110,30 @@ export interface AgentExecutionEvent {
   payload?: unknown;
 }
 
+export type ExecutionMode = 'AUTO' | 'CHAT' | 'RAG' | 'AGENT';
+
 export interface DebugRuntimeConfig {
   resolverMode?: string;
   generalParserMode?: string;
   travelParserMode?: string;
   devParserMode?: string;
   miceParserMode?: string;
+  generalExecutionMode?: ExecutionMode | string;
+  devExecutionMode?: ExecutionMode | string;
+  miceExecutionMode?: ExecutionMode | string;
+  travelExecutionMode?: ExecutionMode | string;
   memoryStore?: string;
+  activeMemoryStore?: string;
+  requestedMemoryStore?: string;
   memoryServiceType?: string;
+  restartRequired?: boolean;
+  restartSupported?: boolean;
+  memoryStoreNotice?: string;
+  availableMemoryStores?: string[];
+  restartRequestedAt?: string;
+  lastAppliedAt?: string;
+  redisSessionTtlMinutes?: number;
+  restartAction?: string;
   fallbackPolicy?: string;
   conversationId?: string;
   ollamaBaseUrl?: string;
@@ -221,7 +241,10 @@ export interface RagStatusResponse {
   registryBaseDir?: string;
   ingest?: {
     chunkSize?: number;
+    minChunkSizeChars?: number;
+    minChunkLengthToEmbed?: number;
     maxNumChunks?: number;
+    maxUploadFileCount?: number;
   };
 }
 

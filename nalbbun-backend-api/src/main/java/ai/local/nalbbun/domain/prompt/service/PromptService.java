@@ -1,14 +1,17 @@
 package ai.local.nalbbun.domain.prompt.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.prompt.model.PromptEntry;
 import ai.local.nalbbun.domain.prompt.repository.PromptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * 프롬프트 CRUD 서비스.
@@ -39,18 +42,33 @@ public class PromptService {
      * promptId가 있으면 해당 프롬프트 → 없으면 카테고리 기본 프롬프트 → 없으면 null(핸들러 내장 프롬프트 사용)
      */
     public Optional<String> resolveSystemPrompt(String promptId, ChatCategory category) {
+        String commonPrompt = promptRepository.findDefault(null)
+                .filter(PromptEntry::isActive)
+                .map(PromptEntry::getSystemPrompt)
+                .orElse(null);
+
+        String selectedPrompt = null;
         if (promptId != null && !promptId.isBlank()) {
-            return promptRepository.findById(promptId)
+            selectedPrompt = promptRepository.findById(promptId)
                     .filter(PromptEntry::isActive)
-                    .map(PromptEntry::getSystemPrompt);
+                    .map(PromptEntry::getSystemPrompt)
+                    .orElse(null);
+        } else if (category != null) {
+            selectedPrompt = promptRepository.findDefault(category)
+                    .filter(PromptEntry::isActive)
+                    .map(PromptEntry::getSystemPrompt)
+                    .orElse(null);
         }
-        return promptRepository.findDefault(category)
-                .map(PromptEntry::getSystemPrompt);
+
+        String combined = joinPromptBlocks(commonPrompt, selectedPrompt);
+        return combined == null || combined.isBlank() ? Optional.empty() : Optional.of(combined);
     }
 
     // ── CUD ───────────────────────────────────────────────
     public PromptEntry create(PromptEntry entry) {
         validate(entry);
+        if (entry.getVersionNo() <= 0) entry.setVersionNo(1);
+        entry.setPreviousVersionId(null);
         return promptRepository.save(entry);
     }
 
@@ -60,6 +78,8 @@ public class PromptService {
         PromptEntry existing = promptRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("프롬프트를 찾을 수 없습니다: " + id));
         entry.setCreatedAt(existing.getCreatedAt());
+        entry.setVersionNo(Math.max(existing.getVersionNo() + 1, 1));
+        entry.setPreviousVersionId(existing.getId());
         return promptRepository.update(entry);
     }
 
@@ -79,20 +99,68 @@ public class PromptService {
 
     // ── 초기 기본 프롬프트 시드 ────────────────────────────
     public void seedDefaultsIfEmpty() {
-        if (!promptRepository.findAll().isEmpty()) return;
+        List<PromptEntry> existing = promptRepository.findAll();
+
+        ensureDefaultPrompt(existing, null,
+                "[기본] 공통 운영 프롬프트",
+                commonSystemPrompt(),
+                "모든 카테고리에 공통으로 적용되는 기본 프롬프트");
 
         for (ChatCategory cat : ChatCategory.values()) {
-            PromptEntry e = PromptEntry.builder()
-                    .name("[기본] " + cat.name() + " 프롬프트")
-                    .category(cat)
-                    .systemPrompt(defaultSystemPrompt(cat))
-                    .description("카테고리별 내장 기본 프롬프트")
-                    .isDefault(true)
-                    .active(true)
-                    .build();
-            promptRepository.save(e);
+            ensureDefaultPrompt(existing,
+                    cat,
+                    "[기본] " + cat.name() + " 프롬프트",
+                    defaultSystemPrompt(cat),
+                    "카테고리별 기본 프롬프트");
         }
-        log.info("기본 프롬프트 시드 완료");
+        log.info("기본 프롬프트 점검/시드 완료");
+    }
+
+
+    private void ensureDefaultPrompt(List<PromptEntry> existing,
+                                     ChatCategory category,
+                                     String name,
+                                     String systemPrompt,
+                                     String description) {
+        boolean exists = existing.stream()
+                .filter(PromptEntry::isDefault)
+                .filter(PromptEntry::isActive)
+                .anyMatch(entry -> Objects.equals(entry.getCategory(), category));
+        if (exists) {
+            return;
+        }
+
+        PromptEntry entry = PromptEntry.builder()
+                .name(name)
+                .category(category)
+                .systemPrompt(systemPrompt)
+                .description(description)
+                .isDefault(true)
+                .active(true)
+                .build();
+        PromptEntry saved = promptRepository.save(entry);
+        existing.add(saved);
+    }
+
+    private String joinPromptBlocks(String commonPrompt, String specificPrompt) {
+        List<String> blocks = new ArrayList<>();
+        if (commonPrompt != null && !commonPrompt.isBlank()) {
+            blocks.add(commonPrompt.trim());
+        }
+        if (specificPrompt != null && !specificPrompt.isBlank()) {
+            blocks.add(specificPrompt.trim());
+        }
+        return String.join("\n\n", blocks);
+    }
+
+    private String commonSystemPrompt() {
+        return """
+                당신은 Nalbbun AI Local Assistant입니다.
+                사용자의 현재 질문에 바로 도움이 되는 답을 우선 제시하세요.
+                답변은 지나치게 장황하지 않게 정리하되, 필요한 경우 단계와 우선순위를 분명히 제시하세요.
+                확실하지 않은 내용은 추정이라고 명확히 밝히고, 확인이 필요한 부분은 분리해서 안내하세요.
+                이전 대화 맥락이 있으면 이어받되, 현재 질문과 직접 관련된 내용만 반영하세요.
+                """;
     }
 
     private void validate(PromptEntry entry) {

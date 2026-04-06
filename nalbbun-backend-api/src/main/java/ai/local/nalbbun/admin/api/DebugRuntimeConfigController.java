@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
  * <p>출력: HTTP 응답, SSE 이벤트, 뷰 이름 또는 직렬화 가능한 결과</p>
  */
 @RestController
-@Profile("local")
 @ConditionalOnProperty(prefix = "app.debug", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 @RequestMapping("/debug/api/config")
@@ -62,6 +60,11 @@ public class DebugRuntimeConfigController {
     @PostMapping("/reset")
     public DebugRuntimeConfig resetConfig(HttpServletRequest request, HttpSession session) {
         return withConversationId(debugRuntimeConfigService.reset(), request, session);
+    }
+
+    @PostMapping("/restart")
+    public DebugRuntimeConfig applyRequestedMemoryStore(HttpServletRequest request, HttpSession session) {
+        return withConversationId(debugRuntimeConfigService.applyRequestedMemoryStore(), request, session);
     }
 
     /**

@@ -13,6 +13,7 @@ import java.util.Objects;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import ai.local.nalbbun.domain.category.model.ChatCategory;
@@ -32,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class RagSourceCatalogService {
 
     private final RagSourceRegistryService registryService;
+    @Qualifier("vectorDataSource")
     private final ObjectProvider<DataSource> dataSourceProvider;
 
     /**

@@ -16,6 +16,8 @@ public final class PromptTemplateDtoMapper {
                 record.systemPrompt(),
                 record.active(),
                 record.defaultPrompt(),
+                record.versionNo(),
+                record.previousVersionId(),
                 record.createdAt(),
                 record.updatedAt()
         );

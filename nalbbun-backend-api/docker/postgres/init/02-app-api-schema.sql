@@ -1,0 +1,1 @@
+-- Schema is applied by 02-init-api-schema.sh to nalbbun_api.

@@ -12,8 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -26,9 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 
 @Service
-@Primary
 @ConditionalOnBean(StringRedisTemplate.class)
-@ConditionalOnProperty(prefix = "app.memory", name = "store", havingValue = "redis")
 public class RedisConversationMemoryService implements ConversationMemoryService {
 
     private static final int MAX_MESSAGES_PER_CONVERSATION = 50;

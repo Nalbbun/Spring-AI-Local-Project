@@ -16,6 +16,8 @@ public record PromptTemplateRecord(
         String systemPrompt,
         boolean active,
         boolean defaultPrompt,
+        int versionNo,
+        Long previousVersionId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

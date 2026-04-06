@@ -21,6 +21,15 @@ public class ApiExceptionHandler {
                 .body(ApiResponse.fail("BAD_REQUEST", e.getMessage()));
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<?> handleUnavailable(IllegalStateException e, HttpServletRequest request) {
+        if (isSseRequest(request)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.fail("SERVICE_UNAVAILABLE", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidation(MethodArgumentNotValidException e, HttpServletRequest request) {
         if (isSseRequest(request)) {

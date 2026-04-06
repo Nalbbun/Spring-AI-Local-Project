@@ -58,3 +58,10 @@ docker compose -f docker-compose.infra.yml --env-file .env up -d
 ./gradlew bootRun
 ```
 
+
+
+## API DB / VECTOR DB 분리
+- spring.datasource: RAG pgvector / embedding 용도
+- app.api.datasource: API CRUD / Flyway / API key / Prompt / JDBC memory 용도
+- spring.flyway.* 는 app.api.datasource 로 fallback 되도록 구성되었습니다.
+- 메모리 저장소 전환 시 기존 대화는 자동 마이그레이션되지 않습니다.

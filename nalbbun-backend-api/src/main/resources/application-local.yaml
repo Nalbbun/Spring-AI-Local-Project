@@ -7,12 +7,33 @@ app:
     fallback-policy: ${APP_LLM_FALLBACK_POLICY:ALLOW_OPENAI}
   memory:
     store: ${APP_MEMORY_STORE:jdbc}
+    jdbc:
+      datasource:
+        url: ${APP_MEMORY_JDBC_DATASOURCE_URL:jdbc:postgresql://localhost:5432/nalbbun_memory}
+        username: ${APP_MEMORY_JDBC_DATASOURCE_USERNAME:nalbbun}
+        password: ${APP_MEMORY_JDBC_DATASOURCE_PASSWORD:nalbbun1234}
+        driver-class-name: ${APP_MEMORY_JDBC_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
   search:
     provider: ${APP_SEARCH_PROVIDER:tavily}
+  api:
+    datasource:
+      url: ${APP_API_DATASOURCE_URL:jdbc:postgresql://localhost:5432/nalbbun_api}
+      username: ${APP_API_DATASOURCE_USERNAME:nalbbun}
+      password: ${APP_API_DATASOURCE_PASSWORD:nalbbun1234}
+      driver-class-name: ${APP_API_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
+  vector:
+    datasource:
+      url: ${APP_VECTOR_DATASOURCE_URL:jdbc:postgresql://localhost:5432/nalbbun_vector}
+      username: ${APP_VECTOR_DATASOURCE_USERNAME:nalbbun}
+      password: ${APP_VECTOR_DATASOURCE_PASSWORD:nalbbun1234}
+      driver-class-name: ${APP_VECTOR_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/nalbbun_ai}
+    hikari:
+      initialization-fail-timeout: -1
+      connection-timeout: 3000
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/nalbbun_vector}
     username: ${SPRING_DATASOURCE_USERNAME:nalbbun}
     password: ${SPRING_DATASOURCE_PASSWORD:nalbbun1234}
     driver-class-name: org.postgresql.Driver
@@ -23,12 +44,25 @@ spring:
       password: ${SPRING_DATA_REDIS_PASSWORD:}
       database: ${SPRING_DATA_REDIS_DATABASE:0}
       timeout: 3s
+  session:
+    store-type: ${SPRING_SESSION_STORE_TYPE:none}
+    redis:
+      namespace: ${SPRING_SESSION_REDIS_NAMESPACE:nalbbun:session}
   flyway:
-    enabled: true
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
     locations: classpath:db/migration
+    url: ${SPRING_FLYWAY_URL:${APP_API_DATASOURCE_URL:jdbc:postgresql://localhost:5432/nalbbun_api}}
+    user: ${SPRING_FLYWAY_USER:${APP_API_DATASOURCE_USERNAME:nalbbun}}
+    password: ${SPRING_FLYWAY_PASSWORD:${APP_API_DATASOURCE_PASSWORD:nalbbun1234}}
+    baseline-on-migrate: true
 
   vllm:
     key-provider: ${APP_VLLM_KEY_PROVIDER:VLLM}
 
   openai-runtime:
     key-provider: ${APP_OPENAI_RUNTIME_KEY_PROVIDER:OPENAI}
+
+server:
+  servlet:
+    session:
+      timeout: ${APP_MEMORY_REDIS_SESSION_TTL_MINUTES:180}m

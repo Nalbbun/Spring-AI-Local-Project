@@ -2,3 +2,6 @@
 /nalbbun-ai-local/
 /nalbbun-frontend-web/node_modules/
 /nalbbun-backend-api/bin/
+/nalbbun-backend-api/docker/postgres_data/
+/nalbbun-backend-api/docker/redis_data/
+

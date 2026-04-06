@@ -18,6 +18,7 @@ export function RagChatPage() {
         title="RAG 채팅"
         description="채팅과 RAG 상태 조회를 분리하고, 상태 API는 최초 1회 조회 후 수동 새로고침으로만 다시 확인하도록 안정화한 화면"
         defaultCategory="DEV"
+        defaultExecutionMode="AUTO"
         defaultMessage="현재 업로드된 문서를 기준으로 시스템 구조를 요약해줘"
       />
       <div className="two-column-grid">

@@ -1,5 +1,8 @@
 package ai.local.nalbbun.admin.model;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 import lombok.Data;
 
 /**
@@ -16,8 +19,22 @@ public class DebugRuntimeConfig {
     private String travelParserMode;
     private String devParserMode;
     private String miceParserMode;
+    private String generalExecutionMode;
+    private String devExecutionMode;
+    private String miceExecutionMode;
+    private String travelExecutionMode;
     private String memoryStore;
+    private String activeMemoryStore;
+    private String requestedMemoryStore;
     private String memoryServiceType;
+    private Boolean restartRequired;
+    private Boolean restartSupported;
+    private String memoryStoreNotice;
+    private List<String> availableMemoryStores;
+    private LocalDateTime restartRequestedAt;
+    private LocalDateTime lastAppliedAt;
+    private Integer redisSessionTtlMinutes;
+    private String restartAction;
     private String fallbackPolicy;
     private String conversationId;
     private String ollamaBaseUrl;

@@ -99,9 +99,9 @@ public class LlmCategoryResolver {
             int confidence = Math.max(0, Math.min(100, node.path("confidence").asInt(70)));
             String reason = node.path("reason").asText("");
 
-            return new CategoryResolution(category, confidence, mode(), reason);
+            return new CategoryResolution(category, confidence, mode(), reason, null);
         } catch (Exception e) {
-            return new CategoryResolution(ChatCategory.GENERAL, 50, mode(), "llm classification failed");
+            return new CategoryResolution(ChatCategory.GENERAL, 50, mode(), "llm classification failed", null);
         }
     }
 

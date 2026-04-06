@@ -14,10 +14,11 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
+
+import lombok.extern.slf4j.Slf4j;
 
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.memory.model.ConversationMemorySnapshot;
@@ -27,13 +28,12 @@ import ai.local.nalbbun.domain.memory.model.MemorySummary;
 import ai.local.nalbbun.domain.memory.service.ConversationMemoryService;
 
 @Service
-@Primary
-@ConditionalOnBean(DataSource.class)
-@ConditionalOnProperty(prefix = "app.memory", name = "store", havingValue = "jdbc")
+@ConditionalOnBean(name = "memoryJdbcDataSource")
 /**
  * JDBC 기반 대화 메모리 저장소 서비스다.
  * 스키마 생성은 Flyway(db/migration)에서 관리한다.
  */
+@Slf4j
 public class JdbcConversationMemoryService implements ConversationMemoryService {
 
     private static final int MAX_MESSAGES_PER_CONVERSATION = 50;
@@ -41,7 +41,7 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
 
     private final DataSource dataSource;
 
-    public JdbcConversationMemoryService(DataSource dataSource) {
+    public JdbcConversationMemoryService(@Qualifier("memoryJdbcDataSource") DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
@@ -83,7 +83,8 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("최근 메시지 조회에 실패했습니다.", e);
+            log.warn("최근 메시지 조회 실패. 빈 목록으로 대체합니다. conversationId={}, reason={}", conversationId, e.getMessage());
+            return List.of();
         }
 
         if (result.size() <= limit) {
@@ -141,7 +142,7 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("카테고리 요약 저장에 실패했습니다.", e);
+            log.warn("카테고리 요약 저장 실패. 메모리 저장을 건너뜁니다. conversationId={}, category={}, reason={}", conversationId, category, e.getMessage());
         }
     }
 
@@ -158,7 +159,7 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("카테고리 요약 조회에 실패했습니다.", e);
+            log.warn("카테고리 요약 조회 실패. 빈 문자열로 대체합니다. conversationId={}, category={}, reason={}", conversationId, category, e.getMessage());
         }
         return "";
     }
@@ -177,7 +178,8 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
             ps.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new IllegalStateException("중요 노트 저장에 실패했습니다.", e);
+            log.warn("중요 노트 저장 실패. 저장을 건너뜁니다. conversationId={}, category={}, reason={}", conversationId, category, e.getMessage());
+            return;
         }
         trimNotes(conversationId);
     }
@@ -201,7 +203,8 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("중요 노트 조회에 실패했습니다.", e);
+            log.warn("중요 노트 조회 실패. 빈 목록으로 대체합니다. conversationId={}, category={}, reason={}", conversationId, category, e.getMessage());
+            return List.of();
         }
         return notes;
     }
@@ -239,7 +242,8 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 ids.add(rs.getString("conversation_id"));
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("대화 목록 조회에 실패했습니다.", e);
+            log.warn("대화 목록 조회 실패. 빈 목록으로 대체합니다. reason={}", e.getMessage());
+            return List.of();
         }
         return ids;
     }
@@ -258,7 +262,8 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
             ps.setTimestamp(5, Timestamp.valueOf(message.getCreatedAt()));
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new IllegalStateException("메시지 저장에 실패했습니다.", e);
+            log.warn("메시지 저장 실패. 저장을 건너뜁니다. conversationId={}, reason={}", conversationId, e.getMessage());
+            return;
         }
         trimMessages(conversationId);
     }
@@ -280,7 +285,8 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("요약 스냅샷 조회에 실패했습니다.", e);
+            log.warn("요약 스냅샷 조회 실패. 빈 맵으로 대체합니다. conversationId={}, reason={}", conversationId, e.getMessage());
+            return Map.of();
         }
         return summaries;
     }
@@ -306,7 +312,8 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("노트 스냅샷 조회에 실패했습니다.", e);
+            log.warn("노트 스냅샷 조회 실패. 빈 목록으로 대체합니다. conversationId={}, reason={}", conversationId, e.getMessage());
+            return List.of();
         }
         return notes;
     }
@@ -338,7 +345,7 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("대화 건수 집계에 실패했습니다.", e);
+            log.warn("대화 건수 집계 실패. 0건으로 대체합니다. table={}, conversationId={}, reason={}", tableName, conversationId, e.getMessage());
         }
         return 0;
     }
@@ -355,7 +362,8 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("오래된 메모리 조회에 실패했습니다.", e);
+            log.warn("오래된 메모리 조회 실패. trim 건너뜁니다. table={}, conversationId={}, reason={}", tableName, conversationId, e.getMessage());
+            return List.of();
         }
         return ids;
     }
@@ -374,7 +382,7 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
             }
             ps.executeBatch();
         } catch (SQLException e) {
-            throw new IllegalStateException("오래된 메모리 trim 처리에 실패했습니다.", e);
+            log.warn("오래된 메모리 trim 실패. table={}, reason={}", tableName, e.getMessage());
         }
     }
 
@@ -384,7 +392,7 @@ public class JdbcConversationMemoryService implements ConversationMemoryService 
             ps.setString(1, conversationId);
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new IllegalStateException("대화 삭제에 실패했습니다.", e);
+            log.warn("대화 삭제 실패. 삭제를 건너뜁니다. conversationId={}, reason={}", conversationId, e.getMessage());
         }
     }
 }
