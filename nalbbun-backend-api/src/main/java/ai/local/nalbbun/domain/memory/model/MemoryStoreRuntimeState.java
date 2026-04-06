@@ -16,5 +16,6 @@ public class MemoryStoreRuntimeState {
     private LocalDateTime restartRequestedAt;
     private LocalDateTime lastAppliedAt;
     private Integer redisSessionTtlMinutes;
+    private Integer redisMemoryTtlMinutes;
     private String lastAction;
 }

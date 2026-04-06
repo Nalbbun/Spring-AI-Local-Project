@@ -10,10 +10,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+
+import ai.local.nalbbun.domain.memory.service.MemoryStoreRuntimeStateService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -32,15 +33,17 @@ public class RedisConversationMemoryService implements ConversationMemoryService
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    private final Duration ttl;
+    private final MemoryStoreRuntimeStateService runtimeStateService;
+    private final Duration defaultTtl;
 
     public RedisConversationMemoryService(
             StringRedisTemplate redisTemplate,
-            @Value("${app.memory.redis.ttl-hours:24}") long ttlHours
+            MemoryStoreRuntimeStateService runtimeStateService
     ) {
         this.redisTemplate = redisTemplate;
+        this.runtimeStateService = runtimeStateService;
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-        this.ttl = Duration.ofHours(Math.max(1, ttlHours));
+        this.defaultTtl = Duration.ofHours(24);
     }
 
     @Override
@@ -175,9 +178,21 @@ public class RedisConversationMemoryService implements ConversationMemoryService
     }
 
     private void touch(String conversationId) {
+        Duration ttl = resolveTtl();
         redisTemplate.expire(messagesKey(conversationId), ttl);
         redisTemplate.expire(summariesKey(conversationId), ttl);
         redisTemplate.expire(notesKey(conversationId), ttl);
+    }
+
+    private Duration resolveTtl() {
+        try {
+            Integer minutes = runtimeStateService.currentState("redis").getRedisMemoryTtlMinutes();
+            if (minutes != null && minutes > 0) {
+                return Duration.ofMinutes(minutes);
+            }
+        } catch (Exception ignored) {
+        }
+        return defaultTtl;
     }
 
     private String messagesKey(String conversationId) {

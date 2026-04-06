@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -86,6 +87,19 @@ public class PromptApiController {
     public ApiResponse<Map<String, Object>> delete(@PathVariable("id") String id) {
         promptService.delete(id);
         return ApiResponse.ok(Map.of("id", id, "deleted", true));
+    }
+
+    @GetMapping("/{id}/history")
+    public ApiResponse<List<PromptEntryHistoryDto>> history(@PathVariable("id") String id) {
+        List<PromptEntryHistoryDto> items = promptService.history(id).stream()
+                .map(PromptDtoMapper::toHistoryDto)
+                .toList();
+        return ApiResponse.ok(items, Map.of("count", items.size()));
+    }
+
+    @PostMapping("/{id}/rollback/{historyId}")
+    public ApiResponse<PromptEntryDto> rollback(@PathVariable("id") String id, @PathVariable("historyId") Long historyId) {
+        return ApiResponse.ok(PromptDtoMapper.toDto(promptService.rollbackToHistory(id, historyId)));
     }
 
     @PostMapping("/{id}/default")

@@ -106,6 +106,7 @@ app:
     store: ${APP_MEMORY_STORE:jdbc}
     redis:
       ttl-hours: ${APP_MEMORY_REDIS_TTL_HOURS:24}
+      ttl-minutes: ${APP_MEMORY_REDIS_TTL_MINUTES:1440}
       session-ttl-minutes: ${APP_MEMORY_REDIS_SESSION_TTL_MINUTES:180}
     jdbc:
       datasource:

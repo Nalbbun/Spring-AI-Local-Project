@@ -6,8 +6,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import ai.local.nalbbun.domain.search.port.WebSearchPort;
+import ai.local.nalbbun.infra.security.apikey.service.ApiKeyService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -35,8 +38,10 @@ public class TavilyWebSearchService implements WebSearchPort {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-    private final String apiKey;
+    private final String configuredApiKey;
     private final int maxResults;
+    private final Environment environment;
+    private final ObjectProvider<ApiKeyService> apiKeyServiceProvider;
 
     /**
      * Tavily Web Search Service 인스턴스를 초기화한다.
@@ -46,10 +51,14 @@ public class TavilyWebSearchService implements WebSearchPort {
      */
     public TavilyWebSearchService(
             @Value("${app.search.tavily.api-key:}") String apiKey,
-            @Value("${app.search.tavily.max-results:5}") int maxResults
+            @Value("${app.search.tavily.max-results:5}") int maxResults,
+            Environment environment,
+            ObjectProvider<ApiKeyService> apiKeyServiceProvider
     ) {
-        this.apiKey = apiKey == null ? "" : apiKey.trim();
+        this.configuredApiKey = apiKey == null ? "" : apiKey.trim();
         this.maxResults = Math.max(1, maxResults);
+        this.environment = environment;
+        this.apiKeyServiceProvider = apiKeyServiceProvider;
     }
 
     /**
@@ -60,7 +69,8 @@ public class TavilyWebSearchService implements WebSearchPort {
      */
     @Override
     public String search(String query) {
-        ensureApiKey();
+        String apiKey = resolveApiKey();
+        ensureApiKey(apiKey);
         try {
             ObjectNode requestBody = objectMapper.createObjectNode();
             requestBody.put("api_key", apiKey);
@@ -144,10 +154,32 @@ public class TavilyWebSearchService implements WebSearchPort {
      * <p>입력: 메서드 파라미터, 주입된 상태값, 내부 계산에 필요한 문맥 정보</p>
      * <p>출력: 상태 변경, 이벤트 전송 또는 내부 처리 완료 상태</p>
      */
-    private void ensureApiKey() {
-        if (apiKey.isBlank()) {
+    private void ensureApiKey(String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("app.search.provider=tavily 인 경우 app.search.tavily.api-key 설정이 필요합니다.");
         }
+    }
+
+    private String resolveApiKey() {
+        String propertyValue = environment.getProperty("app.search.tavily.api-key", "");
+        if (propertyValue != null && !propertyValue.isBlank()) {
+            return propertyValue.trim();
+        }
+
+        String systemPropertyValue = System.getProperty("TAVILY_API_KEY", "");
+        if (systemPropertyValue != null && !systemPropertyValue.isBlank()) {
+            return systemPropertyValue.trim();
+        }
+
+        ApiKeyService apiKeyService = apiKeyServiceProvider.getIfAvailable();
+        if (apiKeyService != null) {
+            return apiKeyService.findActivePlainKey("TAVILY")
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .orElse(configuredApiKey);
+        }
+
+        return configuredApiKey;
     }
 
     /**

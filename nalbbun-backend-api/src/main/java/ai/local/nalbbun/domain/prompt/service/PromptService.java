@@ -1,16 +1,22 @@
 package ai.local.nalbbun.domain.prompt.service;
 
+import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import ai.local.nalbbun.domain.category.model.ChatCategory;
 import ai.local.nalbbun.domain.prompt.model.PromptEntry;
+import ai.local.nalbbun.domain.prompt.model.PromptEntryHistoryRecord;
 import ai.local.nalbbun.domain.prompt.repository.PromptRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -19,12 +25,19 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PromptService {
 
     private final PromptRepository promptRepository;
+    private final JdbcTemplate apiJdbcTemplate;
 
-    // ── 조회 ──────────────────────────────────────────────
+    public PromptService(
+            PromptRepository promptRepository,
+            @Qualifier("apiJdbcTemplate") ObjectProvider<JdbcTemplate> apiJdbcTemplateProvider
+    ) {
+        this.promptRepository = promptRepository;
+        this.apiJdbcTemplate = apiJdbcTemplateProvider.getIfAvailable();
+    }
+
     public List<PromptEntry> listAll() {
         return promptRepository.findAll();
     }
@@ -35,6 +48,22 @@ public class PromptService {
 
     public Optional<PromptEntry> findById(String id) {
         return promptRepository.findById(id);
+    }
+
+    public List<PromptEntryHistoryRecord> history(String id) {
+        if (apiJdbcTemplate == null) {
+            return List.of();
+        }
+        return apiJdbcTemplate.query(
+                """
+                SELECT history_id, prompt_id, action, name, category, system_prompt, description,
+                       is_default, active, version_no, previous_version_id, captured_at
+                  FROM prompt_entry_history
+                 WHERE prompt_id = ?
+                 ORDER BY captured_at DESC, history_id DESC
+                """,
+                (rs, rowNum) -> mapHistory(rs),
+                id);
     }
 
     /**
@@ -64,28 +93,33 @@ public class PromptService {
         return combined == null || combined.isBlank() ? Optional.empty() : Optional.of(combined);
     }
 
-    // ── CUD ───────────────────────────────────────────────
     public PromptEntry create(PromptEntry entry) {
         validate(entry);
         if (entry.getVersionNo() <= 0) entry.setVersionNo(1);
         entry.setPreviousVersionId(null);
-        return promptRepository.save(entry);
+        PromptEntry saved = promptRepository.save(entry);
+        captureHistory(saved, "CREATED");
+        return saved;
     }
 
     public PromptEntry update(String id, PromptEntry entry) {
         validate(entry);
-        entry.setId(id);
         PromptEntry existing = promptRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("프롬프트를 찾을 수 없습니다: " + id));
+        captureHistory(existing, "BEFORE_UPDATE");
+        entry.setId(id);
         entry.setCreatedAt(existing.getCreatedAt());
         entry.setVersionNo(Math.max(existing.getVersionNo() + 1, 1));
         entry.setPreviousVersionId(existing.getId());
-        return promptRepository.update(entry);
+        PromptEntry saved = promptRepository.update(entry);
+        captureHistory(saved, "UPDATED");
+        return saved;
     }
 
     public void delete(String id) {
-        promptRepository.findById(id)
+        PromptEntry existing = promptRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("프롬프트를 찾을 수 없습니다: " + id));
+        captureHistory(existing, "DELETED");
         promptRepository.delete(id);
     }
 
@@ -93,11 +127,44 @@ public class PromptService {
     public PromptEntry setDefault(String id) {
         PromptEntry entry = promptRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("프롬프트를 찾을 수 없습니다: " + id));
+        captureHistory(entry, "BEFORE_SET_DEFAULT");
         entry.setDefault(true);
-        return promptRepository.update(entry);
+        entry.setVersionNo(Math.max(entry.getVersionNo() + 1, 1));
+        entry.setPreviousVersionId(entry.getId());
+        PromptEntry saved = promptRepository.update(entry);
+        captureHistory(saved, "SET_DEFAULT");
+        return saved;
     }
 
-    // ── 초기 기본 프롬프트 시드 ────────────────────────────
+    public PromptEntry rollbackToHistory(String id, Long historyId) {
+        PromptEntry existing = promptRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("프롬프트를 찾을 수 없습니다: " + id));
+        PromptEntryHistoryRecord history = history(id).stream()
+                .filter(item -> Objects.equals(item.historyId(), historyId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("롤백 대상을 찾을 수 없습니다: " + historyId));
+
+        captureHistory(existing, "BEFORE_ROLLBACK");
+
+        PromptEntry rollback = PromptEntry.builder()
+                .id(existing.getId())
+                .name(history.name())
+                .category(history.category())
+                .systemPrompt(history.systemPrompt())
+                .description(history.description())
+                .isDefault(history.isDefault())
+                .active(history.active())
+                .versionNo(Math.max(existing.getVersionNo() + 1, history.versionNo() + 1))
+                .previousVersionId(existing.getId())
+                .createdAt(existing.getCreatedAt())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        PromptEntry saved = promptRepository.update(rollback);
+        captureHistory(saved, "ROLLED_BACK");
+        return saved;
+    }
+
     public void seedDefaultsIfEmpty() {
         List<PromptEntry> existing = promptRepository.findAll();
 
@@ -115,7 +182,6 @@ public class PromptService {
         }
         log.info("기본 프롬프트 점검/시드 완료");
     }
-
 
     private void ensureDefaultPrompt(List<PromptEntry> existing,
                                      ChatCategory category,
@@ -139,6 +205,7 @@ public class PromptService {
                 .active(true)
                 .build();
         PromptEntry saved = promptRepository.save(entry);
+        captureHistory(saved, "SEEDED_DEFAULT");
         existing.add(saved);
     }
 
@@ -194,5 +261,52 @@ public class PromptService {
                 목적지, 일정, 예산을 고려하여 실용적인 여행 계획을 제시하세요.
                 """;
         };
+    }
+
+    private void captureHistory(PromptEntry entry, String action) {
+        if (apiJdbcTemplate == null || entry == null || entry.getId() == null || entry.getId().isBlank()) {
+            return;
+        }
+        try {
+            apiJdbcTemplate.update(
+                    """
+                    INSERT INTO prompt_entry_history(
+                        prompt_id, action, name, category, system_prompt, description,
+                        is_default, active, version_no, previous_version_id, captured_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    entry.getId(),
+                    action,
+                    entry.getName(),
+                    entry.getCategory() == null ? null : entry.getCategory().name(),
+                    entry.getSystemPrompt(),
+                    entry.getDescription(),
+                    entry.isDefault(),
+                    entry.isActive(),
+                    entry.getVersionNo(),
+                    entry.getPreviousVersionId(),
+                    Timestamp.valueOf(LocalDateTime.now()));
+        } catch (Exception e) {
+            log.warn("프롬프트 히스토리 저장 실패. promptId={}, action={}, reason={}", entry.getId(), action, e.getMessage());
+        }
+    }
+
+    private PromptEntryHistoryRecord mapHistory(ResultSet rs) throws java.sql.SQLException {
+        String category = rs.getString("category");
+        Timestamp capturedAt = rs.getTimestamp("captured_at");
+        return new PromptEntryHistoryRecord(
+                rs.getLong("history_id"),
+                rs.getString("prompt_id"),
+                rs.getString("action"),
+                rs.getString("name"),
+                category == null ? null : ChatCategory.valueOf(category),
+                rs.getString("system_prompt"),
+                rs.getString("description"),
+                rs.getBoolean("is_default"),
+                rs.getBoolean("active"),
+                rs.getInt("version_no"),
+                rs.getString("previous_version_id"),
+                capturedAt == null ? null : capturedAt.toLocalDateTime()
+        );
     }
 }

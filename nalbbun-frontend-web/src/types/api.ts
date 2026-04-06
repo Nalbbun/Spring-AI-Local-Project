@@ -44,6 +44,21 @@ export interface PromptSummary {
   activeCount: number;
 }
 
+export interface PromptEntryHistory {
+  historyId: number;
+  promptId: string;
+  action: string;
+  name: string;
+  category?: string | null;
+  systemPrompt: string;
+  description?: string;
+  isDefault?: boolean;
+  active?: boolean;
+  versionNo?: number;
+  previousVersionId?: string | null;
+  capturedAt?: string;
+}
+
 export interface MemorySummary {
   storeType?: string;
   conversationCount?: number;
@@ -75,6 +90,14 @@ export interface ConversationListResult {
   conversationIds: string[];
   total: number;
   conversations?: ConversationListItem[];
+}
+
+export interface MemorySnapshotRecord {
+  snapshotId: number;
+  conversationId: string;
+  label: string;
+  snapshot?: ConversationSnapshot;
+  createdAt?: string;
 }
 
 export interface RagSourceItem {
@@ -133,6 +156,7 @@ export interface DebugRuntimeConfig {
   restartRequestedAt?: string;
   lastAppliedAt?: string;
   redisSessionTtlMinutes?: number;
+  redisMemoryTtlMinutes?: number;
   restartAction?: string;
   fallbackPolicy?: string;
   conversationId?: string;

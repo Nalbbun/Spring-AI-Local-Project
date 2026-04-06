@@ -39,6 +39,14 @@ export function RagDocumentsPage() {
   const [opStatus, setOpStatus] = useState('대기 중');
   const logs = useEventLog('rag-documents-log', ['RAG 관리 작업 로그가 누적됩니다.']);
   const pdfFallbackUsed = useMemo(() => hasPdfFallbackFlag(lastResult), [lastResult]);
+  const indexRows = useMemo(() => sources.map((row, idx) => ({
+    id: `${row.category}-${row.source}-${row.version}-${idx}`,
+    category: row.category ?? '-',
+    source: row.source ?? row.sourceId ?? row.id ?? '-',
+    version: row.version ?? '-',
+    title: row.title ?? '-',
+    chunkCount: row.chunkCount ?? 0
+  })), [sources]);
 
   const load = async () => {
     const [statusData, dbData, sourceData, embeddingConfig, modelList] = await Promise.all([
@@ -172,6 +180,16 @@ export function RagDocumentsPage() {
       >
         <div className="status-line">{pdfFallbackUsed ? '일부 PDF는 기본 PDF reader fallback으로 처리되었습니다.' : '최근 업로드 결과를 표시합니다.'}</div>
         <JsonBlock value={lastResult ?? { status: '대기 중', message: '아직 업로드 결과가 없습니다.' }} />
+      </AppCard>
+
+      <AppCard title="Vector Index 관리" description="카테고리/소스/버전 단위로 현재 적재된 인덱스 대상을 빠르게 확인합니다.">
+        <DataTable rows={indexRows} columns={[
+          { key: 'category', title: '카테고리', render: (row) => row.category },
+          { key: 'source', title: 'Source', render: (row) => row.source },
+          { key: 'version', title: '버전', render: (row) => row.version },
+          { key: 'title', title: '제목', render: (row) => row.title },
+          { key: 'chunkCount', title: 'Chunk', render: (row) => row.chunkCount }
+        ]} />
       </AppCard>
 
       <AppCard title="소스 목록" actions={<div className="toolbar"><select value={category} onChange={(e) => setCategory(e.target.value)}><option value="">전체</option><option value="GENERAL">GENERAL</option><option value="DEV">DEV</option><option value="MICE">MICE</option><option value="TRAVEL">TRAVEL</option></select><button className="secondary" onClick={() => load().catch(() => undefined)}>새로고침</button></div>}>

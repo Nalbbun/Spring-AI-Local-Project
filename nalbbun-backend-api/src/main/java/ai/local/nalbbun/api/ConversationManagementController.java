@@ -4,13 +4,16 @@ import ai.local.nalbbun.api.dto.common.ApiResponse;
 import ai.local.nalbbun.api.dto.conversation.*;
 import ai.local.nalbbun.api.mapper.ConversationDtoMapper;
 import ai.local.nalbbun.domain.memory.model.ConversationMemorySnapshot;
+import ai.local.nalbbun.domain.memory.model.MemorySnapshotRecord;
 import ai.local.nalbbun.domain.memory.service.ConversationMemoryService;
+import ai.local.nalbbun.domain.memory.service.MemorySnapshotService;
 import ai.local.nalbbun.domain.memory.service.RoutingConversationMemoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConversationManagementController {
 
     private final ConversationMemoryService conversationMemoryService;
+    private final MemorySnapshotService memorySnapshotService;
 
     @GetMapping("/conversations")
     public ApiResponse<ConversationListDto> listConversations() {
@@ -61,6 +65,34 @@ public class ConversationManagementController {
         return ApiResponse.ok(new ConversationDeleteResultDto(conversationId, true));
     }
 
+    @GetMapping("/conversations/{conversationId}/snapshots")
+    public ApiResponse<List<MemorySnapshotRecordDto>> listSnapshots(@PathVariable("conversationId") String conversationId) {
+        List<MemorySnapshotRecordDto> items = memorySnapshotService.list(conversationId).stream()
+                .map(this::toSnapshotDto)
+                .toList();
+        return ApiResponse.ok(items, Map.of("count", items.size()));
+    }
+
+    @PostMapping("/conversations/{conversationId}/snapshots")
+    public ApiResponse<MemorySnapshotRecordDto> createSnapshot(@PathVariable("conversationId") String conversationId,
+                                                               @RequestBody(required = false) Map<String, String> request) {
+        String label = request == null ? null : request.get("label");
+        return ApiResponse.ok(toSnapshotDto(memorySnapshotService.create(conversationId, label)));
+    }
+
+    @PostMapping("/conversations/{conversationId}/snapshots/{snapshotId}/restore")
+    public ApiResponse<ConversationSnapshotDto> restoreSnapshot(@PathVariable("conversationId") String conversationId,
+                                                                @PathVariable("snapshotId") Long snapshotId) {
+        return ApiResponse.ok(ConversationDtoMapper.toDto(memorySnapshotService.restore(conversationId, snapshotId)));
+    }
+
+    @DeleteMapping("/conversations/{conversationId}/snapshots/{snapshotId}")
+    public ApiResponse<Map<String, Object>> deleteSnapshot(@PathVariable("conversationId") String conversationId,
+                                                           @PathVariable("snapshotId") Long snapshotId) {
+        memorySnapshotService.delete(conversationId, snapshotId);
+        return ApiResponse.ok(Map.of("conversationId", conversationId, "snapshotId", snapshotId, "deleted", true));
+    }
+
     @GetMapping("/summary")
     public ApiResponse<ConversationStoreSummaryDto> summary() {
         try {
@@ -81,5 +113,14 @@ public class ConversationManagementController {
             return routingConversationMemoryService.getActiveStore() + " (" + routingConversationMemoryService.getActiveServiceType() + ")";
         }
         return conversationMemoryService.getClass().getSimpleName();
+    }
+
+    private MemorySnapshotRecordDto toSnapshotDto(MemorySnapshotRecord record) {
+        return new MemorySnapshotRecordDto(
+                record.snapshotId(),
+                record.conversationId(),
+                record.label(),
+                ConversationDtoMapper.toDto(record.snapshot()),
+                record.createdAt());
     }
 }

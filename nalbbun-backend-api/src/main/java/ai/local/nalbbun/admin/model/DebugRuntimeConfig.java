@@ -34,6 +34,7 @@ public class DebugRuntimeConfig {
     private LocalDateTime restartRequestedAt;
     private LocalDateTime lastAppliedAt;
     private Integer redisSessionTtlMinutes;
+    private Integer redisMemoryTtlMinutes;
     private String restartAction;
     private String fallbackPolicy;
     private String conversationId;

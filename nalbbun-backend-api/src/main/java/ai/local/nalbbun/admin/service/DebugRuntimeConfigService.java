@@ -89,6 +89,7 @@ public class DebugRuntimeConfigService implements RuntimeCategoryPolicyPort {
         config.setRestartRequestedAt(state.getRestartRequestedAt());
         config.setLastAppliedAt(state.getLastAppliedAt());
         config.setRedisSessionTtlMinutes(state.getRedisSessionTtlMinutes());
+        config.setRedisMemoryTtlMinutes(state.getRedisMemoryTtlMinutes());
         config.setRestartAction(state.getLastAction());
         config.setFallbackPolicy(fallbackPolicy);
         config.setOllamaBaseUrl(ollamaConnectionService == null ? null : ollamaConnectionService.getBaseUrl());
@@ -114,6 +115,12 @@ public class DebugRuntimeConfigService implements RuntimeCategoryPolicyPort {
         String requestedMemoryStore = hasText(request.getRequestedMemoryStore()) ? request.getRequestedMemoryStore() : request.getMemoryStore();
         if (hasText(requestedMemoryStore)) {
             routingConversationMemoryService.updateRequestedStore(requestedMemoryStore);
+        }
+        if (request.getRedisMemoryTtlMinutes() != null) {
+            runtimeStateService.updateRedisMemoryTtlMinutes(
+                    routingConversationMemoryService.getActiveStore(),
+                    routingConversationMemoryService.getRequestedStore(),
+                    request.getRedisMemoryTtlMinutes());
         }
         return getCurrentConfig();
     }

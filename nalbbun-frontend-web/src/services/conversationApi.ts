@@ -1,5 +1,11 @@
 import { apiGet, apiSend } from './apiClient';
-import type { ConversationListItem, ConversationListResult, ConversationSnapshot, MemorySummary } from '../types/api';
+import type {
+  ConversationListItem,
+  ConversationListResult,
+  ConversationSnapshot,
+  MemorySnapshotRecord,
+  MemorySummary
+} from '../types/api';
 
 export const conversationApi = {
   summary: () => apiGet<MemorySummary>('/api/memory/summary'),
@@ -17,5 +23,9 @@ export const conversationApi = {
     } satisfies ConversationListItem));
   },
   detail: (conversationId: string) => apiGet<ConversationSnapshot>(`/api/memory/conversations/${encodeURIComponent(conversationId)}`),
-  remove: (conversationId: string) => apiSend<void>(`/api/memory/conversations/${encodeURIComponent(conversationId)}`, 'DELETE')
+  remove: (conversationId: string) => apiSend<void>(`/api/memory/conversations/${encodeURIComponent(conversationId)}`, 'DELETE'),
+  listSnapshots: (conversationId: string) => apiGet<MemorySnapshotRecord[]>(`/api/memory/conversations/${encodeURIComponent(conversationId)}/snapshots`),
+  createSnapshot: (conversationId: string, label?: string) => apiSend<MemorySnapshotRecord>(`/api/memory/conversations/${encodeURIComponent(conversationId)}/snapshots`, 'POST', { label }),
+  restoreSnapshot: (conversationId: string, snapshotId: number) => apiSend<ConversationSnapshot>(`/api/memory/conversations/${encodeURIComponent(conversationId)}/snapshots/${snapshotId}/restore`, 'POST'),
+  deleteSnapshot: (conversationId: string, snapshotId: number) => apiSend<void>(`/api/memory/conversations/${encodeURIComponent(conversationId)}/snapshots/${snapshotId}`, 'DELETE')
 };

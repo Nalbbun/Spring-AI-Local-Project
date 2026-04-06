@@ -28,6 +28,7 @@ const defaultForm: DebugRuntimeConfig = {
   restartRequestedAt: '',
   lastAppliedAt: '',
   redisSessionTtlMinutes: 180,
+  redisMemoryTtlMinutes: 1440,
   restartAction: '',
   availableMemoryStores: ['in-memory', 'jdbc', 'redis'],
   fallbackPolicy: 'ALLOW_OPENAI',
@@ -225,6 +226,16 @@ export function SystemSettingsPage() {
                     <option value="BLOCK_OPENAI">BLOCK_OPENAI</option>
                   </select>
                 </label>
+              </div>
+            </div>
+
+            <div className="sub-panel">
+              <h3>Redis 메모리 TTL 정책</h3>
+              <div className="form-grid two top-gap">
+                <label className="field-label">Redis Memory TTL (minutes)
+                  <input type="number" min={1} value={config.redisMemoryTtlMinutes ?? 1440} onChange={(e) => setConfig((prev) => ({ ...prev, redisMemoryTtlMinutes: Number(e.target.value || 1440) }))} />
+                </label>
+                <div className="notice-box">Redis 저장소 사용 시 대화 메시지/요약/노트 키의 만료 시간을 분 단위로 제어합니다.</div>
               </div>
             </div>
 
