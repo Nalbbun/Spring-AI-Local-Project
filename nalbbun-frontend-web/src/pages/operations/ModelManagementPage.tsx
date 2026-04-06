@@ -59,7 +59,7 @@ const providerDefaults: Record<'vllm' | 'openai', DebugApiLlmProviderConfig> = {
     keyProvider: 'VLLM',
     healthCheckPath: '/api/info',
     healthCheckMethod: 'GET',
-    modelsPath: '/v1/models',
+    modelsPath: '/api/info',
     modelsMethod: 'GET',
     sllmPath: '/sllm',
     llmPath: '/llm',
@@ -207,17 +207,6 @@ function ProviderCard({
             <option value="POST">POST</option>
           </select>
         </label>
-        <label className="field-label">
-          Models Path
-          <input value={form.modelsPath || ''} onChange={(e) => onChange({ ...form, modelsPath: e.target.value })} />
-        </label>
-        <label className="field-label">
-          Models Method
-          <select value={form.modelsMethod || 'GET'} onChange={(e) => onChange({ ...form, modelsMethod: e.target.value })}>
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-          </select>
-        </label>
         {isVllm && (
           <>
             <label className="field-label">sLLM Path<input value={form.sllmPath || ''} onChange={(e) => onChange({ ...form, sllmPath: e.target.value })} /></label>
@@ -233,7 +222,7 @@ function ProviderCard({
       </div>
 
       <div className="button-row top-gap">
-        <button onClick={onCheck}>연결 확인</button>
+        <button onClick={onCheck}>{isVllm ? '/api/info 자동 설정' : '연결 확인'}</button>
         <button onClick={onSave}>저장</button>
         <button className="secondary" onClick={onReset}>초기화</button>
       </div>
@@ -243,9 +232,8 @@ function ProviderCard({
         <div className="list-item-row"><span>메시지</span><span>{status?.message || '-'}</span></div>
         <div className="list-item-row"><span>키 조회</span><span>{String(status?.keyResolved ?? false)} / {status?.keyProvider || '-'}</span></div>
         <div className="list-item-row"><span>Health 체크</span><span>{status?.healthCheckMethod || '-'} {status?.healthCheckPath || '-'} / {String(status?.healthCheckOk ?? false)}</span></div>
-        <div className="list-item-row"><span>Models 체크</span><span>{status?.modelsMethod || '-'} {status?.modelsPath || '-'} / {String(status?.modelsCheckOk ?? false)}</span></div>
-        <div className="list-item-row"><span>Health URL</span><span title={status?.resolvedHealthUrl || '-'}>{status?.resolvedHealthUrl || '-'}</span></div>
-        <div className="list-item-row"><span>Models URL</span><span title={status?.resolvedModelsUrl || '-'}>{status?.resolvedModelsUrl || '-'}</span></div>
+        <div className="list-item-row"><span>Info 체크</span><span>{status?.healthCheckMethod || '-'} {status?.healthCheckPath || '-'} / {String(status?.healthCheckOk ?? false)}</span></div>
+        <div className="list-item-row"><span>Info URL</span><span title={status?.resolvedHealthUrl || '-'}>{status?.resolvedHealthUrl || '-'}</span></div>
         <div className="list-item-row"><span>모델 수</span><span>{status?.modelCount ?? 0}</span></div>
         <div className="list-item-row"><span>모델 목록</span><span title={(status?.availableModels || []).join(', ') || '-'}>{formatModelListPreview(status?.availableModels)}</span></div>
         {isVllm && (
@@ -313,6 +301,30 @@ export function ModelManagementPage() {
     setStatus(message);
     logs.append(message, detail);
   };
+
+  const syncVllmAutoConfig = useCallback(async () => {
+    const result = await settingsApi.syncVllmFromInfo();
+    setProviderStatus((prev) => ({ ...prev, vllm: result }));
+    setVllmForm({
+      ...providerDefaults.vllm,
+      baseUrl: result?.baseUrl || providerDefaults.vllm.baseUrl,
+      defaultModel: result?.defaultModel || '',
+      keyProvider: result?.keyProvider || providerDefaults.vllm.keyProvider,
+      healthCheckPath: result?.healthCheckPath || providerDefaults.vllm.healthCheckPath,
+      healthCheckMethod: result?.healthCheckMethod || providerDefaults.vllm.healthCheckMethod,
+      modelsPath: result?.modelsPath || providerDefaults.vllm.modelsPath,
+      modelsMethod: result?.modelsMethod || providerDefaults.vllm.modelsMethod,
+      sllmPath: result?.sllmPath || providerDefaults.vllm.sllmPath,
+      llmPath: result?.llmPath || providerDefaults.vllm.llmPath,
+      embeddingPath: result?.embeddingPath || providerDefaults.vllm.embeddingPath,
+      rerankPath: result?.rerankPath || providerDefaults.vllm.rerankPath,
+      searchModel: result?.searchModel || providerDefaults.vllm.searchModel,
+      answerModel: result?.answerModel || providerDefaults.vllm.answerModel,
+      embeddingModel: result?.embeddingModel || providerDefaults.vllm.embeddingModel,
+      rerankModel: result?.rerankModel || providerDefaults.vllm.rerankModel
+    });
+    return result;
+  }, []);
 
   const refreshProviders = useCallback(async () => {
     const [providers, apiKeyProviders] = await Promise.all([
@@ -495,7 +507,8 @@ export function ModelManagementPage() {
       const result = type === 'vllm' ? await settingsApi.saveVllmConfig(form) : await settingsApi.saveOpenAiConfig(form);
       setProviderStatus((prev) => ({ ...prev, [type]: result }));
       if (type === 'vllm') {
-        setVllmForm({ ...providerDefaults.vllm, ...form, ...result });
+        const synced = await syncVllmAutoConfig();
+        setVllmForm((prev) => ({ ...providerDefaults.vllm, ...prev, ...form, ...result, ...synced }));
       } else {
         setOpenAiForm({ ...providerDefaults.openai, ...form, ...result });
       }
@@ -536,7 +549,7 @@ export function ModelManagementPage() {
   const checkProvider = async (type: 'vllm' | 'openai') => {
     beginBusy(`${type.toUpperCase()} 연결 상태를 확인하는 중입니다.`);
     try {
-      const result = type === 'vllm' ? await settingsApi.getVllmStatus() : await settingsApi.getOpenAiStatus();
+      const result = type === 'vllm' ? await syncVllmAutoConfig() : await settingsApi.getOpenAiStatus();
       setProviderStatus((prev) => ({ ...prev, [type]: result }));
       syncStatus(`${type.toUpperCase()} 연결 확인 완료`, result);
       notifyGlobal(`${type.toUpperCase()} 연결 상태 확인이 완료되었습니다.`, result?.reachable ? 'success' : 'info');

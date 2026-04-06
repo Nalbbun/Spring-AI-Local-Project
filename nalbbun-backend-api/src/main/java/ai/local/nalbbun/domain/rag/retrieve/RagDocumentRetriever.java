@@ -35,6 +35,7 @@ public class RagDocumentRetriever {
     private final RuntimeOllamaVectorStoreFactory runtimeVectorStoreFactory;
     private final RagProperties ragProperties;
     private final RagMetadataSupport ragMetadataSupport;
+    private final ai.local.nalbbun.domain.rag.service.VllmGatewayRerankService vllmGatewayRerankService;
 
     /**
      * retrieve 기능을 수행한다.
@@ -118,6 +119,11 @@ public class RagDocumentRetriever {
     private List<RagRetrievedDocument> rerank(String query, List<RagRetrievedDocument> candidates) {
         if (candidates.isEmpty()) {
             return List.of();
+        }
+
+        List<RagRetrievedDocument> gatewayRanked = vllmGatewayRerankService.rerank(query, candidates);
+        if (gatewayRanked != null && !gatewayRanked.isEmpty() && gatewayRanked.size() == candidates.size()) {
+            return gatewayRanked;
         }
 
         List<String> queryTokens = tokenize(query);

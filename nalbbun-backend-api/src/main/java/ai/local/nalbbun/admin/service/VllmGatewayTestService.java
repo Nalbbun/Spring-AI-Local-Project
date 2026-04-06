@@ -29,29 +29,35 @@ public class VllmGatewayTestService {
         Map<String, Object> info = getInfo();
         Map<String, String> models = extractStringMap(info.get("models"));
         Map<String, String> endpoints = extractStringMap(info.get("endpoints"));
+        String syncBaseUrl = stringValue(info.get("gateway_url"), service.getBaseUrl());
+        String sllmServedName = firstNonBlank(models.get("sllm_served_name"), models.get("sllm"), service.getSearchModel());
+        String llmServedName = firstNonBlank(models.get("llm_served_name"), models.get("llm"), service.getAnswerModel());
+        String embeddingName = firstNonBlank(models.get("embedding"), service.getEmbeddingModel());
+        String rerankName = firstNonBlank(models.get("rerank"), service.getRerankModel());
+
         service.update(
-                stringValue(info.get("gateway_url"), service.getBaseUrl()),
-                null,
+                syncBaseUrl,
+                llmServedName,
                 service.getKeyProvider(),
                 "/api/info",
                 "GET",
-                "/v1/models",
+                "/api/info",
                 "GET",
                 pathFromEndpoint(endpoints.get("preprocess (sLLM)"), "/sllm"),
                 pathFromEndpoint(endpoints.get("chat_completion (LLM)"), "/llm"),
-                pathFromEndpoint(endpoints.get("embedding"), "/embedding"),
+                pathFromEndpoint(endpoints.get("embedding"), "/embedding/api"),
                 pathFromEndpoint(endpoints.get("rerank"), "/rerank"),
-                mapAlias(models.get("sllm"), service.getSearchModel()),
-                mapAlias(models.get("llm"), service.getAnswerModel()),
-                mapAlias(models.get("embedding"), service.getEmbeddingModel()),
-                mapAlias(models.get("rerank"), service.getRerankModel())
+                sllmServedName,
+                llmServedName,
+                embeddingName,
+                rerankName
         );
         return info;
     }
 
     public Map<String, Object> testChat(VllmChatTestRequest request) {
         String mode = request.getMode() == null ? "LLM" : request.getMode().trim().toUpperCase();
-        String baseUrl = "SLLM".equals(mode) ? vllmConnectionPort.getSllmBaseUrl() : vllmConnectionPort.getLlmBaseUrl();
+        String requestUrl = "SLLM".equals(mode) ? vllmConnectionPort.getResolvedSllmRequestUrl() : vllmConnectionPort.getResolvedLlmRequestUrl();
         String model = request.getModel();
         if (model == null || model.isBlank()) {
             model = "SLLM".equals(mode) ? vllmConnectionPort.getSearchModel() : vllmConnectionPort.getAnswerModel();
@@ -63,11 +69,11 @@ public class VllmGatewayTestService {
                 Map.of("role", "user", "content", stringValue(request.getUserPrompt(), "안녕하세요."))
         ));
         payload.put("temperature", 0.2);
-        Map<String, Object> response = restClient(baseUrl).post().uri("/v1/chat/completions")
+        Map<String, Object> response = restClientForAbsoluteUrl().post().uri(requestUrl)
                 .contentType(MediaType.APPLICATION_JSON).body(payload).retrieve().body(Map.class);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("request", payload);
-        result.put("baseUrl", baseUrl);
+        result.put("requestUrl", requestUrl);
         result.put("response", response);
         return result;
     }
@@ -75,9 +81,10 @@ public class VllmGatewayTestService {
     public Map<String, Object> testEmbedding(VllmEmbeddingTestRequest request) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("texts", request.getTexts());
-        Map<String, Object> response = restClient(vllmConnectionPort.getEmbeddingBaseUrl()).post().uri("/v1/embeddings")
+        String requestUrl = vllmConnectionPort.getResolvedEmbeddingRequestUrl();
+        Map<String, Object> response = restClientForAbsoluteUrl().post().uri(requestUrl)
                 .contentType(MediaType.APPLICATION_JSON).body(payload).retrieve().body(Map.class);
-        return Map.of("request", payload, "baseUrl", vllmConnectionPort.getEmbeddingBaseUrl(), "response", response);
+        return Map.of("request", payload, "requestUrl", requestUrl, "response", response);
     }
 
     public Map<String, Object> testRerank(VllmRerankTestRequest request) {
@@ -85,9 +92,10 @@ public class VllmGatewayTestService {
         payload.put("query", request.getQuery());
         payload.put("documents", request.getDocuments());
         payload.put("top_k", request.getTopK() == null ? 3 : request.getTopK());
-        Map<String, Object> response = restClient(vllmConnectionPort.getRerankBaseUrl()).post().uri("/api/v1/rerank")
+        String requestUrl = vllmConnectionPort.getResolvedRerankRequestUrl();
+        Map<String, Object> response = restClientForAbsoluteUrl().post().uri(requestUrl)
                 .contentType(MediaType.APPLICATION_JSON).body(payload).retrieve().body(Map.class);
-        return Map.of("request", payload, "baseUrl", vllmConnectionPort.getRerankBaseUrl(), "response", response);
+        return Map.of("request", payload, "requestUrl", requestUrl, "response", response);
     }
 
     @SuppressWarnings("unchecked")
@@ -100,6 +108,20 @@ public class VllmGatewayTestService {
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(Duration.ofMillis(30000));
         RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory)
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+        String apiKey = vllmConnectionPort.getResolvedApiKey();
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey.trim());
+        }
+        return builder.build();
+    }
+
+
+    private RestClient restClientForAbsoluteUrl() {
+        HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(5000)).build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofMillis(30000));
+        RestClient.Builder builder = RestClient.builder().requestFactory(requestFactory)
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
         String apiKey = vllmConnectionPort.getResolvedApiKey();
         if (apiKey != null && !apiKey.isBlank()) {
@@ -127,20 +149,21 @@ public class VllmGatewayTestService {
         if (slash < 0) return fallback;
         String path = normalized.substring(slash);
         if (path.endsWith("/v1/chat/completions")) return path.substring(0, path.length() - "/v1/chat/completions".length());
+        if (path.endsWith("/chat/completions")) return path.substring(0, path.length() - "/chat/completions".length());
+        if (path.endsWith("/api/v1/embeddings")) return path.substring(0, path.length() - "/v1/embeddings".length());
         if (path.endsWith("/v1/embeddings")) return path.substring(0, path.length() - "/v1/embeddings".length());
+        if (path.endsWith("/rerank/rerank")) return path.substring(0, path.length() - "/rerank".length());
         if (path.endsWith("/api/v1/rerank")) return path.substring(0, path.length() - "/api/v1/rerank".length());
         return path;
     }
 
-    private String mapAlias(String source, String fallback) {
-        String v = source == null ? "" : source.trim();
-        if (v.isBlank()) return fallback;
-        String n = v.toLowerCase();
-        if (n.contains("exaone-3.5-2.4b")) return "exaone-3.5-2.4b-it";
-        if (n.contains("exaone-3.5-32b")) return "exaone-3.5-32b-it";
-        if (n.contains("bge-reranker-v2-m3")) return "bge-reranker-v2-m3";
-        if (n.contains("bge-m3")) return "bge-m3";
-        return v;
+    private String firstNonBlank(String... values) {
+        if (values == null) return "";
+        for (String value : values) {
+            String v = value == null ? "" : value.trim();
+            if (!v.isBlank()) return v;
+        }
+        return "";
     }
 
     private String stringValue(Object value, String fallback) {

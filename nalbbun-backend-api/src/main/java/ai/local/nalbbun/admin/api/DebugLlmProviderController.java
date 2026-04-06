@@ -38,13 +38,13 @@ public class DebugLlmProviderController {
 
     @GetMapping("/providers/vllm")
     public DebugApiLlmConnectionInfo vllmStatus() {
-        DebugApiLlmConnectionInfo info = discoveryService.inspect("VLLM", vllmConnectionService.getBaseUrl(), vllmConnectionService.getResolvedApiKey(), vllmConnectionService.getKeyProvider(), vllmConnectionService.getConfiguredOrDefaultModel(), vllmConnectionService.getHealthCheckPath(), vllmConnectionService.getHealthCheckMethod(), vllmConnectionService.getModelsPath(), vllmConnectionService.getModelsMethod());
+        DebugApiLlmConnectionInfo info = discoveryService.inspect("VLLM", vllmConnectionService.getBaseUrl(), vllmConnectionService.getResolvedApiKey(), vllmConnectionService.getKeyProvider(), vllmConnectionService.getConfiguredOrDefaultModel(), vllmConnectionService.getHealthCheckPath(), vllmConnectionService.getHealthCheckMethod(), vllmConnectionService.getModelsPath(), vllmConnectionService.getModelsMethod(), true);
         info.setSllmPath(vllmConnectionService.getSllmPath()); info.setLlmPath(vllmConnectionService.getLlmPath()); info.setEmbeddingPath(vllmConnectionService.getEmbeddingPath()); info.setRerankPath(vllmConnectionService.getRerankPath());
         info.setSearchModel(vllmConnectionService.getSearchModel()); info.setAnswerModel(vllmConnectionService.getAnswerModel()); info.setEmbeddingModel(vllmConnectionService.getEmbeddingModel()); info.setRerankModel(vllmConnectionService.getRerankModel());
-        info.setResolvedSllmUrl(vllmConnectionService.getSllmBaseUrl() + "/v1/chat/completions");
-        info.setResolvedLlmUrl(vllmConnectionService.getLlmBaseUrl() + "/v1/chat/completions");
-        info.setResolvedEmbeddingUrl(vllmConnectionService.getEmbeddingBaseUrl() + "/v1/embeddings");
-        info.setResolvedRerankUrl(vllmConnectionService.getRerankBaseUrl() + "/rerank");
+        info.setResolvedSllmUrl(vllmConnectionService.getResolvedSllmRequestUrl());
+        info.setResolvedLlmUrl(vllmConnectionService.getResolvedLlmRequestUrl());
+        info.setResolvedEmbeddingUrl(vllmConnectionService.getResolvedEmbeddingRequestUrl());
+        info.setResolvedRerankUrl(vllmConnectionService.getResolvedRerankRequestUrl());
         return info;
     }
 

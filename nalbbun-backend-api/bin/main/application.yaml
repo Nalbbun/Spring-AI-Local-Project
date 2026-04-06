@@ -194,7 +194,7 @@ app:
     request-timeout-ms: ${APP_OLLAMA_REQUEST_TIMEOUT_MS:300000}
     model-source: RUNNING
     default-general-model: ${APP_OLLAMA_GENERAL_MODEL:llama3.1:8b}
-    default-dev-model: ${APP_OLLAMA_DEV_MODEL:llama3.1:8bb}
+    default-dev-model: ${APP_OLLAMA_DEV_MODEL:llama3.1:8b}
     default-mice-model: ${APP_OLLAMA_MICE_MODEL:llama3.1:8b}
     default-travel-search-model: ${APP_OLLAMA_TRAVEL_SEARCH_MODEL:llama3.1:8b}
     default-travel-plan-model: ${APP_OLLAMA_TRAVEL_PLAN_MODEL:llama3.1:8b}

@@ -49,7 +49,7 @@ public class DebugRuntimeVllmConnectionService implements RuntimeVllmConnectionP
             @Value("${app.vllm.key-provider:VLLM}") String defaultKeyProvider,
             @Value("${app.vllm.health-path:/api/info}") String defaultHealthCheckPath,
             @Value("${app.vllm.health-method:GET}") String defaultHealthCheckMethod,
-            @Value("${app.vllm.models-path:/v1/models}") String defaultModelsPath,
+            @Value("${app.vllm.models-path:/api/info}") String defaultModelsPath,
             @Value("${app.vllm.models-method:GET}") String defaultModelsMethod,
             @Value("${app.vllm.sllm-path:/sllm}") String defaultSllmPath,
             @Value("${app.vllm.llm-path:/llm}") String defaultLlmPath,
@@ -65,7 +65,7 @@ public class DebugRuntimeVllmConnectionService implements RuntimeVllmConnectionP
         this.defaultKeyProvider = normalizeProvider(defaultKeyProvider, "VLLM");
         this.defaultHealthCheckPath = normalizePath(defaultHealthCheckPath, "/api/info");
         this.defaultHealthCheckMethod = normalizeMethod(defaultHealthCheckMethod, "GET");
-        this.defaultModelsPath = normalizePath(defaultModelsPath, "/v1/models");
+        this.defaultModelsPath = normalizePath(defaultModelsPath, "/api/info");
         this.defaultModelsMethod = normalizeMethod(defaultModelsMethod, "GET");
         this.defaultSllmPath = normalizePath(defaultSllmPath, "/sllm");
         this.defaultLlmPath = normalizePath(defaultLlmPath, "/llm");
@@ -151,6 +151,7 @@ public class DebugRuntimeVllmConnectionService implements RuntimeVllmConnectionP
         if (v.endsWith("/v1/models")) v = v.substring(0, v.length() - "/v1/models".length());
         if (v.endsWith("/v1/chat/completions")) v = v.substring(0, v.length() - "/v1/chat/completions".length());
         if (v.endsWith("/v1/embeddings")) v = v.substring(0, v.length() - "/v1/embeddings".length());
+        if (v.endsWith("/v1")) v = v.substring(0, v.length() - "/v1".length());
         return v;
     }
     private String normalizePath(String value, String fallback) { String v = safe(value); if (v.isBlank()) v = fallback; return v.startsWith("/") ? v : "/" + v; }

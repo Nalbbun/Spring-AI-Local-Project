@@ -69,8 +69,7 @@ public class RuntimeOllamaVectorStoreFactory {
     private EmbeddingModel createEmbeddingModel() {
         ProviderSelection selection = parseProviderSelection(embeddingModelName);
         if ("VLLM".equals(selection.provider())) {
-            OpenAiApi api = OpenAiApi.builder().baseUrl(vllmConnectionService.getEmbeddingBaseUrl()).apiKey(vllmConnectionService.getResolvedApiKey()).restClientBuilder(runtimeRestClientBuilder()).webClientBuilder(runtimeWebClientBuilder()).build();
-            return new OpenAiEmbeddingModel(api, MetadataMode.NONE, OpenAiEmbeddingOptions.builder().model(selection.model()).build());
+            return new VllmGatewayEmbeddingModel(vllmConnectionService, dimensions, ollamaConnectTimeoutMs, ollamaRequestTimeoutMs);
         }
         if ("OPENAI".equals(selection.provider())) {
             OpenAiApi api = OpenAiApi.builder().baseUrl(sanitizeOpenAiBaseUrl(openAiConnectionService.getBaseUrl())).apiKey(openAiConnectionService.getResolvedApiKey()).restClientBuilder(runtimeRestClientBuilder()).webClientBuilder(runtimeWebClientBuilder()).build();

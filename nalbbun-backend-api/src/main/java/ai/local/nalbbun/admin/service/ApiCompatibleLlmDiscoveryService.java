@@ -30,6 +30,11 @@ public class ApiCompatibleLlmDiscoveryService {
 
     public DebugApiLlmConnectionInfo inspect(String provider, String baseUrl, String apiKey, String keyProvider,
             String defaultModel, String healthCheckPath, String healthCheckMethod, String modelsPath, String modelsMethod) {
+        return inspect(provider, baseUrl, apiKey, keyProvider, defaultModel, healthCheckPath, healthCheckMethod, modelsPath, modelsMethod, false);
+    }
+
+    public DebugApiLlmConnectionInfo inspect(String provider, String baseUrl, String apiKey, String keyProvider,
+            String defaultModel, String healthCheckPath, String healthCheckMethod, String modelsPath, String modelsMethod, boolean skipModelsCheck) {
         DebugApiLlmConnectionInfo info = new DebugApiLlmConnectionInfo();
         info.setProvider(provider); info.setBaseUrl(baseUrl); info.setDefaultModel(defaultModel); info.setKeyProvider(keyProvider);
         info.setKeyResolved(apiKey != null && !apiKey.isBlank());
@@ -43,12 +48,20 @@ public class ApiCompatibleLlmDiscoveryService {
         Map<String, Object> healthBody = null; Map<String, Object> modelsBody = null;
         try { healthBody = exchange(client, info.getHealthCheckMethod(), info.getHealthCheckPath()); info.setHealthCheckOk(true); messages.add("health ok"); }
         catch (Exception e) { info.setHealthCheckOk(false); messages.add("health fail: " + compactMessage(e)); }
-        try { modelsBody = exchange(client, info.getModelsMethod(), info.getModelsPath()); info.setModelsCheckOk(true); messages.add("models ok"); }
-        catch (Exception e) { info.setModelsCheckOk(false); messages.add("models fail: " + compactMessage(e)); }
+        if (skipModelsCheck) {
+            info.setModelsCheckOk(info.isHealthCheckOk());
+            messages.add("models skipped(info 기반 자동설정)");
+        } else {
+            try { modelsBody = exchange(client, info.getModelsMethod(), info.getModelsPath()); info.setModelsCheckOk(true); messages.add("models ok"); }
+            catch (Exception e) { info.setModelsCheckOk(false); messages.add("models fail: " + compactMessage(e)); }
+        }
         List<String> models = new ArrayList<>(); models.addAll(extractModels(modelsBody));
         Map<String,String> infoModels = extractStringMap(healthBody, "models");
         Map<String,String> infoEndpoints = extractStringMap(healthBody, "endpoints");
         info.setInfoModels(infoModels); info.setInfoEndpoints(infoEndpoints); models.addAll(infoModels.values());
+        if ((models == null || models.isEmpty()) && defaultModel != null && !defaultModel.isBlank()) {
+            models.add(defaultModel.trim());
+        }
         info.setAvailableModels(new ArrayList<>(new LinkedHashSet<>(models)));
         info.setModelCount(info.getAvailableModels().size());
         info.setReachable(info.isHealthCheckOk() || info.isModelsCheckOk());

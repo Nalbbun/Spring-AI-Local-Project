@@ -257,6 +257,7 @@ public class RuntimeModelChatService {
         String value = baseUrl == null ? "https://api.openai.com" : baseUrl.trim();
         if (value.isBlank()) return "https://api.openai.com";
         if (value.endsWith("/")) value = value.substring(0, value.length() - 1);
+        if (value.endsWith("/v1/chat/completions")) value = value.substring(0, value.length() - "/v1/chat/completions".length());
         if (value.endsWith("/chat/completions")) value = value.substring(0, value.length() - "/chat/completions".length());
         if (value.endsWith("/v1")) value = value.substring(0, value.length() - 3);
         return value;
